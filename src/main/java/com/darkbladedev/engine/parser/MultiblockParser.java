@@ -2,8 +2,13 @@ package com.darkbladedev.engine.parser;
 
 import com.darkbladedev.engine.MultiBlockEngine;
 import com.darkbladedev.engine.model.BlockMatcher;
+import com.darkbladedev.engine.model.MultiblockState;
 import com.darkbladedev.engine.model.MultiblockType;
 import com.darkbladedev.engine.model.PatternEntry;
+import com.darkbladedev.engine.model.action.Action;
+import com.darkbladedev.engine.model.action.ConsoleCommandAction;
+import com.darkbladedev.engine.model.action.SendMessageAction;
+import com.darkbladedev.engine.model.action.SetStateAction;
 import com.darkbladedev.engine.model.matcher.*;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -62,7 +67,10 @@ public class MultiblockParser {
                 Vector offset = parseVector(map.get("offset"));
                 // Parse matcher
                 BlockMatcher matcher = parseMatcher(map.get("match"));
-                pattern.add(new PatternEntry(offset, matcher));
+                // Parse optional
+                boolean optional = map.containsKey("optional") && Boolean.TRUE.equals(map.get("optional"));
+                
+                pattern.add(new PatternEntry(offset, matcher, optional));
             }
         }
         
@@ -72,7 +80,39 @@ public class MultiblockParser {
             behaviorConfig = config.getConfigurationSection("behavior").getValues(true);
         }
         
-        return new MultiblockType(id, version, new Vector(0, 0, 0), controllerMatcher, pattern, true, behaviorConfig);
+        // Parse Actions
+        List<Action> onCreateActions = parseActions(config, "actions.on_create");
+        List<Action> onTickActions = parseActions(config, "actions.on_tick");
+        
+        int tickInterval = config.getInt("tick_interval", 20);
+        
+        return new MultiblockType(id, version, new Vector(0, 0, 0), controllerMatcher, pattern, true, behaviorConfig, onCreateActions, onTickActions, tickInterval);
+    }
+    
+    private List<Action> parseActions(YamlConfiguration config, String path) {
+        List<Action> actions = new ArrayList<>();
+        if (config.contains(path)) {
+             List<?> actionList = config.getList(path);
+             for (Object obj : actionList) {
+                 if (obj instanceof java.util.Map) {
+                     java.util.Map<?, ?> map = (java.util.Map<?, ?>) obj;
+                     String type = (String) map.get("type");
+                     if ("message".equalsIgnoreCase(type)) {
+                         actions.add(new SendMessageAction((String) map.get("value")));
+                     } else if ("console_command".equalsIgnoreCase(type)) {
+                         actions.add(new ConsoleCommandAction((String) map.get("value")));
+                     } else if ("set_state".equalsIgnoreCase(type)) {
+                         try {
+                             MultiblockState state = MultiblockState.valueOf(((String) map.get("value")).toUpperCase());
+                             actions.add(new SetStateAction(state));
+                         } catch (IllegalArgumentException e) {
+                             MultiBlockEngine.getInstance().getLogger().warning("Invalid state in set_state action: " + map.get("value"));
+                         }
+                     }
+                 }
+             }
+        }
+        return actions;
     }
     
     private Vector parseVector(Object obj) {
@@ -101,6 +141,17 @@ public class MultiblockParser {
                 Tag<Material> tag = Bukkit.getTag(Tag.REGISTRY_BLOCKS, key, Material.class);
                 if (tag == null) throw new IllegalArgumentException("Unknown tag: " + tagName);
                 return new TagMatcher(tag);
+            } else if (s.contains("[")) {
+                // BlockData (e.g. "minecraft:chest[facing=north]")
+                try {
+                    // Normalize input if needed (Bukkit expects "minecraft:name[data]")
+                    // If user provides "CHEST[facing=north]", it might fail if not lowercase/namespaced
+                    // But Bukkit.createBlockData handles standard formats.
+                    org.bukkit.block.data.BlockData data = Bukkit.createBlockData(s.toLowerCase());
+                    return new BlockDataMatcher(data);
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException("Invalid BlockData string: " + s, e);
+                }
             } else {
                 // Material
                 Material mat = Material.matchMaterial(s);

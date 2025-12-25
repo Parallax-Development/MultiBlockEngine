@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'com.darkbladedev.engine'
-version = '0.0.1-alpha'
+version = '0.0.7-alpha'
 
 repositories {
     mavenCentral()

@@ -1,11 +1,21 @@
 package com.darkbladedev.engine.manager;
 
+import com.darkbladedev.engine.MultiBlockEngine;
+import com.darkbladedev.engine.api.event.MultiblockFormEvent;
 import com.darkbladedev.engine.model.MultiblockInstance;
+import com.darkbladedev.engine.model.MultiblockState;
 import com.darkbladedev.engine.model.MultiblockType;
 import com.darkbladedev.engine.model.PatternEntry;
+import com.darkbladedev.engine.model.action.Action;
 import com.darkbladedev.engine.storage.StorageManager;
+
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
+import org.bukkit.block.data.Directional;
+import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
 import java.util.*;
@@ -15,7 +25,12 @@ public class MultiblockManager {
     private final Map<String, MultiblockType> types = new HashMap<>();
     private final Map<Location, MultiblockInstance> activeInstances = new ConcurrentHashMap<>();
     private final Map<Location, MultiblockInstance> blockToInstanceMap = new ConcurrentHashMap<>();
+    private final MetricsManager metrics = new MetricsManager();
     private StorageManager storage;
+    private BukkitTask tickTask;
+    
+    // Supported rotations
+    private static final BlockFace[] ROTATIONS = {BlockFace.NORTH, BlockFace.EAST, BlockFace.SOUTH, BlockFace.WEST};
 
     public void setStorage(StorageManager storage) {
         this.storage = storage;
@@ -26,9 +41,71 @@ public class MultiblockManager {
     }
     
     public void unregisterAll() {
+        if (tickTask != null && !tickTask.isCancelled()) {
+            tickTask.cancel();
+        }
         types.clear();
         activeInstances.clear();
         blockToInstanceMap.clear();
+        metrics.reset();
+    }
+    
+    public void reloadTypes(Collection<MultiblockType> newTypes) {
+        types.clear();
+        for (MultiblockType type : newTypes) {
+            registerType(type);
+        }
+    }
+    
+    public void startTicking(MultiBlockEngine plugin) {
+        // Load config for metrics
+        metrics.setEnabled(plugin.getConfig().getBoolean("metrics", true));
+        
+        // Run every tick (1)
+        tickTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 1L, 1L);
+    }
+    
+    public MetricsManager getMetrics() {
+        return metrics;
+    }
+    
+    private void tick() {
+        long startTime = System.nanoTime();
+        long currentTick = Bukkit.getCurrentTick();
+        
+        for (MultiblockInstance instance : activeInstances.values()) {
+            // Check if active
+            if (instance.state() != MultiblockState.ACTIVE) continue;
+            
+            // Check interval
+            if (currentTick % instance.type().tickInterval() != 0) continue;
+            
+            // Check if should tick (actions exist)
+            if (instance.type().onTickActions().isEmpty()) continue;
+            
+            // Adaptive Ticking: Check player distance
+            // If no player within 64 blocks, skip tick
+            if (!isPlayerNearby(instance.anchorLocation(), 64)) {
+                continue;
+            }
+            
+            // Execute tick actions
+            for (Action action : instance.type().onTickActions()) {
+                action.execute(instance);
+            }
+        }
+        
+        metrics.recordTickTime(System.nanoTime() - startTime);
+    }
+    
+    private boolean isPlayerNearby(Location loc, double radius) {
+        if (loc.getWorld() == null) return false;
+        // Simple optimization: check if chunk is loaded first
+        if (!loc.getChunk().isLoaded()) return false;
+        
+        // getNearbyPlayers is efficient in modern Paper/Spigot
+        Collection<Player> players = loc.getNearbyPlayers(radius);
+        return !players.isEmpty();
     }
     
     public Optional<MultiblockType> getType(String id) {
@@ -41,38 +118,100 @@ public class MultiblockManager {
     
     /**
      * Tries to create a multiblock instance from a controller block.
+     * Handles rotation automatically.
      */
-    public Optional<MultiblockInstance> tryCreate(Block anchor, MultiblockType type) {
+    public Optional<MultiblockInstance> tryCreate(Block anchor, MultiblockType type, Player player) {
         // Check if anchor matches controller matcher
         if (!type.controllerMatcher().matches(anchor)) {
             return Optional.empty();
         }
 
-        // Validate pattern
+        // Determine potential facings
+        List<BlockFace> candidates = new ArrayList<>();
+        
+        // If block is directional, prioritize its facing
+        if (anchor.getBlockData() instanceof Directional directional) {
+            candidates.add(directional.getFacing());
+        } else {
+            // Otherwise, check all 4 cardinal directions
+            Collections.addAll(candidates, ROTATIONS);
+        }
+
+        for (BlockFace facing : candidates) {
+            if (checkPattern(anchor, type, facing)) {
+                 // If valid, create instance with this facing
+                MultiblockInstance instance = new MultiblockInstance(type, anchor.getLocation(), facing);
+                
+                // Fire Event
+                MultiblockFormEvent event = new MultiblockFormEvent(instance, player);
+                Bukkit.getPluginManager().callEvent(event);
+                if (event.isCancelled()) {
+                    return Optional.empty();
+                }
+                
+                registerInstance(instance);
+                
+                // Execute onCreate actions
+                for (Action action : type.onCreateActions()) {
+                    action.execute(instance);
+                }
+                
+                // Save to storage
+                if (storage != null && type.persistent()) {
+                    storage.saveInstance(instance);
+                }
+                
+                return Optional.of(instance);
+            }
+        }
+        
+        return Optional.empty();
+    }
+    
+    private boolean checkPattern(Block anchor, MultiblockType type, BlockFace facing) {
         for (PatternEntry entry : type.pattern()) {
-            Vector offset = entry.offset();
-            Block target = anchor.getRelative(offset.getBlockX(), offset.getBlockY(), offset.getBlockZ());
+            Vector originalOffset = entry.offset();
+            Vector rotatedOffset = rotateVector(originalOffset, facing);
+            
+            Block target = anchor.getRelative(rotatedOffset.getBlockX(), rotatedOffset.getBlockY(), rotatedOffset.getBlockZ());
+            
+            // Chunk Safety Check
+            if (!target.getChunk().isLoaded()) {
+                // If chunk is not loaded, we cannot validate.
+                // Fail creation to prevent loading chunks or working with partial data.
+                return false;
+            }
+
             if (!entry.matcher().matches(target)) {
-                return Optional.empty();
+                // If optional, skip matching failure
+                if (entry.optional()) {
+                    continue;
+                }
+                return false;
             }
-            // Check if block is already part of another instance?
+            // Check overlap
             if (blockToInstanceMap.containsKey(target.getLocation())) {
-                // Overlap detected. Policy?
-                // For now, fail creation.
-                return Optional.empty();
+                return false;
             }
         }
+        return true;
+    }
+    
+    /**
+     * Rotates a vector assuming original is NORTH facing.
+     */
+    private Vector rotateVector(Vector v, BlockFace facing) {
+        int x = v.getBlockX();
+        int y = v.getBlockY();
+        int z = v.getBlockZ();
         
-        // If valid, create instance
-        MultiblockInstance instance = new MultiblockInstance(type, anchor.getLocation());
-        registerInstance(instance);
-        
-        // Save to storage
-        if (storage != null && type.persistent()) {
-            storage.saveInstance(instance);
-        }
-        
-        return Optional.of(instance);
+        return switch (facing) {
+            case NORTH -> new Vector(x, y, z); // No rotation
+            case EAST -> new Vector(-z, y, x); // 90 deg CW
+            case SOUTH -> new Vector(-x, y, -z); // 180 deg
+            case WEST -> new Vector(z, y, -x); // 270 deg CW
+            default -> new Vector(x, y, z);
+        };
     }
     
     public void registerInstance(MultiblockInstance instance) {
@@ -82,7 +221,7 @@ public class MultiblockManager {
         blockToInstanceMap.put(instance.anchorLocation(), instance); 
         
         for (PatternEntry entry : instance.type().pattern()) {
-            Vector offset = entry.offset();
+            Vector offset = rotateVector(entry.offset(), instance.facing());
             Location loc = instance.anchorLocation().clone().add(offset);
             blockToInstanceMap.put(loc, instance);
         }
@@ -91,11 +230,12 @@ public class MultiblockManager {
     public void destroyInstance(MultiblockInstance instance) {
         if (instance == null) return;
         activeInstances.remove(instance.anchorLocation());
+        metrics.incrementDestroyed();
         
         // Unmap blocks
         blockToInstanceMap.remove(instance.anchorLocation());
         for (PatternEntry entry : instance.type().pattern()) {
-            Vector offset = entry.offset();
+            Vector offset = rotateVector(entry.offset(), instance.facing());
             Location loc = instance.anchorLocation().clone().add(offset);
             blockToInstanceMap.remove(loc);
         }
@@ -103,6 +243,34 @@ public class MultiblockManager {
         // Remove from storage
         if (storage != null && instance.type().persistent()) {
             storage.deleteInstance(instance);
+        }
+    }
+    
+    public void updateInstanceState(MultiblockInstance instance, MultiblockState newState) {
+        MultiblockInstance newInstance = instance.withState(newState);
+        activeInstances.put(instance.anchorLocation(), newInstance);
+        
+        // Update references in block map (technically optional if they point to activeInstances but here we store direct ref)
+        // Wait, blockToInstanceMap stores direct reference. We need to update all of them.
+        blockToInstanceMap.put(newInstance.anchorLocation(), newInstance);
+        
+        for (PatternEntry entry : newInstance.type().pattern()) {
+            Vector offset = rotateVector(entry.offset(), newInstance.facing());
+            Location loc = newInstance.anchorLocation().clone().add(offset);
+            blockToInstanceMap.put(loc, newInstance);
+        }
+        
+        // Persist change
+        if (storage != null && newInstance.type().persistent()) {
+            // Usually we'd do an UPDATE, but for now delete/insert is easier or just a specialized update method.
+            // Let's rely on saveInstance doing an INSERT... wait, that would duplicate if ID is auto-inc.
+            // We need an update method in storage, or delete/insert.
+            // Given current SqlStorage implementation, INSERT blindly inserts. 
+            // We should ideally implement updateInstance in storage.
+            // For now, let's just do delete/insert to be safe and lazy, or implement update properly.
+            // Let's Implement update properly in Storage later, for now delete then save.
+            storage.deleteInstance(instance);
+            storage.saveInstance(newInstance);
         }
     }
     

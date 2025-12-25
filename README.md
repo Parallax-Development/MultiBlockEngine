@@ -122,41 +122,41 @@ src/main/java
 The following features are planned for future releases:
 
 1.  **Phase 1: Advanced Matching**
-    - [ ] `BlockState` support (e.g., stairs, slabs).
+    - [x] `BlockState` support (e.g., stairs, slabs).
     - [ ] NBT/Component data matching.
 
 2.  **Phase 2: Condition & Action systems**
-    - [ ] Implement a flexible conditions system for multiblock behavior.
-    - [ ] Add actions to be performed when a structure is valid (e.g., trigger events, run commands).
+    - [x] Implement a flexible conditions system for multiblock behavior.
+    - [x] Add actions to be performed when a structure is valid (e.g., trigger events, run commands).
 
 3.  **Phase 3: Rotation & Symmetry**
-    - [ ] Support for 4-direction horizontal rotation.
-    - [ ] Automatic pattern adjustment based on controller facing.
+    - [x] Support for 4-direction horizontal rotation.
+    - [x] Automatic pattern adjustment based on controller facing.
 
 4.  **Phase 4: Multiblock States**
-    - [ ] Multiblock states (e.g., ACTIVE, DAMAGED, DISABLED, OVERLOADED)
+    - [x] Multiblock states (e.g., ACTIVE, DAMAGED, DISABLED, OVERLOADED)
 
 5.  **Phase 5: Dynamic topology (grow/shrink, mutation)**
-    - [ ] Dynamic structures (growing/shrinking).
-    - [ ] Multi-chunk structure support.
+    - [x] Dynamic structures (optional blocks).
+    - [x] Multi-chunk structure support (Chunk Safety).
 
 6.  **Phase 6: Basic Debugging Tools**
-    - [ ] Add a debug command to inspect multiblock instances.
-    - [ ] Add particle effects for validating patterns.
+    - [x] Add a debug command to inspect multiblock instances.
+    - [x] Add particle effects for validating patterns.
 
 7.  **Phase 7: Advanced Runtime Scaling**
-    - [ ] Cache frequently accessed data (e.g., compiled matchers).
-    - [ ] Batch processing for large-scale operations.
-    - [ ] Memory-efficient data structures.
-    - [ ] Adaptive ticking: priority by player distance, sleep when inactive
+    - [x] Cache frequently accessed data (e.g., compiled matchers).
+    - [x] Batch processing for large-scale operations.
+    - [x] Memory-efficient data structures.
+    - [x] Adaptive ticking: priority by player distance, sleep when inactive
 
 8.  **Phase 8: API & Integration**
-    - [ ] Developer API for custom behaviors.
-    - [ ] Integration with protection plugins (WorldGuard, GriefPrevention).
+    - [x] Developer API for custom behaviors.
+    - [x] Integration with protection plugins (WorldGuard, GriefPrevention) - *Via Events*.
 
 9.  **Phase 9: Advanced Debugging & Monitoring**
-    - [ ] Add debug mode with verbose logging.
-    - [ ] Implement a metrics system (e.g., Prometheus) for performance tracking.
+    - [x] Add debug mode with verbose logging.
+    - [x] Implement a metrics system (e.g., Prometheus) for performance tracking.
 
 10.  **Phase 10: Migration & Compatibility**
     - [ ] Versioning of multiblock definitions.

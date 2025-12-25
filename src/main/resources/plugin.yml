@@ -5,3 +5,13 @@ api-version: 1.20
 authors: [DarkbladeDev]
 description: A performant, extensible, and maintainable multi-block structure system.
 softdepend: [PlaceholderAPI]
+commands:
+  multiblock:
+    description: Main command for MultiBlockEngine
+    aliases: [mb, mbe]
+    permission: multiblockengine.admin
+    usage: /multiblock <subcommand>
+permissions:
+  multiblockengine.admin:
+    description: Allows full access to MultiBlockEngine commands
+    default: op

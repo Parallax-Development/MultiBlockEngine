@@ -1,5 +1,6 @@
 package com.darkbladedev.engine;
 
+import com.darkbladedev.engine.command.MultiblockCommand;
 import com.darkbladedev.engine.listener.MultiblockListener;
 import com.darkbladedev.engine.manager.MultiblockManager;
 import com.darkbladedev.engine.model.MultiblockInstance;
@@ -29,6 +30,9 @@ public class MultiBlockEngine extends JavaPlugin {
         if (!getDataFolder().exists()) {
             getDataFolder().mkdirs();
         }
+        
+        // Save default config
+        saveDefaultConfig();
 
         // Initialize components
         manager = new MultiblockManager();
@@ -62,6 +66,14 @@ public class MultiBlockEngine extends JavaPlugin {
         // Register Listeners
         getServer().getPluginManager().registerEvents(new MultiblockListener(manager), this);
         
+        // Register Commands
+        MultiblockCommand cmd = new MultiblockCommand(this);
+        getCommand("multiblock").setExecutor(cmd);
+        getCommand("multiblock").setTabCompleter(cmd);
+        
+        // Start Ticking
+        manager.startTicking(this);
+        
         getLogger().info("MultiBlockEngine enabled with " + types.size() + " types.");
     }
 
@@ -82,5 +94,9 @@ public class MultiBlockEngine extends JavaPlugin {
     
     public MultiblockManager getManager() {
         return manager;
+    }
+    
+    public MultiblockParser getParser() {
+        return parser;
     }
 }

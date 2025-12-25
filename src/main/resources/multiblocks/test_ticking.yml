@@ -1,0 +1,14 @@
+id: ticking_beacon
+version: 1.0
+controller:
+  block: BEACON
+pattern:
+  - offset: [0, -1, 0]
+    match: IRON_BLOCK
+tick_interval: 20 # Every 1 second
+actions:
+  on_tick:
+    - type: message
+      value: "&eBeacon is running at %x%, %y%, %z%"
+    - type: console_command
+      value: "particle composter %x% %y% %z% 0.5 0.5 0.5 0 5"

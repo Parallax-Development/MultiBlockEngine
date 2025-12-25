@@ -1,0 +1,9 @@
+id: complex_furnace
+version: 1.0
+controller:
+  block: "minecraft:furnace[facing=north]"
+pattern:
+  - offset: [0, 1, 0]
+    match: "minecraft:stone_brick_stairs[facing=north,half=bottom]"
+behavior:
+  type: "machine"

@@ -3,12 +3,14 @@ package com.darkbladedev.engine.storage;
 import com.darkbladedev.engine.MultiBlockEngine;
 import com.darkbladedev.engine.manager.MultiblockManager;
 import com.darkbladedev.engine.model.MultiblockInstance;
+import com.darkbladedev.engine.model.MultiblockState;
 import com.darkbladedev.engine.model.MultiblockType;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.block.BlockFace;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -41,19 +43,56 @@ public class SqlStorage implements StorageManager {
         dataSource = new HikariDataSource(config);
 
         try (Connection conn = dataSource.getConnection()) {
+            // Version Table
             try (PreparedStatement ps = conn.prepareStatement(
-                    "CREATE TABLE IF NOT EXISTS multiblock_instances (" +
-                            "id INTEGER PRIMARY KEY AUTOINCREMENT," +
-                            "type_id VARCHAR(64) NOT NULL," +
-                            "world VARCHAR(64) NOT NULL," +
-                            "x INT NOT NULL," +
-                            "y INT NOT NULL," +
-                            "z INT NOT NULL" +
-                            ");")) {
+                    "CREATE TABLE IF NOT EXISTS schema_version (version INT NOT NULL);")) {
                 ps.execute();
             }
+            
+            // Check current version
+            int currentVersion = 0;
+            try (PreparedStatement ps = conn.prepareStatement("SELECT version FROM schema_version LIMIT 1");
+                 ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    currentVersion = rs.getInt("version");
+                } else {
+                    // Initialize if empty
+                     try (PreparedStatement insert = conn.prepareStatement("INSERT INTO schema_version (version) VALUES (0)")) {
+                         insert.execute();
+                     }
+                }
+            }
+            
+            // Run Migrations
+            if (currentVersion < 1) {
+                 try (PreparedStatement ps = conn.prepareStatement(
+                        "CREATE TABLE IF NOT EXISTS multiblock_instances (" +
+                                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                                "type_id VARCHAR(64) NOT NULL," +
+                                "world VARCHAR(64) NOT NULL," +
+                                "x INT NOT NULL," +
+                                "y INT NOT NULL," +
+                                "z INT NOT NULL," +
+                                "facing VARCHAR(16) NOT NULL DEFAULT 'NORTH'," +
+                                "state VARCHAR(16) NOT NULL DEFAULT 'ACTIVE'" +
+                                ");")) {
+                    ps.execute();
+                }
+                updateVersion(conn, 1);
+            }
+            
+            // Example Migration v2: Add custom_data column (future proofing)
+            // if (currentVersion < 2) { ... updateVersion(conn, 2); }
+            
         } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Could not initialize database", e);
+        }
+    }
+    
+    private void updateVersion(Connection conn, int newVersion) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("UPDATE schema_version SET version = ?")) {
+            ps.setInt(1, newVersion);
+            ps.executeUpdate();
         }
     }
 
@@ -72,12 +111,13 @@ public class SqlStorage implements StorageManager {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try (Connection conn = dataSource.getConnection();
                  PreparedStatement ps = conn.prepareStatement(
-                         "INSERT INTO multiblock_instances (type_id, world, x, y, z) VALUES (?, ?, ?, ?, ?)")) {
+                         "INSERT INTO multiblock_instances (type_id, world, x, y, z, facing) VALUES (?, ?, ?, ?, ?, ?)")) {
                 ps.setString(1, instance.type().id());
                 ps.setString(2, instance.anchorLocation().getWorld().getName());
                 ps.setInt(3, instance.anchorLocation().getBlockX());
                 ps.setInt(4, instance.anchorLocation().getBlockY());
                 ps.setInt(5, instance.anchorLocation().getBlockZ());
+                ps.setString(6, instance.facing().name());
                 ps.executeUpdate();
             } catch (SQLException e) {
                 plugin.getLogger().log(Level.SEVERE, "Failed to save multiblock instance", e);
@@ -120,6 +160,8 @@ public class SqlStorage implements StorageManager {
                 int x = rs.getInt("x");
                 int y = rs.getInt("y");
                 int z = rs.getInt("z");
+                String facingName = rs.getString("facing");
+                String stateName = rs.getString("state");
                 
                 World world = Bukkit.getWorld(worldName);
                 if (world == null) continue; // World not loaded
@@ -130,8 +172,29 @@ public class SqlStorage implements StorageManager {
                     continue;
                 }
                 
+                MultiblockType type = typeOpt.get();
+                // Check Version (Assuming we save version in DB too? For now we don't, but we could add it to V2 migration)
+                // For now, let's just warn if the definition version seems "too new" (not possible to check without saving old version)
+                // In a real scenario, we'd save 'definition_version' in DB.
+                
                 Location loc = new Location(world, x, y, z);
-                instances.add(new MultiblockInstance(typeOpt.get(), loc));
+                BlockFace facing = BlockFace.NORTH;
+                try {
+                    facing = BlockFace.valueOf(facingName);
+                } catch (IllegalArgumentException ignored) {
+                    plugin.getLogger().warning("Invalid facing in DB: " + facingName);
+                }
+                
+                MultiblockState state = MultiblockState.ACTIVE;
+                try {
+                    if (stateName != null) {
+                        state = MultiblockState.valueOf(stateName);
+                    }
+                } catch (IllegalArgumentException ignored) {
+                    plugin.getLogger().warning("Invalid state in DB: " + stateName);
+                }
+                
+                instances.add(new MultiblockInstance(typeOpt.get(), loc, facing, state));
             }
         } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to load multiblock instances", e);

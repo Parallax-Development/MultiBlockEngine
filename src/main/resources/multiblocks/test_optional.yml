@@ -1,0 +1,10 @@
+id: optional_structure
+version: 1.0
+controller:
+  block: GOLD_BLOCK
+pattern:
+  - offset: [0, 1, 0]
+    match: IRON_BLOCK
+  - offset: [0, 2, 0]
+    match: DIAMOND_BLOCK
+    optional: true

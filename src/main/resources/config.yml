@@ -1,0 +1,11 @@
+# MultiBlockEngine Configuration
+
+# Enable debug mode to see verbose logging in console
+debug: false
+
+# Enable performance metrics collection
+metrics: true
+
+# Database configuration (for future use if we switch from internal SQLite)
+database:
+  type: sqlite

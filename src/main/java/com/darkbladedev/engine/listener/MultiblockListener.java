@@ -1,8 +1,11 @@
 package com.darkbladedev.engine.listener;
 
+import com.darkbladedev.engine.api.event.MultiblockInteractEvent;
 import com.darkbladedev.engine.manager.MultiblockManager;
 import com.darkbladedev.engine.model.MultiblockInstance;
 import com.darkbladedev.engine.model.MultiblockType;
+
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -31,7 +34,20 @@ public class MultiblockListener implements Listener {
     
     @EventHandler
     public void onInteract(PlayerInteractEvent event) {
-        if (event.getAction() == Action.RIGHT_CLICK_BLOCK && event.getClickedBlock() != null) {
+        if (event.getClickedBlock() == null) return;
+        
+        // Check if interacting with existing structure
+        Optional<MultiblockInstance> instanceOpt = manager.getInstanceAt(event.getClickedBlock().getLocation());
+        if (instanceOpt.isPresent()) {
+             MultiblockInteractEvent mbEvent = new MultiblockInteractEvent(instanceOpt.get(), event.getPlayer(), event.getAction(), event.getClickedBlock());
+             Bukkit.getPluginManager().callEvent(mbEvent);
+             if (mbEvent.isCancelled()) {
+                 event.setCancelled(true);
+                 return;
+             }
+        }
+        
+        if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
             checkController(event.getClickedBlock(), event.getPlayer());
         }
     }
@@ -48,7 +64,7 @@ public class MultiblockListener implements Listener {
                     continue; // Already active
                 }
                 
-                Optional<MultiblockInstance> instance = manager.tryCreate(block, type);
+                Optional<MultiblockInstance> instance = manager.tryCreate(block, type, player);
                 if (instance.isPresent()) {
                     if (player != null) {
                         player.sendMessage(ChatColor.GREEN + "Structure formed: " + type.id());
@@ -65,7 +81,7 @@ public class MultiblockListener implements Listener {
         Optional<MultiblockInstance> instance = manager.getInstanceAt(block.getLocation());
         if (instance.isPresent()) {
             manager.destroyInstance(instance.get());
-            event.getPlayer().sendMessage(ChatColor.RED + "Structure invalidated: " + instance.get().type().id());
+            event.getPlayer().sendMessage(ChatColor.RED + "Structure destroyed: " + instance.get().type().id());
         }
     }
 }
