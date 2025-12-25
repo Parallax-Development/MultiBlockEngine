@@ -1,0 +1,10 @@
+id: example_portal
+version: 1.0
+controller: DIAMOND_BLOCK
+pattern:
+  - offset: [0, 1, 0]
+    match: OBSIDIAN
+  - offset: [0, 2, 0]
+    match: OBSIDIAN
+  - offset: [0, 3, 0]
+    match: OBSIDIAN

@@ -1,0 +1,7 @@
+name: MultiBlockEngine
+version: ${version}
+main: com.darkbladedev.engine.MultiBlockEngine
+api-version: 1.20
+authors: [DarkbladeDev]
+description: A performant, extensible, and maintainable multi-block structure system.
+softdepend: [PlaceholderAPI]
