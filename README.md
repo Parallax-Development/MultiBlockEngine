@@ -36,9 +36,8 @@ Structures are defined in `plugins/MultiBlockEngine/multiblocks/`.
 id: simple_core
 version: 1.0
 
-controller:
-  # The anchor block that triggers detection
-  block: DIAMOND_BLOCK
+# The anchor block that triggers detection
+controller: DIAMOND_BLOCK
 
 pattern:
   # Relative offsets from the controller (x, y, z)
