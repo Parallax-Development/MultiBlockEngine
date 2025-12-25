@@ -121,21 +121,47 @@ src/main/java
 
 The following features are planned for future releases:
 
-1.  **Phase 1: Condition & Action systems**
-    - [ ] Implement a flexible condition system to control when a structure is valid.
-    - [ ] Add actions to be performed when a structure is valid (e.g., trigger events, run commands).
-
-2.  **Phase 2: Advanced Matching**
+1.  **Phase 1: Advanced Matching**
     - [ ] `BlockState` support (e.g., stairs, slabs).
     - [ ] NBT/Component data matching.
 
-3.  **Phase 3: Dynamic Features**
+2.  **Phase 2: Condition & Action systems**
+    - [ ] Implement a flexible conditions system for multiblock behavior.
+    - [ ] Add actions to be performed when a structure is valid (e.g., trigger events, run commands).
+
+3.  **Phase 3: Rotation & Symmetry**
+    - [ ] Support for 4-direction horizontal rotation.
+    - [ ] Automatic pattern adjustment based on controller facing.
+
+4.  **Phase 4: Multiblock States**
+    - [ ] Multiblock states (e.g., ACTIVE, DAMAGED, DISABLED, OVERLOADED)
+
+5.  **Phase 5: Dynamic topology (grow/shrink, mutation)**
     - [ ] Dynamic structures (growing/shrinking).
     - [ ] Multi-chunk structure support.
 
-4.  **Phase 4: API & Integration**
+6.  **Phase 6: Basic Debugging Tools**
+    - [ ] Add a debug command to inspect multiblock instances.
+    - [ ] Add particle effects for validating patterns.
+
+7.  **Phase 7: Advanced Runtime Scaling**
+    - [ ] Cache frequently accessed data (e.g., compiled matchers).
+    - [ ] Batch processing for large-scale operations.
+    - [ ] Memory-efficient data structures.
+    - [ ] Adaptive ticking: priority by player distance, sleep when inactive
+
+8.  **Phase 8: API & Integration**
     - [ ] Developer API for custom behaviors.
     - [ ] Integration with protection plugins (WorldGuard, GriefPrevention).
+
+9.  **Phase 9: Advanced Debugging & Monitoring**
+    - [ ] Add debug mode with verbose logging.
+    - [ ] Implement a metrics system (e.g., Prometheus) for performance tracking.
+
+10.  **Phase 10: Migration & Compatibility**
+    - [ ] Versioning of multiblock definitions.
+    - [ ] Automated migrator for existing structures.
+    - [ ] Clear warnings for incompatible changes.
 
 ---
 
