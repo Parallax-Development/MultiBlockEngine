@@ -26,6 +26,7 @@ public class MultiblockManager {
     private final Map<Location, MultiblockInstance> activeInstances = new ConcurrentHashMap<>();
     private final Map<Location, MultiblockInstance> blockToInstanceMap = new ConcurrentHashMap<>();
     private final MetricsManager metrics = new MetricsManager();
+    private final HologramManager holograms = new HologramManager();
     private StorageManager storage;
     private BukkitTask tickTask;
     
@@ -42,6 +43,7 @@ public class MultiblockManager {
     
     public void unregisterAll() {
         stopTicking();
+        holograms.removeAll();
         types.clear();
         activeInstances.clear();
         blockToInstanceMap.clear();
@@ -169,6 +171,8 @@ public class MultiblockManager {
                     storage.saveInstance(instance);
                 }
                 
+                holograms.spawnHologram(instance);
+                
                 return Optional.of(instance);
             }
         }
@@ -233,6 +237,7 @@ public class MultiblockManager {
             Location loc = instance.anchorLocation().clone().add(offset);
             blockToInstanceMap.put(loc, instance);
         }
+        holograms.spawnHologram(instance);
     }
     
     public void destroyInstance(MultiblockInstance instance) {
@@ -247,6 +252,8 @@ public class MultiblockManager {
             Location loc = instance.anchorLocation().clone().add(offset);
             blockToInstanceMap.remove(loc);
         }
+        
+        holograms.removeHologram(instance);
         
         // Remove from storage
         if (storage != null && instance.type().persistent()) {

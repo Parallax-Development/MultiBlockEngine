@@ -2,6 +2,11 @@ id: mana_generator
 version: 1.0
 tick_interval: 20 # 1 second
 
+display_name:
+  text: "&6✨ Mana Generator &6✨"
+  visible: true
+  display_method: hologram
+
 # Structure Controller: Diamond Block
 controller: DIAMOND_BLOCK
 
@@ -61,6 +66,19 @@ actions:
       value: 0
 
   on_interact:
+    - type: title
+      title: "&e¡Activado!"
+      subtitle: "Generando maná..."
+      target: trigger
+      
+    - type: spawn_item
+      material: DIAMOND
+      amount: 1
+      offset: [0, 2, 0]
+      
+    - type: actionbar
+      message: "&aNivel de maná: <variable:mana>"
+      target: "nearby:10"
     # Check permissions with feedback using Conditional Action
     - type: conditional
       conditions:

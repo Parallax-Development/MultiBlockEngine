@@ -19,6 +19,7 @@ public record MultiblockType(
     List<Action> onTickActions,
     List<Action> onInteractActions,
     List<Action> onBreakActions,
+    DisplayNameConfig displayName,
     int tickInterval
 ) {
     public MultiblockType {

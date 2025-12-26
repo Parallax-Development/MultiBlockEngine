@@ -25,9 +25,16 @@ import org.bukkit.Tag;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.util.Vector;
 
+import com.darkbladedev.engine.model.action.ActionBarAction;
 import com.darkbladedev.engine.model.action.ConditionalAction;
+import com.darkbladedev.engine.model.action.SpawnEntityAction;
+import com.darkbladedev.engine.model.action.SpawnItemAction;
+import com.darkbladedev.engine.model.action.TeleportAction;
+import com.darkbladedev.engine.model.action.TitleAction;
 
 import com.darkbladedev.engine.api.impl.MultiblockAPIImpl;
+
+import com.darkbladedev.engine.model.DisplayNameConfig;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -94,6 +101,38 @@ public class MultiblockParser {
             }
             
             return new ConditionalAction(conditions, thenActions, elseActions);
+        });
+        
+        api.registerAction("spawn_item", map -> {
+            Material mat = Material.matchMaterial((String) map.get("material"));
+            int amount = (int) map.getOrDefault("amount", 1);
+            Vector offset = parseVector(map.getOrDefault("offset", List.of(0, 1, 0)));
+            return new SpawnItemAction(mat, amount, offset);
+        });
+        
+        api.registerAction("spawn_entity", map -> {
+            org.bukkit.entity.EntityType type = org.bukkit.entity.EntityType.valueOf(((String) map.get("entity_type")).toUpperCase());
+            Vector offset = parseVector(map.getOrDefault("offset", List.of(0, 1, 0)));
+            String name = (String) map.get("name");
+            return new SpawnEntityAction(type, offset, name);
+        });
+        
+        api.registerAction("title", map -> {
+            String title = (String) map.getOrDefault("title", "");
+            String subtitle = (String) map.getOrDefault("subtitle", "");
+            int fadeIn = (int) map.getOrDefault("fade_in", 10);
+            int stay = (int) map.getOrDefault("stay", 70);
+            int fadeOut = (int) map.getOrDefault("fade_out", 20);
+            Object target = map.get("target");
+            return new TitleAction(title, subtitle, fadeIn, stay, fadeOut, target);
+        });
+        
+        api.registerAction("actionbar", map -> new ActionBarAction((String) map.get("message"), map.get("target")));
+        
+        api.registerAction("teleport", map -> {
+            Vector offset = parseVector(map.getOrDefault("offset", List.of(0, 0, 0)));
+            Object target = map.get("target");
+            return new TeleportAction(offset, target);
         });
         
         // Conditions
@@ -180,9 +219,23 @@ public class MultiblockParser {
         List<Action> onInteractActions = parseActions(config, "actions.on_interact");
         List<Action> onBreakActions = parseActions(config, "actions.on_break");
         
+        DisplayNameConfig displayName = null;
+        if (config.contains("display_name")) {
+            if (config.isConfigurationSection("display_name")) {
+                org.bukkit.configuration.ConfigurationSection section = config.getConfigurationSection("display_name");
+                String text = section.getString("text");
+                boolean visible = section.getBoolean("visible", true);
+                String method = section.getString("display_method", "hologram");
+                displayName = new DisplayNameConfig(text, visible, method);
+            } else {
+                // String sugar
+                displayName = new DisplayNameConfig(config.getString("display_name"), true, "hologram");
+            }
+        }
+        
         int tickInterval = config.getInt("tick_interval", 20);
         
-        return new MultiblockType(id, version, new Vector(0, 0, 0), controllerMatcher, pattern, true, behaviorConfig, defaultVariables, onCreateActions, onTickActions, onInteractActions, onBreakActions, tickInterval);
+        return new MultiblockType(id, version, new Vector(0, 0, 0), controllerMatcher, pattern, true, behaviorConfig, defaultVariables, onCreateActions, onTickActions, onInteractActions, onBreakActions, displayName, tickInterval);
     }
     
     private List<Action> parseActions(YamlConfiguration config, String path) {
