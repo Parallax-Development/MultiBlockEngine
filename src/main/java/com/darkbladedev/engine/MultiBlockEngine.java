@@ -103,6 +103,10 @@ public class MultiBlockEngine extends JavaPlugin {
         return manager;
     }
     
+    public StorageManager getStorage() {
+        return storage;
+    }
+    
     public MultiblockParser getParser() {
         return parser;
     }

@@ -247,30 +247,15 @@ public class MultiblockManager {
     }
     
     public void updateInstanceState(MultiblockInstance instance, MultiblockState newState) {
-        MultiblockInstance newInstance = instance.withState(newState);
-        activeInstances.put(instance.anchorLocation(), newInstance);
-        
-        // Update references in block map (technically optional if they point to activeInstances but here we store direct ref)
-        // Wait, blockToInstanceMap stores direct reference. We need to update all of them.
-        blockToInstanceMap.put(newInstance.anchorLocation(), newInstance);
-        
-        for (PatternEntry entry : newInstance.type().pattern()) {
-            Vector offset = rotateVector(entry.offset(), newInstance.facing());
-            Location loc = newInstance.anchorLocation().clone().add(offset);
-            blockToInstanceMap.put(loc, newInstance);
-        }
+        instance.setState(newState);
+        // Since MultiblockInstance is now mutable for state/variables, we don't need to replace it in maps.
+        // We just need to persist the change.
         
         // Persist change
-        if (storage != null && newInstance.type().persistent()) {
-            // Usually we'd do an UPDATE, but for now delete/insert is easier or just a specialized update method.
-            // Let's rely on saveInstance doing an INSERT... wait, that would duplicate if ID is auto-inc.
-            // We need an update method in storage, or delete/insert.
-            // Given current SqlStorage implementation, INSERT blindly inserts. 
-            // We should ideally implement updateInstance in storage.
-            // For now, let's just do delete/insert to be safe and lazy, or implement update properly.
-            // Let's Implement update properly in Storage later, for now delete then save.
+        if (storage != null && instance.type().persistent()) {
+            // Delete and re-save to update state in DB (inefficient but works for now)
             storage.deleteInstance(instance);
-            storage.saveInstance(newInstance);
+            storage.saveInstance(instance);
         }
     }
     

@@ -39,11 +39,17 @@ public class MultiblockListener implements Listener {
         // Check if interacting with existing structure
         Optional<MultiblockInstance> instanceOpt = manager.getInstanceAt(event.getClickedBlock().getLocation());
         if (instanceOpt.isPresent()) {
-             MultiblockInteractEvent mbEvent = new MultiblockInteractEvent(instanceOpt.get(), event.getPlayer(), event.getAction(), event.getClickedBlock());
+             MultiblockInstance instance = instanceOpt.get();
+             MultiblockInteractEvent mbEvent = new MultiblockInteractEvent(instance, event.getPlayer(), event.getAction(), event.getClickedBlock());
              Bukkit.getPluginManager().callEvent(mbEvent);
              if (mbEvent.isCancelled()) {
                  event.setCancelled(true);
                  return;
+             }
+             
+             // Execute Interact Actions
+             for (com.darkbladedev.engine.model.action.Action action : instance.type().onInteractActions()) {
+                 action.execute(instance);
              }
         }
         
@@ -78,10 +84,17 @@ public class MultiblockListener implements Listener {
     @EventHandler
     public void onBlockBreak(BlockBreakEvent event) {
         Block block = event.getBlock();
-        Optional<MultiblockInstance> instance = manager.getInstanceAt(block.getLocation());
-        if (instance.isPresent()) {
-            manager.destroyInstance(instance.get());
-            event.getPlayer().sendMessage(ChatColor.RED + "Structure destroyed: " + instance.get().type().id());
+        Optional<MultiblockInstance> instanceOpt = manager.getInstanceAt(block.getLocation());
+        if (instanceOpt.isPresent()) {
+            MultiblockInstance instance = instanceOpt.get();
+            
+            // Execute Break Actions
+            for (com.darkbladedev.engine.model.action.Action action : instance.type().onBreakActions()) {
+                action.execute(instance);
+            }
+            
+            manager.destroyInstance(instance);
+            event.getPlayer().sendMessage(ChatColor.RED + "Structure destroyed: " + instance.type().id());
         }
     }
 }

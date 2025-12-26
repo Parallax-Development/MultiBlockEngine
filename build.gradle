@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'com.darkbladedev.engine'
-version = '0.0.8-beta'
+version = '0.0.9-beta'
 
 repositories {
     mavenCentral()
@@ -26,8 +26,10 @@ dependencies {
     compileOnly 'me.clip:placeholderapi:2.11.5'
 
     implementation "com.zaxxer:HikariCP:5.1.0"
+    implementation 'com.google.code.gson:gson:2.10.1'
 
     shadow "com.zaxxer:HikariCP:5.1.0"
+    shadow 'com.google.code.gson:gson:2.10.1'
 }
 
 def targetJavaVersion = 21
@@ -59,6 +61,7 @@ processResources {
 shadowJar {
     archiveClassifier.set('')
     relocate 'com.zaxxer.hikari', 'com.darkbladedev.engine.libs.hikari'
+    relocate 'com.google.gson', 'com.darkbladedev.engine.libs.gson'
 }
 
 build.dependsOn shadowJar

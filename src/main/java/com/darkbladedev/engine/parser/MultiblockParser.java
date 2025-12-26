@@ -9,6 +9,9 @@ import com.darkbladedev.engine.model.action.Action;
 import com.darkbladedev.engine.model.action.ConsoleCommandAction;
 import com.darkbladedev.engine.model.action.SendMessageAction;
 import com.darkbladedev.engine.model.action.SetStateAction;
+import com.darkbladedev.engine.model.condition.Condition;
+import com.darkbladedev.engine.model.condition.StateCondition;
+import com.darkbladedev.engine.model.condition.VariableCondition;
 import com.darkbladedev.engine.model.matcher.*;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -80,13 +83,21 @@ public class MultiblockParser {
             behaviorConfig = config.getConfigurationSection("behavior").getValues(true);
         }
         
+        // Parse default variables
+        java.util.Map<String, Object> defaultVariables = new java.util.HashMap<>();
+        if (config.isConfigurationSection("variables")) {
+            defaultVariables = config.getConfigurationSection("variables").getValues(false);
+        }
+        
         // Parse Actions
         List<Action> onCreateActions = parseActions(config, "actions.on_create");
         List<Action> onTickActions = parseActions(config, "actions.on_tick");
+        List<Action> onInteractActions = parseActions(config, "actions.on_interact");
+        List<Action> onBreakActions = parseActions(config, "actions.on_break");
         
         int tickInterval = config.getInt("tick_interval", 20);
         
-        return new MultiblockType(id, version, new Vector(0, 0, 0), controllerMatcher, pattern, true, behaviorConfig, onCreateActions, onTickActions, tickInterval);
+        return new MultiblockType(id, version, new Vector(0, 0, 0), controllerMatcher, pattern, true, behaviorConfig, defaultVariables, onCreateActions, onTickActions, onInteractActions, onBreakActions, tickInterval);
     }
     
     private List<Action> parseActions(YamlConfiguration config, String path) {
@@ -96,17 +107,48 @@ public class MultiblockParser {
              for (Object obj : actionList) {
                  if (obj instanceof java.util.Map) {
                      java.util.Map<?, ?> map = (java.util.Map<?, ?>) obj;
+                     
+                     // Parse conditions if present
+                     List<Condition> conditions = new ArrayList<>();
+                     if (map.containsKey("conditions")) {
+                         List<?> condList = (List<?>) map.get("conditions");
+                         for (Object condObj : condList) {
+                             if (condObj instanceof java.util.Map) {
+                                 java.util.Map<?, ?> condMap = (java.util.Map<?, ?>) condObj;
+                                 String condType = (String) condMap.get("type");
+                                 
+                                 if ("state".equalsIgnoreCase(condType)) {
+                                     conditions.add(new StateCondition(MultiblockState.valueOf((String) condMap.get("value"))));
+                                 } else if ("variable".equalsIgnoreCase(condType)) {
+                                     conditions.add(new VariableCondition((String) condMap.get("key"), condMap.get("value")));
+                                 }
+                             }
+                         }
+                     }
+                     
                      String type = (String) map.get("type");
+                     Action action = null;
+                     
                      if ("message".equalsIgnoreCase(type)) {
-                         actions.add(new SendMessageAction((String) map.get("value")));
-                     } else if ("console_command".equalsIgnoreCase(type)) {
-                         actions.add(new ConsoleCommandAction((String) map.get("value")));
+                         action = new SendMessageAction((String) map.get("value"));
+                     } else if ("command".equalsIgnoreCase(type)) {
+                         action = new ConsoleCommandAction((String) map.get("value"));
                      } else if ("set_state".equalsIgnoreCase(type)) {
-                         try {
-                             MultiblockState state = MultiblockState.valueOf(((String) map.get("value")).toUpperCase());
-                             actions.add(new SetStateAction(state));
-                         } catch (IllegalArgumentException e) {
-                             MultiBlockEngine.getInstance().getLogger().warning("Invalid state in set_state action: " + map.get("value"));
+                         action = new SetStateAction(MultiblockState.valueOf((String) map.get("value")));
+                     }
+                     
+                     if (action != null) {
+                         // Wrap with conditions if any
+                         if (!conditions.isEmpty()) {
+                             Action finalAction = action;
+                             actions.add(instance -> {
+                                 for (Condition c : conditions) {
+                                     if (!c.check(instance)) return;
+                                 }
+                                 finalAction.execute(instance);
+                             });
+                         } else {
+                             actions.add(action);
                          }
                      }
                  }

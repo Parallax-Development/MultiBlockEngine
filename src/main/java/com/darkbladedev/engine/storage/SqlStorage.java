@@ -16,16 +16,23 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.logging.Level;
+import java.lang.reflect.Type;
 
 public class SqlStorage implements StorageManager {
 
     private final MultiBlockEngine plugin;
     private HikariDataSource dataSource;
+    private final Gson gson = new Gson();
 
     public SqlStorage(MultiBlockEngine plugin) {
         this.plugin = plugin;
@@ -81,8 +88,13 @@ public class SqlStorage implements StorageManager {
                 updateVersion(conn, 1);
             }
             
-            // Example Migration v2: Add custom_data column (future proofing)
-            // if (currentVersion < 2) { ... updateVersion(conn, 2); }
+            if (currentVersion < 2) {
+                 try (PreparedStatement ps = conn.prepareStatement(
+                        "ALTER TABLE multiblock_instances ADD COLUMN variables TEXT DEFAULT '{}'")) {
+                    ps.execute();
+                }
+                updateVersion(conn, 2);
+            }
             
         } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Could not initialize database", e);
@@ -111,13 +123,14 @@ public class SqlStorage implements StorageManager {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try (Connection conn = dataSource.getConnection();
                  PreparedStatement ps = conn.prepareStatement(
-                         "INSERT INTO multiblock_instances (type_id, world, x, y, z, facing) VALUES (?, ?, ?, ?, ?, ?)")) {
+                         "INSERT INTO multiblock_instances (type_id, world, x, y, z, facing, variables) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
                 ps.setString(1, instance.type().id());
                 ps.setString(2, instance.anchorLocation().getWorld().getName());
                 ps.setInt(3, instance.anchorLocation().getBlockX());
                 ps.setInt(4, instance.anchorLocation().getBlockY());
                 ps.setInt(5, instance.anchorLocation().getBlockZ());
                 ps.setString(6, instance.facing().name());
+                ps.setString(7, gson.toJson(instance.getVariables()));
                 ps.executeUpdate();
             } catch (SQLException e) {
                 plugin.getLogger().log(Level.SEVERE, "Failed to save multiblock instance", e);
@@ -162,6 +175,7 @@ public class SqlStorage implements StorageManager {
                 int z = rs.getInt("z");
                 String facingName = rs.getString("facing");
                 String stateName = rs.getString("state");
+                String variablesJson = rs.getString("variables");
                 
                 World world = Bukkit.getWorld(worldName);
                 if (world == null) continue; // World not loaded
@@ -171,11 +185,6 @@ public class SqlStorage implements StorageManager {
                     plugin.getLogger().warning("Unknown multiblock type in DB: " + typeId);
                     continue;
                 }
-                
-                MultiblockType type = typeOpt.get();
-                // Check Version (Assuming we save version in DB too? For now we don't, but we could add it to V2 migration)
-                // For now, let's just warn if the definition version seems "too new" (not possible to check without saving old version)
-                // In a real scenario, we'd save 'definition_version' in DB.
                 
                 Location loc = new Location(world, x, y, z);
                 BlockFace facing = BlockFace.NORTH;
@@ -194,7 +203,16 @@ public class SqlStorage implements StorageManager {
                     plugin.getLogger().warning("Invalid state in DB: " + stateName);
                 }
                 
-                instances.add(new MultiblockInstance(typeOpt.get(), loc, facing, state));
+                Map<String, Object> variables = new HashMap<>();
+                if (variablesJson != null && !variablesJson.isEmpty() && !variablesJson.equals("{}")) {
+                     Type mapType = new TypeToken<Map<String, Object>>(){}.getType();
+                     variables = gson.fromJson(variablesJson, mapType);
+                     
+                     // GSON parses numbers as Double by default, we might need to fix integers later if strict typing is required.
+                     // For now, it's fine.
+                }
+                
+                instances.add(new MultiblockInstance(typeOpt.get(), loc, facing, state, variables));
             }
         } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to load multiblock instances", e);
