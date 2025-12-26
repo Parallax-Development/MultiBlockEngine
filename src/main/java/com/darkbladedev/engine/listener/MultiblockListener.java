@@ -53,7 +53,7 @@ public class MultiblockListener implements Listener {
              
              // Execute Interact Actions
              for (com.darkbladedev.engine.model.action.Action action : instance.type().onInteractActions()) {
-                 action.execute(instance);
+                 action.execute(instance, event.getPlayer());
              }
         }
         

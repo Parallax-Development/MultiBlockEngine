@@ -2,6 +2,7 @@ package com.darkbladedev.engine.parser;
 
 import com.darkbladedev.engine.MultiBlockEngine;
 import com.darkbladedev.engine.model.BlockMatcher;
+import com.darkbladedev.engine.model.MultiblockInstance;
 import com.darkbladedev.engine.model.MultiblockState;
 import com.darkbladedev.engine.model.MultiblockType;
 import com.darkbladedev.engine.model.PatternEntry;
@@ -14,6 +15,8 @@ import com.darkbladedev.engine.model.action.SetStateAction;
 import com.darkbladedev.engine.model.condition.Condition;
 import com.darkbladedev.engine.model.condition.StateCondition;
 import com.darkbladedev.engine.model.condition.VariableCondition;
+import com.darkbladedev.engine.model.condition.PlayerPermissionCondition;
+import com.darkbladedev.engine.model.condition.PlayerSneakingCondition;
 import com.darkbladedev.engine.model.matcher.*;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -71,6 +74,10 @@ public class MultiblockParser {
              }
              return new VariableCondition((String) map.get("key"), map.get("value"), comp);
         });
+        
+        // Player Conditions
+        api.registerCondition("permission", map -> new PlayerPermissionCondition((String) map.get("value")));
+        api.registerCondition("sneaking", map -> new PlayerSneakingCondition((boolean) map.getOrDefault("value", true)));
     }
 
     public List<MultiblockType> loadAll(File directory) {
@@ -189,11 +196,19 @@ public class MultiblockParser {
                          // Wrap with conditions if any
                          if (!conditions.isEmpty()) {
                              Action finalAction = action;
-                             actions.add(instance -> {
-                                 for (Condition c : conditions) {
-                                     if (!c.check(instance)) return;
+                             actions.add(new Action() {
+                                 @Override
+                                 public void execute(MultiblockInstance instance, org.bukkit.entity.Player player) {
+                                     for (Condition c : conditions) {
+                                         if (!c.check(instance, player)) return;
+                                     }
+                                     finalAction.execute(instance, player);
                                  }
-                                 finalAction.execute(instance);
+                                 
+                                 @Override
+                                 public void execute(MultiblockInstance instance) {
+                                     execute(instance, null);
+                                 }
                              });
                          } else {
                              actions.add(action);
