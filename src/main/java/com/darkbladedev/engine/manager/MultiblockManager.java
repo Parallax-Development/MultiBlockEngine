@@ -226,6 +226,10 @@ public class MultiblockManager {
         };
     }
     
+    public boolean isInstanceActive(MultiblockInstance instance) {
+        return activeInstances.containsKey(instance.anchorLocation()) && activeInstances.get(instance.anchorLocation()) == instance;
+    }
+
     public void registerInstance(MultiblockInstance instance) {
         activeInstances.put(instance.anchorLocation(), instance);
         // Map all blocks

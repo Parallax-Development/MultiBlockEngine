@@ -28,6 +28,11 @@ public class HologramManager {
         if (loc.getWorld() == null || !loc.getChunk().isLoaded()) return; // Safety
         
         Bukkit.getScheduler().runTask(MultiBlockEngine.getInstance(), () -> {
+            // Ensure instance is still active before spawning
+            if (!MultiBlockEngine.getInstance().getManager().isInstanceActive(instance)) {
+                return;
+            }
+
             try {
                 TextDisplay display = loc.getWorld().spawn(loc, TextDisplay.class);
                 
