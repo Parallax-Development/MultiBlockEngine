@@ -1,0 +1,153 @@
+id: mana_generator
+version: 1.0
+tick_interval: 20 # 1 second
+
+# Structure Controller: Diamond Block
+controller: DIAMOND_BLOCK
+
+# Pattern: 3x3 Base
+# L1 (Bottom): 
+# O O O
+# O O O
+# O O O
+# L2 (Top):
+# G   G
+#   D
+# G   G
+# O = Obsidian, G = Gold Block, D = Diamond Block (Controller)
+pattern:
+  # Base Layer (Y-1)
+  - offset: [0, -1, 0]
+    match: OBSIDIAN
+  - offset: [1, -1, 0]
+    match: OBSIDIAN
+  - offset: [-1, -1, 0]
+    match: OBSIDIAN
+  - offset: [0, -1, 1]
+    match: OBSIDIAN
+  - offset: [0, -1, -1]
+    match: OBSIDIAN
+  - offset: [1, -1, 1]
+    match: OBSIDIAN
+  - offset: [1, -1, -1]
+    match: OBSIDIAN
+  - offset: [-1, -1, 1]
+    match: OBSIDIAN
+  - offset: [-1, -1, -1]
+    match: OBSIDIAN
+    
+  # Pillars (Y=0)
+  - offset: [1, 0, 1]
+    match: GOLD_BLOCK
+  - offset: [1, 0, -1]
+    match: GOLD_BLOCK
+  - offset: [-1, 0, 1]
+    match: GOLD_BLOCK
+  - offset: [-1, 0, -1]
+    match: GOLD_BLOCK
+
+variables:
+  mana: 0
+  max_mana: 100
+
+actions:
+  on_create:
+    - type: message
+      value: "&a[ManaGen] Generator constructed! Right-click to activate."
+    - type: set_state
+      value: INACTIVE
+    - type: set_variable
+      key: mana
+      value: 0
+
+  on_interact:
+    # Activate if Inactive
+    - type: set_state
+      value: ACTIVE
+      conditions:
+        - type: state
+          value: INACTIVE
+    - type: message
+      value: "&e[ManaGen] Generator ACTIVATED."
+      conditions:
+        - type: state
+          value: INACTIVE
+          
+    # Deactivate if Active
+    - type: set_state
+      value: INACTIVE
+      conditions:
+        - type: state
+          value: ACTIVE
+    - type: message
+      value: "&c[ManaGen] Generator DEACTIVATED."
+      conditions:
+        - type: state
+          value: ACTIVE
+          
+    # Show Mana Status (Always)
+    - type: message
+      value: "&b[ManaGen] Current Mana: <variable:mana>/<variable:max_mana>"
+
+  on_tick:
+    # Generate Mana if Active
+    - type: modify_variable
+      key: mana
+      operation: ADD
+      amount: 5
+      conditions:
+        - type: state
+          value: ACTIVE
+          
+    # Notify Progress
+    - type: message
+      value: "&7[ManaGen] Generating mana... (<variable:mana>)"
+      conditions:
+        - type: state
+          value: ACTIVE
+        - type: variable
+          key: mana
+          value: 50
+          comparison: GREATER_OR_EQUAL
+        - type: variable
+          key: mana
+          value: 55
+          comparison: LESS
+          
+    # Discharge at Max Mana
+    - type: message
+      value: "&d[ManaGen] &lDISCHARGE! &r&dYou received a reward."
+      conditions:
+        - type: state
+          value: ACTIVE
+        - type: variable
+          key: mana
+          value: 100
+          comparison: GREATER_OR_EQUAL
+          
+    - type: command
+      value: "give @p[distance=..5] diamond 1" 
+      # Using vanilla selector for simplicity as we don't have player context in tick
+      # Or: summon firework_rocket %world% %x% %y% %z%
+      conditions:
+        - type: state
+          value: ACTIVE
+        - type: variable
+          key: mana
+          value: 100
+          comparison: GREATER_OR_EQUAL
+
+    - type: set_variable
+      key: mana
+      value: 0
+      conditions:
+        - type: state
+          value: ACTIVE
+        - type: variable
+          key: mana
+          value: 100
+          comparison: GREATER_OR_EQUAL
+
+  on_break:
+    - type: message
+      value: "&c[ManaGen] Generator destroyed! Mana lost."

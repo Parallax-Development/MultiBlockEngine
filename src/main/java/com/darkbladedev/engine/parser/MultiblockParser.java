@@ -7,6 +7,8 @@ import com.darkbladedev.engine.model.MultiblockType;
 import com.darkbladedev.engine.model.PatternEntry;
 import com.darkbladedev.engine.model.action.Action;
 import com.darkbladedev.engine.model.action.ConsoleCommandAction;
+import com.darkbladedev.engine.model.action.ModifyVariableAction;
+import com.darkbladedev.engine.model.action.SetVariableAction;
 import com.darkbladedev.engine.model.action.SendMessageAction;
 import com.darkbladedev.engine.model.action.SetStateAction;
 import com.darkbladedev.engine.model.condition.Condition;
@@ -20,12 +22,56 @@ import org.bukkit.Tag;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.util.Vector;
 
+import com.darkbladedev.engine.api.impl.MultiblockAPIImpl;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
+import java.util.function.Function;
 
 public class MultiblockParser {
+    
+    private final MultiblockAPIImpl api;
+    
+    public MultiblockParser(MultiblockAPIImpl api) {
+        this.api = api;
+        registerDefaults();
+    }
+    
+    private void registerDefaults() {
+        // Matchers
+        // Handled via specialized logic in parseMatcher currently, but could be refactored.
+        // For now we only registry-fy Actions and Conditions as they map cleanly to Map<String, Object>
+        
+        // Actions
+        api.registerAction("message", map -> new SendMessageAction((String) map.get("value")));
+        api.registerAction("command", map -> new ConsoleCommandAction((String) map.get("value")));
+        api.registerAction("set_state", map -> new SetStateAction(MultiblockState.valueOf((String) map.get("value"))));
+        api.registerAction("set_variable", map -> new SetVariableAction((String) map.get("key"), map.get("value")));
+        api.registerAction("modify_variable", map -> {
+            String opStr = (String) map.get("operation");
+            ModifyVariableAction.Operation op = ModifyVariableAction.Operation.valueOf(opStr.toUpperCase());
+            double amount = 0;
+            Object amountObj = map.get("amount");
+            if (amountObj instanceof Number n) {
+                amount = n.doubleValue();
+            }
+            return new ModifyVariableAction((String) map.get("key"), amount, op);
+        });
+        
+        // Conditions
+        api.registerCondition("state", map -> new StateCondition(MultiblockState.valueOf((String) map.get("value"))));
+        api.registerCondition("variable", map -> {
+             String opStr = (String) map.get("comparison");
+             VariableCondition.Comparison comp = VariableCondition.Comparison.EQUALS;
+             if (opStr != null) {
+                 comp = VariableCondition.Comparison.valueOf(opStr.toUpperCase());
+             }
+             return new VariableCondition((String) map.get("key"), map.get("value"), comp);
+        });
+    }
 
     public List<MultiblockType> loadAll(File directory) {
         List<MultiblockType> types = new ArrayList<>();
@@ -100,6 +146,7 @@ public class MultiblockParser {
         return new MultiblockType(id, version, new Vector(0, 0, 0), controllerMatcher, pattern, true, behaviorConfig, defaultVariables, onCreateActions, onTickActions, onInteractActions, onBreakActions, tickInterval);
     }
     
+    @SuppressWarnings("unchecked")
     private List<Action> parseActions(YamlConfiguration config, String path) {
         List<Action> actions = new ArrayList<>();
         if (config.contains(path)) {
@@ -117,10 +164,12 @@ public class MultiblockParser {
                                  java.util.Map<?, ?> condMap = (java.util.Map<?, ?>) condObj;
                                  String condType = (String) condMap.get("type");
                                  
-                                 if ("state".equalsIgnoreCase(condType)) {
-                                     conditions.add(new StateCondition(MultiblockState.valueOf((String) condMap.get("value"))));
-                                 } else if ("variable".equalsIgnoreCase(condType)) {
-                                     conditions.add(new VariableCondition((String) condMap.get("key"), condMap.get("value")));
+                                 Function<Map<String, Object>, Condition> factory = api.getConditionFactory(condType);
+                                 if (factory != null) {
+                                     // Unsafe cast, but YAML parser gives us Map<String, Object> effectively
+                                     conditions.add(factory.apply((Map<String, Object>) condMap));
+                                 } else {
+                                     MultiBlockEngine.getInstance().getLogger().warning("Unknown condition type: " + condType);
                                  }
                              }
                          }
@@ -129,12 +178,11 @@ public class MultiblockParser {
                      String type = (String) map.get("type");
                      Action action = null;
                      
-                     if ("message".equalsIgnoreCase(type)) {
-                         action = new SendMessageAction((String) map.get("value"));
-                     } else if ("command".equalsIgnoreCase(type)) {
-                         action = new ConsoleCommandAction((String) map.get("value"));
-                     } else if ("set_state".equalsIgnoreCase(type)) {
-                         action = new SetStateAction(MultiblockState.valueOf((String) map.get("value")));
+                     Function<Map<String, Object>, Action> actionFactory = api.getActionFactory(type);
+                     if (actionFactory != null) {
+                         action = actionFactory.apply((Map<String, Object>) map);
+                     } else {
+                         MultiBlockEngine.getInstance().getLogger().warning("Unknown action type: " + type);
                      }
                      
                      if (action != null) {

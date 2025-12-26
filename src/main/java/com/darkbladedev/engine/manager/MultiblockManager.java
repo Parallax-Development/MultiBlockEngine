@@ -74,8 +74,9 @@ public class MultiblockManager {
         long currentTick = Bukkit.getCurrentTick();
         
         for (MultiblockInstance instance : activeInstances.values()) {
-            // Check if active
-            if (instance.state() != MultiblockState.ACTIVE) continue;
+            // Allow tick execution even if INACTIVE, so logic can check state conditions
+            // Optimization: If state is DISABLED, skip.
+            if (instance.state() == MultiblockState.DISABLED || instance.state() == MultiblockState.DAMAGED) continue;
             
             // Check interval
             if (currentTick % instance.type().tickInterval() != 0) continue;

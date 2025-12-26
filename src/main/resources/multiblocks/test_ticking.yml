@@ -1,7 +1,6 @@
 id: ticking_beacon
 version: 1.0
-controller:
-  block: BEACON
+controller: BEACON
 pattern:
   - offset: [0, -1, 0]
     match: IRON_BLOCK

@@ -1,7 +1,6 @@
 id: optional_structure
 version: 1.0
-controller:
-  block: GOLD_BLOCK
+controller: GOLD_BLOCK
 pattern:
   - offset: [0, 1, 0]
     match: IRON_BLOCK

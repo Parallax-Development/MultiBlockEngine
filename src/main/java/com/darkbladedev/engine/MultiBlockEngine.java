@@ -1,5 +1,7 @@
 package com.darkbladedev.engine;
 
+import com.darkbladedev.engine.api.MultiblockAPI;
+import com.darkbladedev.engine.api.impl.MultiblockAPIImpl;
 import com.darkbladedev.engine.command.MultiblockCommand;
 import com.darkbladedev.engine.integration.MultiblockExpansion;
 import com.darkbladedev.engine.listener.MultiblockListener;
@@ -21,6 +23,7 @@ public class MultiBlockEngine extends JavaPlugin {
     private MultiblockManager manager;
     private MultiblockParser parser;
     private StorageManager storage;
+    private MultiblockAPIImpl api;
 
     @Override
     public void onEnable() {
@@ -36,8 +39,9 @@ public class MultiBlockEngine extends JavaPlugin {
         saveDefaultConfig();
 
         // Initialize components
+        api = new MultiblockAPIImpl();
         manager = new MultiblockManager();
-        parser = new MultiblockParser();
+        parser = new MultiblockParser(api);
         storage = new SqlStorage(this);
         storage.init();
         manager.setStorage(storage);
@@ -107,6 +111,10 @@ public class MultiBlockEngine extends JavaPlugin {
         return storage;
     }
     
+    public MultiblockAPI getAPI() {
+        return api;
+    }
+
     public MultiblockParser getParser() {
         return parser;
     }

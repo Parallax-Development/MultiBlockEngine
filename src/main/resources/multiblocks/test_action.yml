@@ -1,7 +1,6 @@
 id: action_structure
 version: 1.0
-controller:
-  block: EMERALD_BLOCK
+controller: EMERALD_BLOCK
 pattern:
   - offset: [0, 1, 0]
     match: EMERALD_BLOCK

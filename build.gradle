@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'com.darkbladedev.engine'
-version = '0.0.9-beta'
+version = '0.1.0-beta'
 
 repositories {
     mavenCentral()
@@ -24,8 +24,8 @@ repositories {
 dependencies {
     compileOnly "io.papermc.paper:paper-api:1.20.4-R0.1-SNAPSHOT" // Using 1.20.4 as a modern baseline, adaptable to 1.21
     compileOnly 'me.clip:placeholderapi:2.11.5'
-    compileOnly 'com.google.code.gson:gson:2.10.1'
 
+    implementation 'com.google.code.gson:gson:2.10.1'
     implementation "com.zaxxer:HikariCP:5.1.0"
 
     shadow "com.zaxxer:HikariCP:5.1.0"
