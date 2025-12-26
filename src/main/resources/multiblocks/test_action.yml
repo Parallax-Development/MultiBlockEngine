@@ -8,5 +8,5 @@ actions:
   on_create:
     - type: message
       value: "&aStructure Created! Coordinates: %x%, %y%, %z%"
-    - type: console_command
+    - type: command
       value: "say A new structure was built in %world%!"

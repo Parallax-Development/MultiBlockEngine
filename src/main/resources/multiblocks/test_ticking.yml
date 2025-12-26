@@ -9,5 +9,5 @@ actions:
   on_tick:
     - type: message
       value: "&eBeacon is running at %x%, %y%, %z%"
-    - type: console_command
+    - type: command
       value: "particle composter %x% %y% %z% 0.5 0.5 0.5 0 5"

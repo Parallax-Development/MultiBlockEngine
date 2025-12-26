@@ -18,6 +18,8 @@ import org.bukkit.event.player.PlayerInteractEvent;
 
 import java.util.Optional;
 
+import org.bukkit.inventory.EquipmentSlot;
+
 public class MultiblockListener implements Listener {
 
     private final MultiblockManager manager;
@@ -35,6 +37,8 @@ public class MultiblockListener implements Listener {
     @EventHandler
     public void onInteract(PlayerInteractEvent event) {
         if (event.getClickedBlock() == null) return;
+        // Fix: Prevent double execution (OffHand + MainHand)
+        if (event.getHand() != EquipmentSlot.HAND) return;
         
         // Check if interacting with existing structure
         Optional<MultiblockInstance> instanceOpt = manager.getInstanceAt(event.getClickedBlock().getLocation());

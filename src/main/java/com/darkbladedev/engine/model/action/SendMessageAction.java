@@ -1,6 +1,7 @@
 package com.darkbladedev.engine.model.action;
 
 import com.darkbladedev.engine.model.MultiblockInstance;
+import com.darkbladedev.engine.util.StringUtil;
 import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -17,10 +18,7 @@ public record SendMessageAction(String message) implements Action {
         Collection<Player> players = instance.anchorLocation().getNearbyPlayers(10);
         
         // Internal variable replacement
-        String text = message
-                .replace("%x%", String.valueOf(instance.anchorLocation().getBlockX()))
-                .replace("%y%", String.valueOf(instance.anchorLocation().getBlockY()))
-                .replace("%z%", String.valueOf(instance.anchorLocation().getBlockZ()));
+        String text = StringUtil.parsePlaceholders(message, instance);
         
         boolean hasPapi = Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null;
 
