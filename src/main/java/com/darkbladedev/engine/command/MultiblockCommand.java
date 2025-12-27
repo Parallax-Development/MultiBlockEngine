@@ -54,6 +54,9 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
         } else if (args[0].equalsIgnoreCase("reload")) {
             handleReload(player);
             return true;
+        } else if (args[0].equalsIgnoreCase("debug")) {
+            handleDebug(player, args);
+            return true;
         }
 
         player.sendMessage(ChatColor.RED + "Unknown subcommand.");
@@ -210,17 +213,32 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
             subcommands.add("reload");
             subcommands.add("status");
             subcommands.add("stats");
+            subcommands.add("debug");
             
-            // Filter
-            List<String> filtered = new ArrayList<>();
-            for (String sub : subcommands) {
-                if (sub.startsWith(args[0].toLowerCase())) {
-                    filtered.add(sub);
-                }
+            return filter(subcommands, args[0]);
+        } else if (args.length == 2 && args[0].equalsIgnoreCase("debug")) {
+            // Autocomplete multiblock types
+            List<String> types = new ArrayList<>();
+            for (MultiblockType type : plugin.getManager().getTypes()) {
+                types.add(type.id());
             }
-            Collections.sort(filtered);
-            return filtered;
+            return filter(types, args[1]);
+        } else if (args.length == 3 && args[0].equalsIgnoreCase("debug")) {
+            // Autocomplete players
+            return null; // Bukkit default player completion
         }
+        
         return Collections.emptyList();
+    }
+    
+    private List<String> filter(List<String> list, String input) {
+        List<String> filtered = new ArrayList<>();
+        for (String s : list) {
+            if (s.toLowerCase().startsWith(input.toLowerCase())) {
+                filtered.add(s);
+            }
+        }
+        Collections.sort(filtered);
+        return filtered;
     }
 }
