@@ -16,12 +16,14 @@ import java.util.logging.Logger;
 
 public class SimpleAddonContext implements AddonContext {
     private final String addonId;
+    private final String addonNamespace;
     private final MultiBlockEngine plugin;
     private final MultiblockAPI api;
     private final Logger logger;
 
     public SimpleAddonContext(String addonId, MultiBlockEngine plugin, MultiblockAPI api, Logger logger) {
         this.addonId = addonId;
+        this.addonNamespace = namespaceOf(addonId);
         this.plugin = plugin;
         this.api = api;
         this.logger = logger;
@@ -54,24 +56,24 @@ public class SimpleAddonContext implements AddonContext {
 
     @Override
     public void registerAction(String key, Function<Map<String, Object>, Action> factory) {
-        if (!key.startsWith(addonId + ":")) {
-            throw new IllegalArgumentException("Action key must start with addon ID prefix: " + addonId + ":");
+        if (!key.startsWith(addonNamespace + ":")) {
+            throw new IllegalArgumentException("Action key must start with addon namespace prefix: " + addonNamespace + ":");
         }
-        api.registerAction(key, factory);
+        api.registerAction(key, config -> Action.owned(addonId, key, factory.apply(config)));
     }
 
     @Override
     public void registerCondition(String key, Function<Map<String, Object>, Condition> factory) {
-        if (!key.startsWith(addonId + ":")) {
-            throw new IllegalArgumentException("Condition key must start with addon ID prefix: " + addonId + ":");
+        if (!key.startsWith(addonNamespace + ":")) {
+            throw new IllegalArgumentException("Condition key must start with addon namespace prefix: " + addonNamespace + ":");
         }
-        api.registerCondition(key, factory);
+        api.registerCondition(key, config -> Condition.owned(addonId, key, factory.apply(config)));
     }
 
     @Override
     public void registerMatcher(String prefix, Function<String, BlockMatcher> factory) {
-        if (!addonId.equalsIgnoreCase(prefix)) {
-            throw new IllegalArgumentException("Matcher prefix must equal addon ID: " + addonId);
+        if (!addonNamespace.equalsIgnoreCase(prefix)) {
+            throw new IllegalArgumentException("Matcher prefix must equal addon namespace: " + addonNamespace);
         }
         api.registerMatcher(prefix, factory);
     }
@@ -83,9 +85,9 @@ public class SimpleAddonContext implements AddonContext {
 
     @Override
     public MultiblockBuilder createMultiblock(String id) {
-        String fullId = id.contains(":") ? id : addonId + ":" + id;
-        if (!fullId.startsWith(addonId + ":")) {
-            throw new IllegalArgumentException("Multiblock id must start with addon ID prefix: " + addonId + ":");
+        String fullId = id.contains(":") ? id : addonNamespace + ":" + id;
+        if (!fullId.startsWith(addonNamespace + ":")) {
+            throw new IllegalArgumentException("Multiblock id must start with addon namespace prefix: " + addonNamespace + ":");
         }
         return new MultiblockBuilder(fullId, addonId);
     }
@@ -95,10 +97,18 @@ public class SimpleAddonContext implements AddonContext {
         if (type == null) {
             throw new IllegalArgumentException("type");
         }
-        if (!type.id().startsWith(addonId + ":")) {
-            throw new IllegalArgumentException("MultiblockType id must start with addon ID prefix: " + addonId + ":");
+        if (!type.id().startsWith(addonNamespace + ":")) {
+            throw new IllegalArgumentException("MultiblockType id must start with addon namespace prefix: " + addonNamespace + ":");
         }
         api.registerMultiblock(type);
+    }
+
+    private static String namespaceOf(String addonId) {
+        if (addonId == null) {
+            throw new IllegalArgumentException("addonId");
+        }
+        int idx = addonId.indexOf(':');
+        return idx < 0 ? addonId : addonId.substring(0, idx);
     }
 
     @Override

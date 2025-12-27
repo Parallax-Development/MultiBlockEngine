@@ -119,7 +119,7 @@ public class MultiblockManager {
             
             // Execute tick actions
             for (Action action : instance.type().onTickActions()) {
-                action.execute(instance);
+                executeActionSafely("TICK", action, instance, null);
             }
         }
         
@@ -173,7 +173,7 @@ public class MultiblockManager {
                 
                 // Execute onCreate actions
                 for (Action action : type.onCreateActions()) {
-                    action.execute(instance);
+                    executeActionSafely("CREATE", action, instance, player);
                 }
                 
                 // Save to storage
@@ -188,6 +188,36 @@ public class MultiblockManager {
         }
         
         return Optional.empty();
+    }
+
+    private void executeActionSafely(String runtimePhase, Action action, MultiblockInstance instance, Player player) {
+        try {
+            if (player != null) {
+                action.execute(instance, player);
+            } else {
+                action.execute(instance);
+            }
+        } catch (Throwable t) {
+            String ownerId = action != null ? action.ownerId() : null;
+            String typeKey = action != null ? action.typeKey() : null;
+
+            String actionName = "unknown";
+            if (typeKey != null && !typeKey.isBlank()) {
+                int idx = typeKey.lastIndexOf(':');
+                actionName = idx >= 0 ? typeKey.substring(idx + 1) : typeKey;
+            } else if (action != null) {
+                actionName = action.getClass().getSimpleName();
+            }
+
+            Object counter = instance != null ? instance.getVariable("counter") : null;
+            String msg = "[" + runtimePhase + "] Action '" + actionName + "' failed Context: counter=" + counter + " Multiblock=" + (instance != null ? instance.type().id() : "unknown") + " Execution continued";
+
+            if (addonManager != null && ownerId != null && !ownerId.isBlank() && !"core".equalsIgnoreCase(ownerId)) {
+                addonManager.failAddon(ownerId, AddonException.Phase.RUNTIME, msg, t, false);
+            } else {
+                MultiBlockEngine.getInstance().getLogger().log(java.util.logging.Level.SEVERE, "[MultiBlockEngine][Runtime] " + msg + " Cause: " + t.getClass().getSimpleName() + ": " + t.getMessage(), t);
+            }
+        }
     }
     
     private boolean checkPattern(Block anchor, MultiblockType type, BlockFace facing) {

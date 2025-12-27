@@ -369,7 +369,7 @@ public class MultiblockParser {
                     // Wrap with conditions if any
                     if (!conditions.isEmpty()) {
                         Action finalAction = action;
-                        actions.add(new Action() {
+                        Action conditional = new Action() {
                             @Override
                             public void execute(MultiblockInstance instance, org.bukkit.entity.Player player) {
                                 for (Condition c : conditions) {
@@ -382,7 +382,8 @@ public class MultiblockParser {
                             public void execute(MultiblockInstance instance) {
                                 execute(instance, null);
                             }
-                        });
+                        };
+                        actions.add(Action.owned(finalAction.ownerId(), finalAction.typeKey(), conditional));
                     } else {
                         actions.add(action);
                     }

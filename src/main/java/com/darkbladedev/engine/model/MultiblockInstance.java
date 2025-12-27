@@ -52,7 +52,12 @@ public class MultiblockInstance {
     }
 
     public <T extends Capability> Optional<T> getCapability(Class<T> capabilityClass) {
-        return Optional.ofNullable(capabilityClass.cast(capabilities.get(capabilityClass)));
+        for (Capability capability : capabilities.values()) {
+            if (capabilityClass.isInstance(capability)) {
+                return Optional.of(capabilityClass.cast(capability));
+            }
+        }
+        return Optional.empty();
     }
 
     public void addCapability(Capability capability) {

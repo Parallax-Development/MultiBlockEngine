@@ -97,7 +97,10 @@ public class AddonManager {
             plugin.getLogger().log(Level.SEVERE, header + message + " Cause: " + cause.getClass().getSimpleName() + ": " + cause.getMessage(), cause);
         }
 
-        states.put(addonId, AddonState.FAILED);
+        boolean markFailed = fatal || phase == AddonException.Phase.LOAD || phase == AddonException.Phase.ENABLE;
+        if (markFailed) {
+            states.put(addonId, AddonState.FAILED);
+        }
 
         if (fatal && loaded != null) {
             try {
@@ -207,7 +210,7 @@ public class AddonManager {
             return null;
         }
 
-        if (!id.matches("[a-z0-9][a-z0-9_\\-]*")) {
+        if (!id.matches("[a-z0-9][a-z0-9_\\-]*(?::[a-z0-9][a-z0-9_\\-]*)?")) {
             plugin.getLogger().warning("[MultiBlockEngine][AddonLoader] Skipping " + fileName + ": invalid id '" + id + "'");
             return null;
         }

@@ -1,6 +1,8 @@
 package com.darkbladedev.engine.listener;
 
 import com.darkbladedev.engine.api.event.MultiblockInteractEvent;
+import com.darkbladedev.engine.MultiBlockEngine;
+import com.darkbladedev.engine.api.addon.AddonException;
 import com.darkbladedev.engine.manager.MultiblockManager;
 import com.darkbladedev.engine.model.MultiblockInstance;
 import com.darkbladedev.engine.model.MultiblockType;
@@ -53,7 +55,7 @@ public class MultiblockListener implements Listener {
              
              // Execute Interact Actions
              for (com.darkbladedev.engine.model.action.Action action : instance.type().onInteractActions()) {
-                 action.execute(instance, event.getPlayer());
+                 executeActionSafely("INTERACT", action, instance, event.getPlayer());
              }
         }
         
@@ -94,11 +96,41 @@ public class MultiblockListener implements Listener {
             
             // Execute Break Actions
             for (com.darkbladedev.engine.model.action.Action action : instance.type().onBreakActions()) {
-                action.execute(instance);
+                executeActionSafely("BREAK", action, instance, null);
             }
             
             manager.destroyInstance(instance);
             event.getPlayer().sendMessage(ChatColor.RED + "Structure destroyed: " + instance.type().id());
+        }
+    }
+
+    private void executeActionSafely(String runtimePhase, com.darkbladedev.engine.model.action.Action action, MultiblockInstance instance, Player player) {
+        try {
+            if (player != null) {
+                action.execute(instance, player);
+            } else {
+                action.execute(instance);
+            }
+        } catch (Throwable t) {
+            String ownerId = action != null ? action.ownerId() : null;
+            String typeKey = action != null ? action.typeKey() : null;
+
+            String actionName = "unknown";
+            if (typeKey != null && !typeKey.isBlank()) {
+                int idx = typeKey.lastIndexOf(':');
+                actionName = idx >= 0 ? typeKey.substring(idx + 1) : typeKey;
+            } else if (action != null) {
+                actionName = action.getClass().getSimpleName();
+            }
+
+            Object counter = instance != null ? instance.getVariable("counter") : null;
+            String msg = "[" + runtimePhase + "] Action '" + actionName + "' failed Context: counter=" + counter + " Multiblock=" + (instance != null ? instance.type().id() : "unknown") + " Execution continued";
+
+            if (ownerId != null && !ownerId.isBlank() && MultiBlockEngine.getInstance().getAddonManager() != null) {
+                MultiBlockEngine.getInstance().getAddonManager().failAddon(ownerId, AddonException.Phase.RUNTIME, msg, t, false);
+            } else {
+                MultiBlockEngine.getInstance().getLogger().log(java.util.logging.Level.SEVERE, "[MultiBlockEngine][Runtime] " + msg + " Cause: " + t.getClass().getSimpleName() + ": " + t.getMessage(), t);
+            }
         }
     }
 }
