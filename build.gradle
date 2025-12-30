@@ -4,7 +4,9 @@ plugins {
 }
 
 group = 'com.darkbladedev.engine'
-version = '0.2.2-beta'
+version = System.getenv("GITHUB_REF_NAME") ?: "dev"
+
+//version = '0.2.2-beta'
 
 repositories {
     mavenCentral()
