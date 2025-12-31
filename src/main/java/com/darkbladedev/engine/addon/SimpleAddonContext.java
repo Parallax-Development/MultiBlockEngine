@@ -4,6 +4,7 @@ import com.darkbladedev.engine.MultiBlockEngine;
 import com.darkbladedev.engine.api.MultiblockAPI;
 import com.darkbladedev.engine.api.addon.AddonContext;
 import com.darkbladedev.engine.api.builder.MultiblockBuilder;
+import com.darkbladedev.engine.api.logging.AddonLogger;
 import com.darkbladedev.engine.model.BlockMatcher;
 import com.darkbladedev.engine.model.MultiblockType;
 import com.darkbladedev.engine.model.action.Action;
@@ -13,19 +14,18 @@ import org.bukkit.event.Listener;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.logging.Logger;
 
 public class SimpleAddonContext implements AddonContext {
     private final String addonId;
     private final String addonNamespace;
     private final MultiBlockEngine plugin;
     private final MultiblockAPI api;
-    private final Logger logger;
+    private final AddonLogger logger;
     private final Path dataFolder;
     private final AddonManager addonManager;
     private final AddonServiceRegistry services;
 
-    public SimpleAddonContext(String addonId, MultiBlockEngine plugin, MultiblockAPI api, Logger logger, Path dataFolder, AddonManager addonManager, AddonServiceRegistry services) {
+    public SimpleAddonContext(String addonId, MultiBlockEngine plugin, MultiblockAPI api, AddonLogger logger, Path dataFolder, AddonManager addonManager, AddonServiceRegistry services) {
         this.addonId = addonId;
         this.addonNamespace = namespaceOf(addonId);
         this.plugin = plugin;
@@ -42,7 +42,7 @@ public class SimpleAddonContext implements AddonContext {
     }
 
     @Override
-    public Logger getLogger() {
+    public AddonLogger getLogger() {
         return logger;
     }
 

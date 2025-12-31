@@ -3,6 +3,11 @@ package com.darkbladedev.engine.listener;
 import com.darkbladedev.engine.api.event.MultiblockInteractEvent;
 import com.darkbladedev.engine.MultiBlockEngine;
 import com.darkbladedev.engine.api.addon.AddonException;
+import com.darkbladedev.engine.api.logging.CoreLogger;
+import com.darkbladedev.engine.api.logging.LogKv;
+import com.darkbladedev.engine.api.logging.LogLevel;
+import com.darkbladedev.engine.api.logging.LogPhase;
+import com.darkbladedev.engine.api.logging.LogScope;
 import com.darkbladedev.engine.manager.MultiblockManager;
 import com.darkbladedev.engine.model.MultiblockInstance;
 import com.darkbladedev.engine.model.MultiblockType;
@@ -19,6 +24,7 @@ import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 
 import java.util.Optional;
+import java.util.Set;
 
 import org.bukkit.inventory.EquipmentSlot;
 
@@ -129,7 +135,16 @@ public class MultiblockListener implements Listener {
             if (ownerId != null && !ownerId.isBlank() && MultiBlockEngine.getInstance().getAddonManager() != null) {
                 MultiBlockEngine.getInstance().getAddonManager().failAddon(ownerId, AddonException.Phase.RUNTIME, msg, t, false);
             } else {
-                MultiBlockEngine.getInstance().getLogger().log(java.util.logging.Level.SEVERE, "[MultiBlockEngine][Runtime] " + msg + " Cause: " + t.getClass().getSimpleName() + ": " + t.getMessage(), t);
+                CoreLogger core = MultiBlockEngine.getInstance().getLoggingManager() != null ? MultiBlockEngine.getInstance().getLoggingManager().core() : null;
+                if (core != null) {
+                    core.logInternal(new LogScope.Core(), LogPhase.RUNTIME, LogLevel.ERROR, msg, t, new LogKv[] {
+                        LogKv.kv("phase", runtimePhase),
+                        LogKv.kv("multiblock", instance != null ? instance.type().id() : "unknown"),
+                        LogKv.kv("action", actionName)
+                    }, Set.of());
+                } else {
+                    MultiBlockEngine.getInstance().getLogger().log(java.util.logging.Level.SEVERE, "[MultiBlockEngine][Runtime] " + msg + " Cause: " + t.getClass().getSimpleName() + ": " + t.getMessage(), t);
+                }
             }
         }
     }

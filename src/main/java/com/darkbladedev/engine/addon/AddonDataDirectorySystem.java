@@ -1,6 +1,10 @@
 package com.darkbladedev.engine.addon;
 
-import com.darkbladedev.engine.MultiBlockEngine;
+import com.darkbladedev.engine.api.logging.CoreLogger;
+import com.darkbladedev.engine.api.logging.LogKv;
+import com.darkbladedev.engine.api.logging.LogLevel;
+import com.darkbladedev.engine.api.logging.LogPhase;
+import com.darkbladedev.engine.api.logging.LogScope;
 
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
@@ -8,14 +12,16 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.Locale;
+import java.util.Objects;
+import java.util.Set;
 
 public final class AddonDataDirectorySystem {
 
-    private final MultiBlockEngine plugin;
+    private final CoreLogger log;
     private final Path addonsRoot;
 
-    public AddonDataDirectorySystem(MultiBlockEngine plugin, Path addonsRoot) {
-        this.plugin = plugin;
+    public AddonDataDirectorySystem(CoreLogger log, Path addonsRoot) {
+        this.log = Objects.requireNonNull(log, "log");
         this.addonsRoot = addonsRoot;
     }
 
@@ -72,13 +78,18 @@ public final class AddonDataDirectorySystem {
     }
 
     public void logFs(String addonId, String phase, Path path, Throwable cause, String action) {
-        String header = "[MultiBlockEngine][Addon:" + addonId + "][FS][" + phase + "]";
-        String message = header + "\nPath: " + path + "\nCause: " + formatCause(cause) + "\nAction: " + action;
-        if (cause == null) {
-            plugin.getLogger().warning(message);
-        } else {
-            plugin.getLogger().log(java.util.logging.Level.WARNING, message, cause);
-        }
+        LogPhase p = switch (phase == null ? "" : phase.trim().toUpperCase(Locale.ROOT)) {
+            case "LOAD" -> LogPhase.LOAD;
+            case "ENABLE" -> LogPhase.ENABLE;
+            case "DISABLE" -> LogPhase.DISABLE;
+            default -> LogPhase.RUNTIME;
+        };
+
+        log.logInternal(new LogScope.Addon(addonId == null ? "unknown" : addonId, "unknown"), p, LogLevel.WARN, "Addon FS", cause, new LogKv[] {
+            LogKv.kv("path", path == null ? "" : path.toString()),
+            LogKv.kv("action", action),
+            LogKv.kv("cause", formatCause(cause))
+        }, Set.of());
     }
 
     public static String normalizeAddonFolderName(String addonId) {
@@ -121,4 +132,3 @@ public final class AddonDataDirectorySystem {
         return cause.getClass().getSimpleName() + ": " + message;
     }
 }
-

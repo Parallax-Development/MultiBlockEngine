@@ -6,6 +6,13 @@ debug: false
 # Enable performance metrics collection
 metrics: true
 
+logging:
+  level: INFO
+  debug: false
+  debugCore: false
+  debugAddons: false
+  debugAddonsById: []
+
 # Database configuration (for future use if we switch from internal SQLite)
 database:
   type: sqlite

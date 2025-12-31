@@ -3,6 +3,9 @@ package com.darkbladedev.engine;
 import com.darkbladedev.engine.api.MultiblockAPI;
 import com.darkbladedev.engine.api.impl.MultiblockAPIImpl;
 import com.darkbladedev.engine.addon.AddonManager;
+import com.darkbladedev.engine.api.logging.CoreLogger;
+import com.darkbladedev.engine.api.logging.LogLevel;
+import com.darkbladedev.engine.api.logging.LogPhase;
 import com.darkbladedev.engine.command.MultiblockCommand;
 import com.darkbladedev.engine.integration.MultiblockExpansion;
 import com.darkbladedev.engine.listener.MultiblockListener;
@@ -10,6 +13,7 @@ import com.darkbladedev.engine.manager.MultiblockManager;
 import com.darkbladedev.engine.model.MultiblockInstance;
 import com.darkbladedev.engine.model.MultiblockType;
 import com.darkbladedev.engine.parser.MultiblockParser;
+import com.darkbladedev.engine.logging.LoggingManager;
 import com.darkbladedev.engine.storage.SqlStorage;
 import com.darkbladedev.engine.storage.StorageManager;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -31,30 +35,35 @@ public class MultiBlockEngine extends JavaPlugin {
     private MultiblockAPIImpl api;
     private DebugManager debugManager;
     private AddonManager addonManager;
+    private LoggingManager loggingManager;
 
     @Override
     public void onEnable() {
         instance = this;
-        getLogger().info("MultiBlockEngine starting...");
-        
+
         // Ensure data folder exists
         if (!getDataFolder().exists()) {
             getDataFolder().mkdirs();
         }
-        
+
         // Save default config
         saveDefaultConfig();
+
+        loggingManager = new LoggingManager(this);
+        CoreLogger log = loggingManager.core();
+        log.setCorePhase(LogPhase.BOOT);
+        log.info("MultiBlockEngine starting...");
 
         // Initialize components
         api = new MultiblockAPIImpl();
         manager = new MultiblockManager();
-        parser = new MultiblockParser(api);
+        parser = new MultiblockParser(api, log);
         storage = new SqlStorage(this);
         storage.init();
         manager.setStorage(storage);
         debugManager = new DebugManager(this);
 
-        addonManager = new AddonManager(this, api);
+        addonManager = new AddonManager(this, api, log);
         manager.setAddonManager(addonManager);
 
         addonManager.loadAddons();
@@ -68,13 +77,14 @@ public class MultiBlockEngine extends JavaPlugin {
         }
         
         // Load definitions
+        log.setCorePhase(LogPhase.LOAD);
         List<MultiblockType> types = parser.loadAll(multiblockDir);
         for (MultiblockType type : types) {
             try {
                 manager.registerType(type);
-                getLogger().info("Loaded multiblock: " + type.id());
+                log.info("Loaded multiblock", com.darkbladedev.engine.api.logging.LogKv.kv("id", type.id()));
             } catch (Exception e) {
-                getLogger().severe("Failed to register multiblock type: " + type.id() + " Cause: " + e.getMessage());
+                log.log(LogLevel.ERROR, "Failed to register multiblock type", e, com.darkbladedev.engine.api.logging.LogKv.kv("id", type.id()));
             }
         }
         
@@ -83,8 +93,9 @@ public class MultiBlockEngine extends JavaPlugin {
         for (MultiblockInstance inst : instances) {
             manager.registerInstance(inst);
         }
-        getLogger().info("Restored " + instances.size() + " active instances.");
+        log.info("Restored active instances", com.darkbladedev.engine.api.logging.LogKv.kv("count", instances.size()));
 
+        log.setCorePhase(LogPhase.ENABLE);
         addonManager.enableAddons();
         
         // Register Listeners
@@ -101,14 +112,18 @@ public class MultiBlockEngine extends JavaPlugin {
         // Register PlaceholderExpansion
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
             new MultiblockExpansion(this).register();
-            getLogger().info("Hooked into PlaceholderAPI.");
+            log.info("Hooked into PlaceholderAPI");
         }
-        
-        getLogger().info("MultiBlockEngine enabled with " + types.size() + " types.");
+
+        log.info("MultiBlockEngine enabled", com.darkbladedev.engine.api.logging.LogKv.kv("types", types.size()));
     }
 
     @Override
     public void onDisable() {
+        CoreLogger log = loggingManager != null ? loggingManager.core() : null;
+        if (log != null) {
+            log.setCorePhase(LogPhase.DISABLE);
+        }
         if (debugManager != null) {
             debugManager.stopAll();
         }
@@ -121,7 +136,11 @@ public class MultiBlockEngine extends JavaPlugin {
         if (storage != null) {
             storage.close();
         }
-        getLogger().info("MultiBlockEngine stopping...");
+        if (log != null) {
+            log.info("MultiBlockEngine stopping...");
+        } else {
+            getLogger().info("MultiBlockEngine stopping...");
+        }
     }
     
     public static MultiBlockEngine getInstance() {
@@ -150,5 +169,9 @@ public class MultiBlockEngine extends JavaPlugin {
 
     public AddonManager getAddonManager() {
         return addonManager;
+    }
+
+    public LoggingManager getLoggingManager() {
+        return loggingManager;
     }
 }

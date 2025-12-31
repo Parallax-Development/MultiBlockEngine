@@ -4,6 +4,11 @@ import com.darkbladedev.engine.MultiBlockEngine;
 import com.darkbladedev.engine.addon.AddonManager;
 import com.darkbladedev.engine.api.event.MultiblockFormEvent;
 import com.darkbladedev.engine.api.addon.AddonException;
+import com.darkbladedev.engine.api.logging.CoreLogger;
+import com.darkbladedev.engine.api.logging.LogKv;
+import com.darkbladedev.engine.api.logging.LogLevel;
+import com.darkbladedev.engine.api.logging.LogPhase;
+import com.darkbladedev.engine.api.logging.LogScope;
 import com.darkbladedev.engine.model.MultiblockInstance;
 import com.darkbladedev.engine.model.MultiblockState;
 import com.darkbladedev.engine.model.MultiblockType;
@@ -22,6 +27,7 @@ import org.bukkit.util.Vector;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.Set;
 
 public class MultiblockManager {
     private final Map<String, MultiblockType> types = new HashMap<>();
@@ -215,7 +221,16 @@ public class MultiblockManager {
             if (addonManager != null && ownerId != null && !ownerId.isBlank() && !"core".equalsIgnoreCase(ownerId)) {
                 addonManager.failAddon(ownerId, AddonException.Phase.RUNTIME, msg, t, false);
             } else {
-                MultiBlockEngine.getInstance().getLogger().log(java.util.logging.Level.SEVERE, "[MultiBlockEngine][Runtime] " + msg + " Cause: " + t.getClass().getSimpleName() + ": " + t.getMessage(), t);
+                CoreLogger core = MultiBlockEngine.getInstance().getLoggingManager() != null ? MultiBlockEngine.getInstance().getLoggingManager().core() : null;
+                if (core != null) {
+                    core.logInternal(new LogScope.Core(), LogPhase.RUNTIME, LogLevel.ERROR, msg, t, new LogKv[] {
+                        LogKv.kv("phase", runtimePhase),
+                        LogKv.kv("multiblock", instance != null ? instance.type().id() : "unknown"),
+                        LogKv.kv("action", actionName)
+                    }, Set.of());
+                } else {
+                    MultiBlockEngine.getInstance().getLogger().log(java.util.logging.Level.SEVERE, "[MultiBlockEngine][Runtime] " + msg + " Cause: " + t.getClass().getSimpleName() + ": " + t.getMessage(), t);
+                }
             }
         }
     }
@@ -278,7 +293,15 @@ public class MultiblockManager {
                 if (addonManager != null && ownerId != null && !ownerId.isBlank() && !"core".equalsIgnoreCase(ownerId)) {
                     addonManager.failAddon(ownerId, AddonException.Phase.RUNTIME, msg, t, true);
                 } else {
-                    MultiBlockEngine.getInstance().getLogger().log(java.util.logging.Level.SEVERE, "[MultiBlockEngine][Capability][Owner:" + ownerId + "] " + msg, t);
+                    CoreLogger core = MultiBlockEngine.getInstance().getLoggingManager() != null ? MultiBlockEngine.getInstance().getLoggingManager().core() : null;
+                    if (core != null) {
+                        core.logInternal(new LogScope.Core(), LogPhase.RUNTIME, LogLevel.ERROR, msg, t, new LogKv[] {
+                            LogKv.kv("owner", ownerId == null ? "" : ownerId),
+                            LogKv.kv("multiblock", instance.type().id())
+                        }, Set.of());
+                    } else {
+                        MultiBlockEngine.getInstance().getLogger().log(java.util.logging.Level.SEVERE, "[MultiBlockEngine][Capability][Owner:" + ownerId + "] " + msg, t);
+                    }
                 }
             }
         }

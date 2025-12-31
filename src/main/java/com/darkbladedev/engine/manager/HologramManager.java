@@ -1,6 +1,10 @@
 package com.darkbladedev.engine.manager;
 
 import com.darkbladedev.engine.MultiBlockEngine;
+import com.darkbladedev.engine.api.logging.CoreLogger;
+import com.darkbladedev.engine.api.logging.LogLevel;
+import com.darkbladedev.engine.api.logging.LogPhase;
+import com.darkbladedev.engine.api.logging.LogScope;
 import com.darkbladedev.engine.model.MultiblockInstance;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -10,6 +14,7 @@ import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.TextDisplay;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class HologramManager {
@@ -47,8 +52,12 @@ public class HologramManager {
                 
                 holograms.put(instance, display);
             } catch (Exception e) {
-                // Fallback or error (e.g. version too old)
-                MultiBlockEngine.getInstance().getLogger().warning("Failed to spawn TextDisplay hologram. Ensure 1.19.4+");
+                CoreLogger core = MultiBlockEngine.getInstance().getLoggingManager() != null ? MultiBlockEngine.getInstance().getLoggingManager().core() : null;
+                if (core != null) {
+                    core.logInternal(new LogScope.Core(), LogPhase.RUNTIME, LogLevel.WARN, "Failed to spawn TextDisplay hologram", e, null, Set.of());
+                } else {
+                    MultiBlockEngine.getInstance().getLogger().warning("Failed to spawn TextDisplay hologram. Ensure 1.19.4+");
+                }
             }
         });
     }

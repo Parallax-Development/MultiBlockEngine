@@ -1,6 +1,5 @@
 package com.darkbladedev.engine.addon;
 
-import com.darkbladedev.engine.MultiBlockEngine;
 import com.darkbladedev.engine.api.addon.Version;
 
 import java.util.ArrayList;
@@ -20,15 +19,15 @@ public final class AddonDependencyResolver {
     ) {
     }
 
-    public Resolution resolve(Map<String, AddonMetadata> metadataById) {
+    public Resolution resolve(int coreApiVersion, Map<String, AddonMetadata> metadataById) {
         Map<String, String> failures = new HashMap<>();
         List<String> warnings = new ArrayList<>();
 
         Map<String, AddonMetadata> eligible = new HashMap<>(metadataById);
 
         for (AddonMetadata meta : metadataById.values()) {
-            if (meta.api() != MultiBlockEngine.getApiVersion()) {
-                failures.put(meta.id(), "Core API " + MultiBlockEngine.getApiVersion() + " is not compatible (addon requires API " + meta.api() + ")");
+            if (meta.api() != coreApiVersion) {
+                failures.put(meta.id(), "Core API " + coreApiVersion + " is not compatible (addon requires API " + meta.api() + ")");
                 eligible.remove(meta.id());
             }
         }

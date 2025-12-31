@@ -1,7 +1,11 @@
 package com.darkbladedev.engine.parser;
 
-import com.darkbladedev.engine.MultiBlockEngine;
 import com.darkbladedev.engine.api.impl.MultiblockAPIImpl;
+import com.darkbladedev.engine.api.logging.CoreLogger;
+import com.darkbladedev.engine.api.logging.LogKv;
+import com.darkbladedev.engine.api.logging.LogLevel;
+import com.darkbladedev.engine.api.logging.LogPhase;
+import com.darkbladedev.engine.api.logging.LogScope;
 import com.darkbladedev.engine.model.BlockMatcher;
 import com.darkbladedev.engine.model.DisplayNameConfig;
 import com.darkbladedev.engine.model.MultiblockInstance;
@@ -22,16 +26,17 @@ import org.bukkit.util.Vector;
 import java.io.File;
 import java.util.*;
 import java.util.function.Function;
-import java.util.logging.Level;
 
 public class MultiblockParser {
     
     private final MultiblockAPIImpl api;
+    private final CoreLogger log;
     
     private record RawDefinition(String id, File file, YamlConfiguration config) {}
     
-    public MultiblockParser(MultiblockAPIImpl api) {
+    public MultiblockParser(MultiblockAPIImpl api, CoreLogger log) {
         this.api = api;
+        this.log = Objects.requireNonNull(log, "log");
         registerDefaults();
     }
     
@@ -156,12 +161,16 @@ public class MultiblockParser {
                 YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
                 String id = config.getString("id");
                 if (id == null) {
-                    MultiBlockEngine.getInstance().getLogger().warning("File " + file.getName() + " missing 'id'. Skipping.");
+                    log.logInternal(new LogScope.Core(), LogPhase.LOAD, LogLevel.WARN, "Multiblock file missing id (skipping)", null, new LogKv[] {
+                        LogKv.kv("file", file.getName())
+                    }, Set.of());
                     continue;
                 }
                 rawDefinitions.put(id, new RawDefinition(id, file, config));
             } catch (Exception e) {
-                MultiBlockEngine.getInstance().getLogger().log(Level.SEVERE, "Failed to load file: " + file.getName(), e);
+                log.logInternal(new LogScope.Core(), LogPhase.LOAD, LogLevel.ERROR, "Failed to load multiblock file", e, new LogKv[] {
+                    LogKv.kv("file", file.getName())
+                }, Set.of());
             }
         }
 
@@ -174,7 +183,9 @@ public class MultiblockParser {
             try {
                 resolve(id, rawDefinitions, resolvedConfigs, resolving, resolved);
             } catch (Exception e) {
-                MultiBlockEngine.getInstance().getLogger().severe("Error resolving template for " + id + ": " + e.getMessage());
+                log.logInternal(new LogScope.Core(), LogPhase.LOAD, LogLevel.ERROR, "Error resolving template", e, new LogKv[] {
+                    LogKv.kv("id", id)
+                }, Set.of());
             }
         }
         
@@ -184,7 +195,9 @@ public class MultiblockParser {
                 // File originalFile = rawDefinitions.get(id).file();
                 types.add(parse(resolvedConfigs.get(id))); 
             } catch (Exception e) {
-                MultiBlockEngine.getInstance().getLogger().log(Level.SEVERE, "Failed to parse resolved multiblock: " + id, e);
+                log.logInternal(new LogScope.Core(), LogPhase.LOAD, LogLevel.ERROR, "Failed to parse resolved multiblock", e, new LogKv[] {
+                    LogKv.kv("id", id)
+                }, Set.of());
             }
         }
         return types;
@@ -349,7 +362,9 @@ public class MultiblockParser {
                                 // Unsafe cast, but YAML parser gives us Map<String, Object> effectively
                                 conditions.add(factory.apply((Map<String, Object>) condMap));
                             } else {
-                                MultiBlockEngine.getInstance().getLogger().warning("Unknown condition type: " + condType);
+                                log.logInternal(new LogScope.Core(), LogPhase.LOAD, LogLevel.WARN, "Unknown condition type", null, new LogKv[] {
+                                    LogKv.kv("type", condType)
+                                }, Set.of());
                             }
                         }
                     }
@@ -362,7 +377,9 @@ public class MultiblockParser {
                 if (actionFactory != null) {
                     action = actionFactory.apply((Map<String, Object>) map);
                 } else {
-                    MultiBlockEngine.getInstance().getLogger().warning("Unknown action type: " + type);
+                    log.logInternal(new LogScope.Core(), LogPhase.LOAD, LogLevel.WARN, "Unknown action type", null, new LogKv[] {
+                        LogKv.kv("type", type)
+                    }, Set.of());
                 }
                 
                 if (action != null) {

@@ -1,6 +1,11 @@
 package com.darkbladedev.engine.storage;
 
 import com.darkbladedev.engine.MultiBlockEngine;
+import com.darkbladedev.engine.api.logging.CoreLogger;
+import com.darkbladedev.engine.api.logging.LogKv;
+import com.darkbladedev.engine.api.logging.LogLevel;
+import com.darkbladedev.engine.api.logging.LogPhase;
+import com.darkbladedev.engine.api.logging.LogScope;
 import com.darkbladedev.engine.manager.MultiblockManager;
 import com.darkbladedev.engine.model.MultiblockInstance;
 import com.darkbladedev.engine.model.MultiblockState;
@@ -25,7 +30,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.logging.Level;
+import java.util.Set;
 import java.lang.reflect.Type;
 
 public class SqlStorage implements StorageManager {
@@ -36,6 +41,21 @@ public class SqlStorage implements StorageManager {
 
     public SqlStorage(MultiBlockEngine plugin) {
         this.plugin = plugin;
+    }
+
+    private void log(LogPhase phase, LogLevel level, String message, Throwable throwable, LogKv... fields) {
+        CoreLogger core = plugin.getLoggingManager() != null ? plugin.getLoggingManager().core() : null;
+        if (core != null) {
+            core.logInternal(new LogScope.Core(), phase, level, message, throwable, fields, Set.of());
+            return;
+        }
+
+        java.util.logging.Level jul = switch (level) {
+            case TRACE, DEBUG, INFO -> java.util.logging.Level.INFO;
+            case WARN -> java.util.logging.Level.WARNING;
+            case ERROR, FATAL -> java.util.logging.Level.SEVERE;
+        };
+        plugin.getLogger().log(jul, message, throwable);
     }
 
     @Override
@@ -97,7 +117,7 @@ public class SqlStorage implements StorageManager {
             }
             
         } catch (SQLException e) {
-            plugin.getLogger().log(Level.SEVERE, "Could not initialize database", e);
+            log(LogPhase.BOOT, LogLevel.ERROR, "Could not initialize database", e);
         }
     }
     
@@ -133,7 +153,13 @@ public class SqlStorage implements StorageManager {
                 ps.setString(7, gson.toJson(instance.getVariables()));
                 ps.executeUpdate();
             } catch (SQLException e) {
-                plugin.getLogger().log(Level.SEVERE, "Failed to save multiblock instance", e);
+                log(LogPhase.RUNTIME, LogLevel.ERROR, "Failed to save multiblock instance", e,
+                    LogKv.kv("type", instance.type().id()),
+                    LogKv.kv("world", instance.anchorLocation().getWorld().getName()),
+                    LogKv.kv("x", instance.anchorLocation().getBlockX()),
+                    LogKv.kv("y", instance.anchorLocation().getBlockY()),
+                    LogKv.kv("z", instance.anchorLocation().getBlockZ())
+                );
             }
         });
     }
@@ -152,7 +178,13 @@ public class SqlStorage implements StorageManager {
                 ps.setInt(4, instance.anchorLocation().getBlockZ());
                 ps.executeUpdate();
             } catch (SQLException e) {
-                plugin.getLogger().log(Level.SEVERE, "Failed to delete multiblock instance", e);
+                log(LogPhase.RUNTIME, LogLevel.ERROR, "Failed to delete multiblock instance", e,
+                    LogKv.kv("type", instance.type().id()),
+                    LogKv.kv("world", instance.anchorLocation().getWorld().getName()),
+                    LogKv.kv("x", instance.anchorLocation().getBlockX()),
+                    LogKv.kv("y", instance.anchorLocation().getBlockY()),
+                    LogKv.kv("z", instance.anchorLocation().getBlockZ())
+                );
             }
         });
     }
@@ -182,7 +214,7 @@ public class SqlStorage implements StorageManager {
                 
                 Optional<MultiblockType> typeOpt = manager.getType(typeId);
                 if (typeOpt.isEmpty()) {
-                    plugin.getLogger().warning("Unknown multiblock type in DB: " + typeId);
+                    log(LogPhase.LOAD, LogLevel.WARN, "Unknown multiblock type in DB", null, LogKv.kv("type", typeId));
                     continue;
                 }
                 
@@ -191,7 +223,7 @@ public class SqlStorage implements StorageManager {
                 try {
                     facing = BlockFace.valueOf(facingName);
                 } catch (IllegalArgumentException ignored) {
-                    plugin.getLogger().warning("Invalid facing in DB: " + facingName);
+                    log(LogPhase.LOAD, LogLevel.WARN, "Invalid facing in DB", null, LogKv.kv("facing", facingName));
                 }
                 
                 MultiblockState state = MultiblockState.ACTIVE;
@@ -200,7 +232,7 @@ public class SqlStorage implements StorageManager {
                         state = MultiblockState.valueOf(stateName);
                     }
                 } catch (IllegalArgumentException ignored) {
-                    plugin.getLogger().warning("Invalid state in DB: " + stateName);
+                    log(LogPhase.LOAD, LogLevel.WARN, "Invalid state in DB", null, LogKv.kv("state", stateName));
                 }
                 
                 Map<String, Object> variables = new HashMap<>();
@@ -215,7 +247,7 @@ public class SqlStorage implements StorageManager {
                 instances.add(new MultiblockInstance(typeOpt.get(), loc, facing, state, variables));
             }
         } catch (SQLException e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to load multiblock instances", e);
+            log(LogPhase.LOAD, LogLevel.ERROR, "Failed to load multiblock instances", e);
         }
         
         return instances;

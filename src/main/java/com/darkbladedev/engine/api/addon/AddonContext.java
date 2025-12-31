@@ -2,6 +2,7 @@ package com.darkbladedev.engine.api.addon;
 
 import com.darkbladedev.engine.api.MultiblockAPI;
 import com.darkbladedev.engine.api.builder.MultiblockBuilder;
+import com.darkbladedev.engine.api.logging.AddonLogger;
 import com.darkbladedev.engine.model.BlockMatcher;
 import com.darkbladedev.engine.model.MultiblockType;
 import com.darkbladedev.engine.model.action.Action;
@@ -11,11 +12,10 @@ import org.bukkit.event.Listener;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.logging.Logger;
 
 public interface AddonContext {
     String getAddonId();
-    Logger getLogger();
+    AddonLogger getLogger();
     String getEngineVersion();
     int getApiVersion();
     MultiblockAPI getAPI();
