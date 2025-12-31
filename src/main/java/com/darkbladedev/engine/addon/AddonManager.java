@@ -143,15 +143,28 @@ public class AddonManager {
         }
 
         AddonDependencyResolver.Resolution resolution = dependencyResolver.resolve(MultiBlockEngine.getApiVersion(), metadataById);
+
+        core.info("Addon dependency resolution complete",
+            LogKv.kv("candidates", metadataById.size()),
+            LogKv.kv("eligible", resolution.loadOrder().size()),
+            LogKv.kv("failed", resolution.failures().size()),
+            LogKv.kv("warnings", resolution.warnings().size())
+        );
+
         for (String warning : resolution.warnings()) {
-            core.warn(warning);
+            core.warn("Addon dependency warning", LogKv.kv("warning", warning));
         }
         for (Map.Entry<String, String> fail : resolution.failures().entrySet()) {
             states.put(fail.getKey(), AddonState.FAILED);
-            core.error("Addon failed", LogKv.kv("id", fail.getKey()), LogKv.kv("reason", fail.getValue()));
+            core.error("Addon dependency failure", LogKv.kv("id", fail.getKey()), LogKv.kv("reason", fail.getValue()));
         }
 
         resolvedOrder = resolution.loadOrder();
+
+        if (!resolvedOrder.isEmpty()) {
+            core.info("Addon load order", LogKv.kv("order", joinLimited(resolvedOrder, 30)), LogKv.kv("count", resolvedOrder.size()));
+        }
+
         for (String id : resolvedOrder) {
             if (states.getOrDefault(id, AddonState.DISABLED) == AddonState.FAILED) {
                 continue;
@@ -530,6 +543,30 @@ public class AddonManager {
             return discovered.metadata().version().toString();
         }
         return "unknown";
+    }
+
+    private static String joinLimited(List<String> ids, int limit) {
+        if (ids == null || ids.isEmpty()) {
+            return "";
+        }
+
+        int max = Math.max(0, limit);
+        int shown = Math.min(max, ids.size());
+
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < shown; i++) {
+            if (!sb.isEmpty()) {
+                sb.append(", ");
+            }
+            sb.append(ids.get(i));
+        }
+
+        int remaining = ids.size() - shown;
+        if (remaining > 0) {
+            sb.append(" … +").append(remaining);
+        }
+
+        return sb.toString();
     }
 
     private static LogPhase phaseToLogPhase(AddonException.Phase phase) {
