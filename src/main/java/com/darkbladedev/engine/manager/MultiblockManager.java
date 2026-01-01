@@ -229,7 +229,7 @@ public class MultiblockManager {
                         LogKv.kv("action", actionName)
                     }, Set.of());
                 } else {
-                    MultiBlockEngine.getInstance().getLogger().log(java.util.logging.Level.SEVERE, "[MultiBlockEngine][Runtime] " + msg + " Cause: " + t.getClass().getSimpleName() + ": " + t.getMessage(), t);
+                    MultiBlockEngine.getInstance().getLogger().log(java.util.logging.Level.SEVERE, "[Runtime] " + msg + " Cause: " + t.getClass().getSimpleName() + ": " + t.getMessage(), t);
                 }
             }
         }
@@ -300,7 +300,7 @@ public class MultiblockManager {
                             LogKv.kv("multiblock", instance.type().id())
                         }, Set.of());
                     } else {
-                        MultiBlockEngine.getInstance().getLogger().log(java.util.logging.Level.SEVERE, "[MultiBlockEngine][Capability][Owner:" + ownerId + "] " + msg, t);
+                        MultiBlockEngine.getInstance().getLogger().log(java.util.logging.Level.SEVERE, "[Capability][Owner:" + ownerId + "] " + msg, t);
                     }
                 }
             }

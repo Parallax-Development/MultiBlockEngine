@@ -96,7 +96,7 @@ public final class AddonDependencyResolver {
         if (order.size() == eligible.size()) {
             boolean stabilized = applyOptionalOrdering(order, eligible, warnings);
             if (!stabilized) {
-                warnings.add("[MultiBlockEngine] Optional dependency ordering could not be fully stabilized due to an optional cycle");
+                warnings.add(" Optional dependency ordering could not be fully stabilized due to an optional cycle");
             }
         }
 
@@ -166,7 +166,7 @@ public final class AddonDependencyResolver {
 
         if (changed) {
             String sample = String.join(", ", order.stream().limit(10).toList());
-            warnings.add("[MultiBlockEngine] Optional dependency ordering may be unstable; partial order sample: " + sample);
+            warnings.add(" Optional dependency ordering may be unstable; partial order sample: " + sample);
             return false;
         }
 
@@ -215,17 +215,17 @@ public final class AddonDependencyResolver {
 
             AddonMetadata found = all.get(depId);
             if (found == null) {
-                warnings.add("[MultiBlockEngine] Addon " + meta.id() + " Optional dependency " + depId + " >=" + min + " not found (feature disabled)");
+                warnings.add(" Addon " + meta.id() + " Optional dependency " + depId + " >=" + min + " not found (feature disabled)");
                 continue;
             }
 
             if (!eligible.containsKey(depId)) {
-                warnings.add("[MultiBlockEngine] Addon " + meta.id() + " Optional dependency " + depId + " >=" + min + " not enabled (feature disabled)");
+                warnings.add(" Addon " + meta.id() + " Optional dependency " + depId + " >=" + min + " not enabled (feature disabled)");
                 continue;
             }
 
             if (!found.version().isAtLeast(min)) {
-                warnings.add("[MultiBlockEngine] Addon " + meta.id() + " Optional dependency " + depId + " >=" + min + " not satisfied (found " + found.version() + ") (feature disabled)");
+                warnings.add(" Addon " + meta.id() + " Optional dependency " + depId + " >=" + min + " not satisfied (found " + found.version() + ") (feature disabled)");
             }
         }
         return warnings;

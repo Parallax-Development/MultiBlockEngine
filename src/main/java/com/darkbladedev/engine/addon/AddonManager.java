@@ -75,6 +75,7 @@ public class AddonManager {
     private List<String> resolvedOrder = List.of();
     private final Map<String, List<PendingExposure>> pendingExposures = new ConcurrentHashMap<>();
     private final Map<String, List<ExposedService>> exposedServices = new ConcurrentHashMap<>();
+    private final ClassLoader coreApiClassLoader = MultiblockAPI.class.getClassLoader();
 
     public AddonManager(MultiBlockEngine plugin, MultiblockAPI api, CoreLogger log) {
         this.plugin = plugin;
@@ -203,6 +204,8 @@ public class AddonManager {
         Objects.requireNonNull(implementation, "implementation");
         Objects.requireNonNull(priority, "priority");
 
+        validateCoreApiType(addonId, api);
+
         pendingExposures.compute(addonId, (k, list) -> {
             List<PendingExposure> next = list == null ? new ArrayList<>() : new ArrayList<>(list);
             next.add(new PendingExposure(api, implementation, priority));
@@ -213,6 +216,29 @@ public class AddonManager {
             "Service exposure queued", null,
             new LogKv[] { LogKv.kv("service", api.getName()), LogKv.kv("priority", priority.name()) },
             Set.of()
+        );
+    }
+
+    private void validateCoreApiType(String addonId, Class<?> apiType) {
+        ClassLoader cl = apiType.getClassLoader();
+        if (cl == coreApiClassLoader) {
+            return;
+        }
+
+        log.logInternal(new LogScope.Addon(addonId, addonVersion(addonId)), LogPhase.LOAD, LogLevel.FATAL,
+            "Invalid service exposure: service type is not part of core-api",
+            null,
+            new LogKv[] {
+                LogKv.kv("service", apiType.getName()),
+                LogKv.kv("serviceCl", cl == null ? "bootstrap" : cl.toString()),
+                LogKv.kv("coreApiCl", coreApiClassLoader == null ? "bootstrap" : coreApiClassLoader.toString())
+            },
+            Set.of()
+        );
+
+        throw new IllegalArgumentException(
+            "Invalid service exposure: Service type " + apiType.getName() + " is not part of core-api. " +
+                "Move the service interface/DTOs to core-api and depend on it as compileOnly."
         );
     }
 

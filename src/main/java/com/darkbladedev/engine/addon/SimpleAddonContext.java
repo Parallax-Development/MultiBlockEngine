@@ -74,7 +74,7 @@ public class SimpleAddonContext implements AddonContext {
 
     @Override
     public <T> T getService(Class<T> serviceType) {
-        return services.resolveIfEnabled(serviceType, addonManager::getState).orElse(null);
+        return services.resolveIfEnabled(addonId, serviceType, addonManager::getState).orElse(null);
     }
 
     @Override
