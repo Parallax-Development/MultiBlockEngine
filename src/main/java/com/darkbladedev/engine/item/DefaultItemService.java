@@ -38,10 +38,7 @@ public final class DefaultItemService implements ItemService {
             Objects.requireNonNull(definition, "definition");
             ItemKey key = Objects.requireNonNull(definition.key(), "definition.key()");
 
-            ItemDefinition existing = definitions.putIfAbsent(key, definition);
-            if (existing != null && existing != definition) {
-                throw new IllegalStateException("ItemDefinition already registered: " + key);
-            }
+            definitions.put(key, definition);
         }
 
         @Override
@@ -108,4 +105,3 @@ public final class DefaultItemService implements ItemService {
         }
     }
 }
-

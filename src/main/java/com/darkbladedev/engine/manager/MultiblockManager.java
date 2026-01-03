@@ -33,6 +33,7 @@ public class MultiblockManager {
     private final Map<String, MultiblockType> types = new HashMap<>();
     private final Map<Location, MultiblockInstance> activeInstances = new ConcurrentHashMap<>();
     private final Map<Location, MultiblockInstance> blockToInstanceMap = new ConcurrentHashMap<>();
+    private final Set<Location> capabilitiesInitialized = ConcurrentHashMap.newKeySet();
     private final MetricsManager metrics = new MetricsManager();
     private final HologramManager holograms = new HologramManager();
     private AddonManager addonManager;
@@ -71,6 +72,7 @@ public class MultiblockManager {
         types.clear();
         activeInstances.clear();
         blockToInstanceMap.clear();
+        capabilitiesInitialized.clear();
         metrics.reset();
     }
     
@@ -269,11 +271,31 @@ public class MultiblockManager {
     }
 
     public void registerInstance(MultiblockInstance instance) {
+        registerInstance(instance, true);
+    }
+
+    public void registerInstance(MultiblockInstance instance, boolean initializeCapabilities) {
         activeInstances.put(instance.anchorLocation(), instance);
         blockToInstanceMap.put(instance.anchorLocation(), instance);
-        // Map other blocks?
-        // For simple interaction handling, we mostly care about controller.
+        if (initializeCapabilities) {
+            initializeCapabilitiesOnce(instance);
+        }
+    }
 
+    public void initializePendingCapabilities() {
+        for (MultiblockInstance instance : activeInstances.values()) {
+            initializeCapabilitiesOnce(instance);
+        }
+    }
+
+    private void initializeCapabilitiesOnce(MultiblockInstance instance) {
+        if (instance == null) {
+            return;
+        }
+        Location key = instance.anchorLocation();
+        if (!capabilitiesInitialized.add(key)) {
+            return;
+        }
         initializeCapabilities(instance);
     }
 
@@ -314,6 +336,7 @@ public class MultiblockManager {
     public void destroyInstance(MultiblockInstance instance) {
         activeInstances.remove(instance.anchorLocation());
         blockToInstanceMap.remove(instance.anchorLocation());
+        capabilitiesInitialized.remove(instance.anchorLocation());
         holograms.removeHologram(instance);
         
         if (storage != null && instance.type().persistent()) {

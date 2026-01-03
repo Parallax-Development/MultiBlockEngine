@@ -10,6 +10,7 @@ import com.darkbladedev.engine.api.logging.LogScope;
 import com.darkbladedev.engine.api.item.ItemService;
 import com.darkbladedev.engine.api.storage.StorageExceptionHandler;
 import com.darkbladedev.engine.api.storage.StorageRegistry;
+import com.darkbladedev.engine.api.event.MultiblockFormEvent;
 import com.darkbladedev.engine.command.MultiblockCommand;
 import com.darkbladedev.engine.integration.MultiblockExpansion;
 import com.darkbladedev.engine.listener.MultiblockListener;
@@ -24,6 +25,7 @@ import com.darkbladedev.engine.item.DefaultItemService;
 import com.darkbladedev.engine.storage.SqlStorage;
 import com.darkbladedev.engine.storage.StorageManager;
 import com.darkbladedev.engine.storage.service.DefaultStorageRegistry;
+import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -124,12 +126,18 @@ public class MultiBlockEngine extends JavaPlugin {
         // Restore persisted instances
         Collection<MultiblockInstance> instances = storage.loadAll();
         for (MultiblockInstance inst : instances) {
-            manager.registerInstance(inst);
+            manager.registerInstance(inst, false);
         }
         log.info("Restored active instances", com.darkbladedev.engine.api.logging.LogKv.kv("count", instances.size()));
 
         log.setCorePhase(LogPhase.ENABLE);
         addonManager.enableAddons();
+
+        manager.initializePendingCapabilities();
+
+        for (MultiblockInstance inst : instances) {
+            Bukkit.getPluginManager().callEvent(new MultiblockFormEvent(inst, null));
+        }
         
         // Register Listeners
         getServer().getPluginManager().registerEvents(new MultiblockListener(manager), this);

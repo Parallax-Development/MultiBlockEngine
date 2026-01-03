@@ -17,11 +17,13 @@ import org.bukkit.persistence.PersistentDataType;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 
 public final class PdcItemStackBridge implements ItemStackBridge {
 
     private static final NamespacedKey KEY_ID = NamespacedKey.fromString("multiblockengine:mbe_item_id");
     private static final NamespacedKey KEY_VERSION = NamespacedKey.fromString("multiblockengine:mbe_item_version");
+    private static final NamespacedKey KEY_UID = NamespacedKey.fromString("multiblockengine:mbe_item_uid");
 
     private final ItemService items;
 
@@ -51,6 +53,11 @@ public final class PdcItemStackBridge implements ItemStackBridge {
             }
             if (KEY_VERSION != null) {
                 pdc.set(KEY_VERSION, PersistentDataType.INTEGER, Math.max(0, key.version()));
+            }
+
+            Map<String, Object> props = def.properties();
+            if (KEY_UID != null && props != null && Boolean.TRUE.equals(props.get("unstackable"))) {
+                pdc.set(KEY_UID, PersistentDataType.STRING, UUID.randomUUID().toString());
             }
             stack.setItemMeta(meta);
         }

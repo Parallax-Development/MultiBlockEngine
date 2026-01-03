@@ -115,6 +115,22 @@ public class SqlStorage implements StorageManager {
                 }
                 updateVersion(conn, 2);
             }
+
+            if (currentVersion < 3) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                    "DELETE FROM multiblock_instances WHERE id NOT IN (" +
+                        "SELECT MAX(id) FROM multiblock_instances GROUP BY world, x, y, z" +
+                    ")")) {
+                    ps.executeUpdate();
+                }
+
+                try (PreparedStatement ps = conn.prepareStatement(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_multiblock_instances_anchor ON multiblock_instances(world, x, y, z)")) {
+                    ps.execute();
+                }
+
+                updateVersion(conn, 3);
+            }
             
         } catch (SQLException e) {
             log(LogPhase.BOOT, LogLevel.ERROR, "Could not initialize database", e);
@@ -143,14 +159,21 @@ public class SqlStorage implements StorageManager {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try (Connection conn = dataSource.getConnection();
                  PreparedStatement ps = conn.prepareStatement(
-                         "INSERT INTO multiblock_instances (type_id, world, x, y, z, facing, variables) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
+                         "INSERT INTO multiblock_instances (type_id, world, x, y, z, facing, state, variables) " +
+                             "VALUES (?, ?, ?, ?, ?, ?, ?, ?) " +
+                             "ON CONFLICT(world, x, y, z) DO UPDATE SET " +
+                             "type_id = excluded.type_id, " +
+                             "facing = excluded.facing, " +
+                             "state = excluded.state, " +
+                             "variables = excluded.variables")) {
                 ps.setString(1, instance.type().id());
                 ps.setString(2, instance.anchorLocation().getWorld().getName());
                 ps.setInt(3, instance.anchorLocation().getBlockX());
                 ps.setInt(4, instance.anchorLocation().getBlockY());
                 ps.setInt(5, instance.anchorLocation().getBlockZ());
                 ps.setString(6, instance.facing().name());
-                ps.setString(7, gson.toJson(instance.getVariables()));
+                ps.setString(7, instance.state().name());
+                ps.setString(8, gson.toJson(instance.getVariables()));
                 ps.executeUpdate();
             } catch (SQLException e) {
                 log(LogPhase.RUNTIME, LogLevel.ERROR, "Failed to save multiblock instance", e,

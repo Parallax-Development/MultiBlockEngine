@@ -28,6 +28,10 @@ public interface Action {
                 || interactAction == org.bukkit.event.block.Action.RIGHT_CLICK_AIR;
     }
 
+    default boolean cancelsVanillaOnInteract(org.bukkit.event.block.Action interactAction) {
+        return false;
+    }
+
     static Action owned(String ownerId, String typeKey, Action delegate) {
         return new Action() {
             @Override
@@ -53,6 +57,11 @@ public interface Action {
             @Override
             public boolean shouldExecuteOnInteract(org.bukkit.event.block.Action interactAction) {
                 return delegate.shouldExecuteOnInteract(interactAction);
+            }
+
+            @Override
+            public boolean cancelsVanillaOnInteract(org.bukkit.event.block.Action interactAction) {
+                return delegate.cancelsVanillaOnInteract(interactAction);
             }
         };
     }

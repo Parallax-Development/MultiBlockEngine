@@ -72,6 +72,9 @@ public class MultiblockListener implements Listener {
              // Execute Interact Actions
              for (com.darkbladedev.engine.model.action.Action action : instance.type().onInteractActions()) {
                  if (action != null && action.shouldExecuteOnInteract(event.getAction())) {
+                     if (action.cancelsVanillaOnInteract(event.getAction())) {
+                         event.setCancelled(true);
+                     }
                      executeActionSafely("INTERACT", action, instance, event.getPlayer());
                  }
              }
