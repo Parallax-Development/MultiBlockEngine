@@ -138,7 +138,7 @@ The following features are planned for future releases:
 
 1.  **Phase 1: Advanced Matching**
     - [x] `BlockState` support (e.g., stairs, slabs).
-    - [ ] NBT/Component data matching.
+    - [x] NBT/Component data matching.
 
 2.  **Phase 2: Condition & Action systems**
     - [x] Implement a flexible conditions system for multiblock behavior.
