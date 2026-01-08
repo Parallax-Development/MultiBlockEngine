@@ -16,6 +16,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.ServicePriority;
 
 import java.io.File;
+import java.io.ByteArrayInputStream;
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -470,7 +471,7 @@ public class AddonManager {
             return;
         }
 
-        ensureAddonConfigAndLogging(loader, addonId, dataFolder, addonLogger);
+        ensureAddonConfigAndLogging(discovered.file(), addonId, dataFolder, addonLogger);
 
         SimpleAddonContext context = new SimpleAddonContext(addonId, plugin, api, addonLogger, dataFolder, this, serviceRegistry);
         try {
@@ -491,13 +492,36 @@ public class AddonManager {
         addonLogger.withPhase(LogPhase.LOAD).info("Loaded", LogKv.kv("version", metadata.version().toString()));
     }
 
-    private void ensureAddonConfigAndLogging(URLClassLoader loader, String addonId, Path dataFolder, AddonLogger addonLogger) {
+    private void ensureAddonConfigAndLogging(File addonFile, String addonId, Path dataFolder, AddonLogger addonLogger) {
         String key = addonId == null ? "" : addonId.toLowerCase(java.util.Locale.ROOT);
         try {
             Path configPath = dataFolder.resolve("config.yml");
+            byte[] addonDefaultConfig = null;
+            try (JarFile jar = new JarFile(addonFile)) {
+                JarEntry entry = jar.getJarEntry("config.yml");
+                if (entry != null) {
+                    try (InputStream in = jar.getInputStream(entry)) {
+                        addonDefaultConfig = in.readAllBytes();
+                    }
+                }
+            }
+
             if (!Files.exists(configPath)) {
-                try (InputStream in = loader.getResourceAsStream("config.yml")) {
+                if (addonDefaultConfig != null && addonDefaultConfig.length > 0) {
+                    try (InputStream in = new ByteArrayInputStream(addonDefaultConfig)) {
+                        Files.copy(in, configPath, StandardCopyOption.REPLACE_EXISTING);
+                    }
+                }
+            } else if (addonDefaultConfig != null && addonDefaultConfig.length > 0) {
+                byte[] existing = Files.readAllBytes(configPath);
+                byte[] coreDefault = null;
+                try (InputStream in = plugin.getResource("config.yml")) {
                     if (in != null) {
+                        coreDefault = in.readAllBytes();
+                    }
+                }
+                if (coreDefault != null && Arrays.equals(existing, coreDefault)) {
+                    try (InputStream in = new ByteArrayInputStream(addonDefaultConfig)) {
                         Files.copy(in, configPath, StandardCopyOption.REPLACE_EXISTING);
                     }
                 }

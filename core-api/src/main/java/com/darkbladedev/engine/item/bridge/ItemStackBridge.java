@@ -9,4 +9,3 @@ public interface ItemStackBridge {
 
     ItemInstance fromItemStack(ItemStack stack);
 }
-

@@ -91,6 +91,16 @@ public final class PdcItemStackBridge implements ItemStackBridge {
             if (data == null) {
                 data = Map.of();
             }
+
+            if (isStorageDisk(props)) {
+                long used = readDiskUsed(data);
+                long total = readDiskTotal(props, data);
+                meta.lore(List.of(
+                        StringUtil.legacyText("&7Disco de almacenamiento"),
+                        StringUtil.legacyText("&fCapacidad: " + used + "/" + total)
+                ));
+            }
+
             if (KEY_UID != null && props != null && Boolean.TRUE.equals(props.get("unstackable"))) {
                 Object existing = data.get(DATA_UID_KEY);
                 String uid = existing instanceof String s && !s.isBlank() ? s : null;
@@ -121,6 +131,49 @@ public final class PdcItemStackBridge implements ItemStackBridge {
         }
 
         return stack;
+    }
+
+    private static boolean isStorageDisk(Map<String, Object> props) {
+        if (props == null || props.isEmpty()) {
+            return false;
+        }
+        Object type = props.get("type");
+        return "storage_disk".equalsIgnoreCase(Objects.toString(type, ""));
+    }
+
+    private static long readDiskTotal(Map<String, Object> props, Map<String, Object> data) {
+        if (props != null) {
+            Object capProp = props.get("capacity_items");
+            if (capProp instanceof Number n) {
+                return Math.max(0L, n.longValue());
+            }
+        }
+        Object cap = data == null ? null : data.get("capacity");
+        if (cap instanceof Number n) {
+            return Math.max(0L, n.longValue());
+        }
+        return 0L;
+    }
+
+    private static long readDiskUsed(Map<String, Object> data) {
+        if (data == null || data.isEmpty()) {
+            return 0L;
+        }
+        Object snapRaw = data.get("storage_snapshot");
+        if (!(snapRaw instanceof Map<?, ?> snap) || snap.isEmpty()) {
+            return 0L;
+        }
+        Object itemsRaw = snap.get("items");
+        if (!(itemsRaw instanceof Map<?, ?> items) || items.isEmpty()) {
+            return 0L;
+        }
+        long used = 0L;
+        for (Object v : items.values()) {
+            if (v instanceof Number n) {
+                used += Math.max(0L, n.longValue());
+            }
+        }
+        return used;
     }
 
     private static List<Component> parseLore(Object raw) {

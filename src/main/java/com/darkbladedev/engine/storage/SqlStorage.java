@@ -17,6 +17,11 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.BlockFace;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -41,6 +46,8 @@ public class SqlStorage implements StorageManager {
     private final MultiBlockEngine plugin;
     private HikariDataSource dataSource;
     private final Gson gson = new Gson();
+    private final AtomicBoolean closing = new AtomicBoolean(false);
+    private ExecutorService executor;
 
     public SqlStorage(MultiBlockEngine plugin) {
         this.plugin = plugin;
@@ -63,12 +70,28 @@ public class SqlStorage implements StorageManager {
 
     @Override
     public void init() {
+        closing.set(false);
+
+        if (executor == null) {
+            ThreadFactory tf = r -> {
+                Thread t = new Thread(r, "MBE-SqlStorage");
+                t.setDaemon(true);
+                return t;
+            };
+            executor = Executors.newSingleThreadExecutor(tf);
+        }
+
         HikariConfig config = new HikariConfig();
         // For simplicity using H2 or SQLite would be easier, but let's assume MySQL/SQLite
         // I'll use SQLite for a standalone plugin if no config provided, but standard practice is config.
         // For this task, I'll use a local SQLite file.
         config.setJdbcUrl("jdbc:sqlite:" + plugin.getDataFolder().getAbsolutePath() + "/multiblocks.db");
         config.setPoolName("MultiBlockPool");
+
+        config.setMaximumPoolSize(1);
+        config.setMinimumIdle(1);
+        config.setConnectionTimeout(5_000);
+        config.setValidationTimeout(2_000);
         
         dataSource = new HikariDataSource(config);
 
@@ -149,43 +172,78 @@ public class SqlStorage implements StorageManager {
 
     @Override
     public void close() {
+        closing.set(true);
+
+        if (executor != null) {
+            executor.shutdownNow();
+            try {
+                executor.awaitTermination(750, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+            }
+            executor = null;
+        }
         if (dataSource != null) {
             dataSource.close();
+            dataSource = null;
         }
     }
 
     @Override
     public void saveInstance(MultiblockInstance instance) {
-        if (!instance.type().persistent()) return;
-        
-        // Async usually, but for simplicity sync here or wrap in runTaskAsynchronously
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+        if (instance == null || instance.type() == null || !instance.type().persistent()) {
+            return;
+        }
+
+        if (closing.get() || executor == null || dataSource == null || !plugin.isEnabled()) {
+            return;
+        }
+
+        Location anchor = instance.anchorLocation();
+        World world = anchor == null ? null : anchor.getWorld();
+        if (world == null) {
+            return;
+        }
+
+        String typeId = instance.type().id();
+        String worldName = world.getName();
+        int x = anchor.getBlockX();
+        int y = anchor.getBlockY();
+        int z = anchor.getBlockZ();
+        String facing = instance.facing() == null ? BlockFace.NORTH.name() : instance.facing().name();
+        String state = instance.state() == null ? MultiblockState.ACTIVE.name() : instance.state().name();
+        Map<String, Object> variables = instance.getVariables() == null ? Map.of() : new HashMap<>(instance.getVariables());
+
+        executor.execute(() -> {
+            if (closing.get()) {
+                return;
+            }
             try (Connection conn = dataSource.getConnection();
                  PreparedStatement ps = conn.prepareStatement(
                          "INSERT INTO multiblock_instances (type_id, world, x, y, z, facing, state, variables) " +
-                             "VALUES (?, ?, ?, ?, ?, ?, ?, ?) " +
-                             "ON CONFLICT(world, x, y, z) DO UPDATE SET " +
-                             "type_id = excluded.type_id, " +
-                             "facing = excluded.facing, " +
-                             "state = excluded.state, " +
-                             "variables = excluded.variables")) {
-                ps.setString(1, instance.type().id());
-                ps.setString(2, instance.anchorLocation().getWorld().getName());
-                ps.setInt(3, instance.anchorLocation().getBlockX());
-                ps.setInt(4, instance.anchorLocation().getBlockY());
-                ps.setInt(5, instance.anchorLocation().getBlockZ());
-                ps.setString(6, instance.facing().name());
-                ps.setString(7, instance.state().name());
+                                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?) " +
+                                 "ON CONFLICT(world, x, y, z) DO UPDATE SET " +
+                                 "type_id = excluded.type_id, " +
+                                 "facing = excluded.facing, " +
+                                 "state = excluded.state, " +
+                                 "variables = excluded.variables")) {
+                ps.setString(1, typeId);
+                ps.setString(2, worldName);
+                ps.setInt(3, x);
+                ps.setInt(4, y);
+                ps.setInt(5, z);
+                ps.setString(6, facing);
+                ps.setString(7, state);
 
                 SanitizationStats stats = new SanitizationStats();
-                Map<String, Object> sanitized = sanitizeVariablesForJson(instance.getVariables(), stats);
+                Map<String, Object> sanitized = sanitizeVariablesForJson(variables, stats);
                 if (stats.changedCount() > 0) {
                     log(LogPhase.RUNTIME, LogLevel.WARN, "Sanitized multiblock variables before save", null,
-                            LogKv.kv("type", instance.type().id()),
-                            LogKv.kv("world", instance.anchorLocation().getWorld().getName()),
-                            LogKv.kv("x", instance.anchorLocation().getBlockX()),
-                            LogKv.kv("y", instance.anchorLocation().getBlockY()),
-                            LogKv.kv("z", instance.anchorLocation().getBlockZ()),
+                            LogKv.kv("type", typeId),
+                            LogKv.kv("world", worldName),
+                            LogKv.kv("x", x),
+                            LogKv.kv("y", y),
+                            LogKv.kv("z", z),
                             LogKv.kv("changed", stats.changedCount())
                     );
                 }
@@ -196,23 +254,26 @@ public class SqlStorage implements StorageManager {
                 } catch (RuntimeException ex) {
                     json = "{}";
                     log(LogPhase.RUNTIME, LogLevel.ERROR, "Failed to serialize multiblock variables", ex,
-                            LogKv.kv("type", instance.type().id()),
-                            LogKv.kv("world", instance.anchorLocation().getWorld().getName()),
-                            LogKv.kv("x", instance.anchorLocation().getBlockX()),
-                            LogKv.kv("y", instance.anchorLocation().getBlockY()),
-                            LogKv.kv("z", instance.anchorLocation().getBlockZ())
+                            LogKv.kv("type", typeId),
+                            LogKv.kv("world", worldName),
+                            LogKv.kv("x", x),
+                            LogKv.kv("y", y),
+                            LogKv.kv("z", z)
                     );
                 }
 
                 ps.setString(8, json);
                 ps.executeUpdate();
             } catch (SQLException e) {
+                if (closing.get() || Thread.currentThread().isInterrupted() || !plugin.isEnabled()) {
+                    return;
+                }
                 log(LogPhase.RUNTIME, LogLevel.ERROR, "Failed to save multiblock instance", e,
-                    LogKv.kv("type", instance.type().id()),
-                    LogKv.kv("world", instance.anchorLocation().getWorld().getName()),
-                    LogKv.kv("x", instance.anchorLocation().getBlockX()),
-                    LogKv.kv("y", instance.anchorLocation().getBlockY()),
-                    LogKv.kv("z", instance.anchorLocation().getBlockZ())
+                        LogKv.kv("type", typeId),
+                        LogKv.kv("world", worldName),
+                        LogKv.kv("x", x),
+                        LogKv.kv("y", y),
+                        LogKv.kv("z", z)
                 );
             }
         });
@@ -333,24 +394,48 @@ public class SqlStorage implements StorageManager {
 
     @Override
     public void deleteInstance(MultiblockInstance instance) {
-        if (!instance.type().persistent()) return;
-        
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+        if (instance == null || instance.type() == null || !instance.type().persistent()) {
+            return;
+        }
+
+        if (closing.get() || executor == null || dataSource == null || !plugin.isEnabled()) {
+            return;
+        }
+
+        Location anchor = instance.anchorLocation();
+        World world = anchor == null ? null : anchor.getWorld();
+        if (world == null) {
+            return;
+        }
+
+        String typeId = instance.type().id();
+        String worldName = world.getName();
+        int x = anchor.getBlockX();
+        int y = anchor.getBlockY();
+        int z = anchor.getBlockZ();
+
+        executor.execute(() -> {
+            if (closing.get()) {
+                return;
+            }
             try (Connection conn = dataSource.getConnection();
                  PreparedStatement ps = conn.prepareStatement(
                          "DELETE FROM multiblock_instances WHERE world = ? AND x = ? AND y = ? AND z = ?")) {
-                ps.setString(1, instance.anchorLocation().getWorld().getName());
-                ps.setInt(2, instance.anchorLocation().getBlockX());
-                ps.setInt(3, instance.anchorLocation().getBlockY());
-                ps.setInt(4, instance.anchorLocation().getBlockZ());
+                ps.setString(1, worldName);
+                ps.setInt(2, x);
+                ps.setInt(3, y);
+                ps.setInt(4, z);
                 ps.executeUpdate();
             } catch (SQLException e) {
+                if (closing.get() || Thread.currentThread().isInterrupted() || !plugin.isEnabled()) {
+                    return;
+                }
                 log(LogPhase.RUNTIME, LogLevel.ERROR, "Failed to delete multiblock instance", e,
-                    LogKv.kv("type", instance.type().id()),
-                    LogKv.kv("world", instance.anchorLocation().getWorld().getName()),
-                    LogKv.kv("x", instance.anchorLocation().getBlockX()),
-                    LogKv.kv("y", instance.anchorLocation().getBlockY()),
-                    LogKv.kv("z", instance.anchorLocation().getBlockZ())
+                        LogKv.kv("type", typeId),
+                        LogKv.kv("world", worldName),
+                        LogKv.kv("x", x),
+                        LogKv.kv("y", y),
+                        LogKv.kv("z", z)
                 );
             }
         });

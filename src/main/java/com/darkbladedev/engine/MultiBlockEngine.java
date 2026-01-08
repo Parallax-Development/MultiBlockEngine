@@ -13,6 +13,7 @@ import com.darkbladedev.engine.api.item.ItemKeys;
 import com.darkbladedev.engine.api.i18n.I18nService;
 import com.darkbladedev.engine.api.i18n.LocaleProvider;
 import com.darkbladedev.engine.api.wrench.WrenchDispatcher;
+import com.darkbladedev.engine.api.persistence.PersistentStorageService;
 import com.darkbladedev.engine.api.storage.StorageExceptionHandler;
 import com.darkbladedev.engine.api.storage.StorageRegistry;
 import com.darkbladedev.engine.api.event.MultiblockFormEvent;
@@ -26,13 +27,15 @@ import com.darkbladedev.engine.model.MultiblockInstance;
 import com.darkbladedev.engine.model.MultiblockType;
 import com.darkbladedev.engine.parser.MultiblockParser;
 import com.darkbladedev.engine.logging.LoggingManager;
-import com.darkbladedev.engine.item.bridge.ItemStackBridge;
 import com.darkbladedev.engine.item.bridge.PdcItemStackBridge;
+import com.darkbladedev.engine.item.bridge.ItemStackBridge;
 import com.darkbladedev.engine.item.DefaultItemService;
 import com.darkbladedev.engine.wrench.DefaultWrenchDispatcher;
 import com.darkbladedev.engine.storage.SqlStorage;
 import com.darkbladedev.engine.storage.StorageManager;
+import com.darkbladedev.engine.storage.FileInstanceStorage;
 import com.darkbladedev.engine.storage.service.DefaultStorageRegistry;
+import com.darkbladedev.engine.persistence.FilePersistentStorageService;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -53,6 +56,7 @@ public class MultiBlockEngine extends JavaPlugin {
     private MultiblockManager manager;
     private MultiblockParser parser;
     private StorageManager storage;
+    private PersistentStorageService persistence;
     private MultiblockAPIImpl api;
     private DebugManager debugManager;
     private AddonManager addonManager;
@@ -79,8 +83,11 @@ public class MultiBlockEngine extends JavaPlugin {
         api = new MultiblockAPIImpl();
         manager = new MultiblockManager();
         parser = new MultiblockParser(api, log);
-        storage = new SqlStorage(this);
+        persistence = new FilePersistentStorageService(getDataFolder().toPath().resolve("persist"));
+        persistence.initialize();
+        storage = new FileInstanceStorage(this, persistence);
         storage.init();
+        persistence.recover();
         manager.setStorage(storage);
         debugManager = new DebugManager(this);
 
@@ -112,6 +119,7 @@ public class MultiBlockEngine extends JavaPlugin {
         ItemStackBridge itemStackBridge = new PdcItemStackBridge(itemService);
         addonManager.registerCoreService(ItemStackBridge.class, itemStackBridge);
         addonManager.registerCoreService(StorageRegistry.class, new DefaultStorageRegistry(log, storageExceptionHandler));
+        addonManager.registerCoreService(PersistentStorageService.class, persistence);
 
         LocaleProvider localeProvider = new BukkitLocaleProvider(Locale.forLanguageTag("en-US"));
         I18nService i18n = new YamlI18nService(
@@ -156,6 +164,16 @@ public class MultiBlockEngine extends JavaPlugin {
         
         // Restore persisted instances
         Collection<MultiblockInstance> instances = storage.loadAll();
+        if (instances.isEmpty()) {
+            StorageManager legacy = new SqlStorage(this);
+            legacy.init();
+            Collection<MultiblockInstance> fromDb = legacy.loadAll();
+            for (MultiblockInstance inst : fromDb) {
+                storage.saveInstance(inst);
+            }
+            legacy.close();
+            instances = fromDb;
+        }
         for (MultiblockInstance inst : instances) {
             manager.registerInstance(inst, false);
         }
@@ -181,6 +199,15 @@ public class MultiBlockEngine extends JavaPlugin {
         
         // Start Ticking
         manager.startTicking(this);
+
+        Bukkit.getScheduler().runTaskTimerAsynchronously(this, () -> {
+            try {
+                if (persistence != null) {
+                    persistence.flush();
+                }
+            } catch (Exception ignored) {
+            }
+        }, 20L * 60L, 20L * 60L);
         
         // Register PlaceholderExpansion
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
@@ -197,6 +224,8 @@ public class MultiBlockEngine extends JavaPlugin {
         if (log != null) {
             log.setCorePhase(LogPhase.DISABLE);
         }
+
+        Bukkit.getScheduler().cancelTasks(this);
         if (debugManager != null) {
             debugManager.stopAll();
         }
@@ -208,6 +237,9 @@ public class MultiBlockEngine extends JavaPlugin {
         }
         if (storage != null) {
             storage.close();
+        }
+        if (persistence != null) {
+            persistence.shutdown(true);
         }
         if (log != null) {
             log.info("MultiBlockEngine stopping...");

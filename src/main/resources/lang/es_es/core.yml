@@ -1,6 +1,5 @@
 core:
   wrench:
-    required: "Necesitas una llave inglesa para hacer eso."
     cooldown: "Espera {ms}ms antes de volver a usar la llave inglesa."
     assembled: "Estructura formada: {type}"
     disassembled: "Estructura destruida: {type}"

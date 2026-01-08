@@ -5,4 +5,3 @@ plugins {
 rootProject.name = 'MultiBlockEngine'
 
 include 'core-api'
-include 'item-bridge'

@@ -1,6 +1,5 @@
 core:
   wrench:
-    required: "You need a wrench to do that."
     cooldown: "Please wait {ms}ms before using the wrench again."
     assembled: "Structure formed: {type}"
     disassembled: "Structure destroyed: {type}"

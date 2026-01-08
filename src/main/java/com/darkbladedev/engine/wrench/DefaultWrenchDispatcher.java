@@ -62,7 +62,7 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
     public static final ItemKey WRENCH_KEY = ItemKeys.of("mbe:wrench", 0);
 
     private static final String ORIGIN = "mbe";
-    private static final MessageKey MSG_WRENCH_REQUIRED = MessageKey.of(ORIGIN, "core.wrench.required");
+    //private static final MessageKey MSG_WRENCH_REQUIRED = MessageKey.of(ORIGIN, "core.wrench.required");
     private static final MessageKey MSG_ASSEMBLED = MessageKey.of(ORIGIN, "core.wrench.assembled");
     private static final MessageKey MSG_DISASSEMBLED = MessageKey.of(ORIGIN, "core.wrench.disassembled");
     private static final MessageKey MSG_COOLDOWN = MessageKey.of(ORIGIN, "core.wrench.cooldown");
@@ -140,7 +140,6 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
 
         if (!isWrench) {
             if (isControllerBlock(block)) {
-                send(player, MSG_WRENCH_REQUIRED, Map.of());
                 return WrenchResult.handled(false);
             }
             return WrenchResult.notHandled();
