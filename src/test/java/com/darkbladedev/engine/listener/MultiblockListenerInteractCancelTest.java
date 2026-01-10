@@ -4,17 +4,21 @@ import be.seeseemelk.mockbukkit.MockBukkit;
 import be.seeseemelk.mockbukkit.ServerMock;
 import be.seeseemelk.mockbukkit.WorldMock;
 import be.seeseemelk.mockbukkit.entity.PlayerMock;
+import com.darkbladedev.engine.MultiBlockEngine;
 import com.darkbladedev.engine.api.item.ItemDefinition;
 import com.darkbladedev.engine.api.item.ItemInstance;
 import com.darkbladedev.engine.api.item.ItemKey;
 import com.darkbladedev.engine.api.item.ItemKeys;
+import com.darkbladedev.engine.api.item.ItemService;
 import com.darkbladedev.engine.api.wrench.WrenchDispatcher;
 import com.darkbladedev.engine.item.DefaultItemService;
 import com.darkbladedev.engine.item.bridge.PdcItemStackBridge;
+import com.darkbladedev.engine.item.bridge.ItemStackBridge;
 import com.darkbladedev.engine.manager.MultiblockManager;
 import com.darkbladedev.engine.model.DisplayNameConfig;
 import com.darkbladedev.engine.model.MultiblockInstance;
 import com.darkbladedev.engine.model.MultiblockType;
+import com.darkbladedev.engine.model.PatternEntry;
 import com.darkbladedev.engine.model.action.Action;
 import com.darkbladedev.engine.wrench.DefaultWrenchDispatcher;
 import org.bukkit.Material;
@@ -31,6 +35,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Constructor;
+import java.io.File;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -53,6 +59,102 @@ public class MultiblockListenerInteractCancelTest {
     @AfterEach
     void tearDown() {
         MockBukkit.unmock();
+    }
+
+    @Test
+    void coreMultiblocksAreInstalledAndRegisteredOnEnable() {
+        MultiBlockEngine plugin = MockBukkit.load(MultiBlockEngine.class);
+
+        assertTrue(plugin.getManager().getType("mana_generator").isPresent());
+
+        File multiblockDir = new File(plugin.getDataFolder(), "multiblocks");
+        assertTrue(multiblockDir.exists());
+        assertTrue(new File(multiblockDir, "mana_generator.yml").exists());
+        assertTrue(new File(multiblockDir, "base_machine.yml").exists());
+    }
+
+    @Test
+    void wrenchAssemblesCoreMultiblock() throws Exception {
+        MultiBlockEngine plugin = MockBukkit.load(MultiBlockEngine.class);
+
+        Location controllerLoc = new Location(world, 10, 64, 10);
+        Block controller = world.getBlockAt(controllerLoc);
+        controller.setType(Material.DIAMOND_BLOCK);
+
+        world.getBlockAt(10, 63, 10).setType(Material.OBSIDIAN);
+        world.getBlockAt(11, 63, 10).setType(Material.OBSIDIAN);
+        world.getBlockAt(9, 63, 10).setType(Material.OBSIDIAN);
+        world.getBlockAt(10, 63, 11).setType(Material.OBSIDIAN);
+        world.getBlockAt(10, 63, 9).setType(Material.OBSIDIAN);
+        world.getBlockAt(11, 63, 11).setType(Material.OBSIDIAN);
+        world.getBlockAt(11, 63, 9).setType(Material.OBSIDIAN);
+        world.getBlockAt(9, 63, 11).setType(Material.OBSIDIAN);
+        world.getBlockAt(9, 63, 9).setType(Material.OBSIDIAN);
+
+        world.getBlockAt(11, 64, 11).setType(Material.GOLD_BLOCK);
+        world.getBlockAt(11, 64, 9).setType(Material.GOLD_BLOCK);
+        world.getBlockAt(9, 64, 11).setType(Material.GOLD_BLOCK);
+        world.getBlockAt(9, 64, 9).setType(Material.GOLD_BLOCK);
+
+        ItemService itemService = plugin.getAddonManager().getCoreService(ItemService.class);
+        ItemStackBridge itemStackBridge = plugin.getAddonManager().getCoreService(ItemStackBridge.class);
+        assertNotNull(itemService);
+        assertNotNull(itemStackBridge);
+
+        ItemInstance wrenchInstance = itemService.factory().create(ItemKeys.of("mbe:wrench", 0));
+        ItemStack wrench = itemStackBridge.toItemStack(wrenchInstance);
+
+        PlayerInteractEvent interactEvent = newPlayerInteractEvent(player, org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK, wrench, controller, EquipmentSlot.HAND);
+        server.getPluginManager().callEvent(interactEvent);
+
+        Optional<MultiblockInstance> created = plugin.getManager().getInstanceAt(controllerLoc);
+        assertTrue(created.isPresent());
+        assertEquals("mana_generator", created.get().type().id());
+        assertTrue(interactEvent.isCancelled());
+    }
+
+    @Test
+    void wrenchStillAssemblesAddonMultiblock() throws Exception {
+        MultiBlockEngine plugin = MockBukkit.load(MultiBlockEngine.class);
+
+        MultiblockType storageType = new MultiblockType(
+                "storage:disk",
+                "1.0",
+                new Vector(0, 0, 0),
+                b -> b != null && b.getType() == Material.EMERALD_BLOCK,
+                List.of(new PatternEntry(new Vector(0, 0, 0), b -> b != null && b.getType() == Material.EMERALD_BLOCK, false)),
+                false,
+                Map.of(),
+                Map.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                new DisplayNameConfig("", false, "hologram"),
+                20,
+                List.of()
+        );
+        plugin.getManager().registerType(storageType);
+
+        Location controllerLoc = new Location(world, 15, 64, 15);
+        Block controller = world.getBlockAt(controllerLoc);
+        controller.setType(Material.EMERALD_BLOCK);
+
+        ItemService itemService = plugin.getAddonManager().getCoreService(ItemService.class);
+        ItemStackBridge itemStackBridge = plugin.getAddonManager().getCoreService(ItemStackBridge.class);
+        assertNotNull(itemService);
+        assertNotNull(itemStackBridge);
+
+        ItemInstance wrenchInstance = itemService.factory().create(ItemKeys.of("mbe:wrench", 0));
+        ItemStack wrench = itemStackBridge.toItemStack(wrenchInstance);
+
+        PlayerInteractEvent interactEvent = newPlayerInteractEvent(player, org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK, wrench, controller, EquipmentSlot.HAND);
+        server.getPluginManager().callEvent(interactEvent);
+
+        Optional<MultiblockInstance> created = plugin.getManager().getInstanceAt(controllerLoc);
+        assertTrue(created.isPresent());
+        assertEquals("storage:disk", created.get().type().id());
+        assertTrue(interactEvent.isCancelled());
     }
 
     @Test
@@ -125,6 +227,78 @@ public class MultiblockListenerInteractCancelTest {
         listener.onInteract(interactEvent);
 
         assertTrue(interactEvent.isCancelled());
+    }
+
+    @Test
+    void interactOnControllerWithWrenchIsCancelledEvenWhenCreationIsBlocked() throws Exception {
+        Location loc = new Location(world, 10, 64, 10);
+
+        MultiblockType type = new MultiblockType(
+                "custom:blocked_form",
+                "1.0",
+                new Vector(0, 0, 0),
+                b -> b != null && b.getType() == Material.BEACON,
+                List.of(new PatternEntry(new Vector(0, 0, 0), b -> b != null && b.getType() == Material.BEACON, false)),
+                false,
+                Map.of(),
+                Map.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                new DisplayNameConfig("", false, "hologram"),
+                20,
+                List.of()
+        );
+
+        Block beacon = world.getBlockAt(10, 64, 10);
+        beacon.setType(Material.BEACON);
+
+        ControllerNoCreateManager manager = new ControllerNoCreateManager(type);
+        WrenchTestHarness harness = new WrenchTestHarness(manager);
+        MultiblockListener listener = new MultiblockListener(manager, e -> {
+        }, harness.dispatcher);
+
+        PlayerInteractEvent interactEvent = newPlayerInteractEvent(player, org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK, harness.wrench, beacon, EquipmentSlot.HAND);
+
+        listener.onInteract(interactEvent);
+
+        assertTrue(interactEvent.isCancelled());
+    }
+
+    @Test
+    void interactOnControllerWithoutWrenchIsNotCancelledWhenNoInstance() throws Exception {
+        MultiblockType type = new MultiblockType(
+                "custom:controller_only",
+                "1.0",
+                new Vector(0, 0, 0),
+                b -> b != null && b.getType() == Material.BEACON,
+                List.of(new PatternEntry(new Vector(0, 0, 0), b -> b != null && b.getType() == Material.BEACON, false)),
+                false,
+                Map.of(),
+                Map.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                new DisplayNameConfig("", false, "hologram"),
+                20,
+                List.of()
+        );
+
+        MultiblockManager manager = new MultiblockManager();
+        manager.registerType(type);
+        WrenchTestHarness harness = new WrenchTestHarness(manager);
+        MultiblockListener listener = new MultiblockListener(manager, e -> {
+        }, harness.dispatcher);
+
+        Block beacon = world.getBlockAt(10, 64, 10);
+        beacon.setType(Material.BEACON);
+        PlayerInteractEvent interactEvent = newPlayerInteractEvent(player, org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK, null, beacon, EquipmentSlot.HAND);
+
+        listener.onInteract(interactEvent);
+
+        assertFalse(interactEvent.isCancelled());
     }
 
     private static PlayerInteractEvent newPlayerInteractEvent(Player player, org.bukkit.event.block.Action action, ItemStack item, Block clickedBlock, EquipmentSlot hand) throws Exception {
@@ -215,6 +389,17 @@ public class MultiblockListenerInteractCancelTest {
         @Override
         public Optional<MultiblockInstance> getInstanceAt(Location loc) {
             return Optional.of(instance);
+        }
+    }
+
+    private static final class ControllerNoCreateManager extends MultiblockManager {
+        private ControllerNoCreateManager(MultiblockType type) {
+            registerType(type);
+        }
+
+        @Override
+        public Optional<MultiblockInstance> tryCreate(Block anchor, MultiblockType type, Player player) {
+            return Optional.empty();
         }
     }
 }

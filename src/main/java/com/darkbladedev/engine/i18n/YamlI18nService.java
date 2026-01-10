@@ -10,7 +10,6 @@ import com.darkbladedev.engine.api.logging.LogPhase;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashSet;

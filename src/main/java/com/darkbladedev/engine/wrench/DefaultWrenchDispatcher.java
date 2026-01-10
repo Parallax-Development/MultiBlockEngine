@@ -49,7 +49,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -138,8 +137,10 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
             return WrenchResult.notHandled();
         }
 
+        boolean controllerCandidate = isControllerBlock(block);
+
         if (!isWrench) {
-            if (isControllerBlock(block)) {
+            if (controllerCandidate) {
                 return WrenchResult.handled(false);
             }
             return WrenchResult.notHandled();
@@ -149,6 +150,9 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
         if (addonHandled != null && addonHandled.handled()) {
             if (addonHandled.message() != null) {
                 send(player, addonHandled.message(), addonHandled.params());
+            }
+            if (controllerCandidate && !addonHandled.cancelEvent()) {
+                return new WrenchResult(true, true, addonHandled.message(), addonHandled.params());
             }
             return addonHandled;
         }
@@ -164,6 +168,10 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
         if (!missing.isBlank()) {
             send(player, MSG_MISSING, Map.of("missing", missing));
             playFailure(player, block.getLocation());
+            return WrenchResult.handled(true);
+        }
+
+        if (controllerCandidate) {
             return WrenchResult.handled(true);
         }
 

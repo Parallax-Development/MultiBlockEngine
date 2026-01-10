@@ -47,8 +47,6 @@ pattern:
   - offset: [1, 0, 0]
     match: "#logs"  # Minecraft Tag support
 
-behavior:
-  custom_key: "value"
 ```
 
 ### Matcher Types

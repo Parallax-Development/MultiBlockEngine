@@ -146,8 +146,6 @@ public class MultiBlockEngine extends JavaPlugin {
         File multiblockDir = new File(getDataFolder(), "multiblocks");
         if (!multiblockDir.exists()) {
             multiblockDir.mkdirs();
-            // Create default example if empty
-            saveResource("multiblocks/example_portal.yml", false);
         }
         
         // Load definitions
@@ -165,14 +163,21 @@ public class MultiBlockEngine extends JavaPlugin {
         // Restore persisted instances
         Collection<MultiblockInstance> instances = storage.loadAll();
         if (instances.isEmpty()) {
-            StorageManager legacy = new SqlStorage(this);
-            legacy.init();
-            Collection<MultiblockInstance> fromDb = legacy.loadAll();
-            for (MultiblockInstance inst : fromDb) {
-                storage.saveInstance(inst);
+            File legacyDb = new File(getDataFolder(), "multiblocks.db");
+            if (legacyDb.exists() && legacyDb.isFile() && legacyDb.length() > 0 && isSqliteDriverPresent()) {
+                try {
+                    StorageManager legacy = new SqlStorage(this);
+                    legacy.init();
+                    Collection<MultiblockInstance> fromDb = legacy.loadAll();
+                    for (MultiblockInstance inst : fromDb) {
+                        storage.saveInstance(inst);
+                    }
+                    legacy.close();
+                    instances = fromDb;
+                } catch (Throwable t) {
+                    log.warn("Legacy SQL migration skipped", com.darkbladedev.engine.api.logging.LogKv.kv("reason", t.getClass().getSimpleName()));
+                }
             }
-            legacy.close();
-            instances = fromDb;
         }
         for (MultiblockInstance inst : instances) {
             manager.registerInstance(inst, false);
@@ -325,5 +330,14 @@ public class MultiBlockEngine extends JavaPlugin {
         };
 
         itemService.registry().register(wrench);
+    }
+
+    private boolean isSqliteDriverPresent() {
+        try {
+            Class.forName("org.sqlite.JDBC");
+            return true;
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 }
