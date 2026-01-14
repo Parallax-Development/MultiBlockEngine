@@ -31,6 +31,12 @@ import com.darkbladedev.engine.item.bridge.PdcItemStackBridge;
 import com.darkbladedev.engine.item.bridge.ItemStackBridge;
 import com.darkbladedev.engine.item.DefaultItemService;
 import com.darkbladedev.engine.wrench.DefaultWrenchDispatcher;
+import com.darkbladedev.engine.api.export.ExportHookRegistry;
+import com.darkbladedev.engine.export.DefaultExportHookRegistry;
+import com.darkbladedev.engine.export.ExportConfig;
+import com.darkbladedev.engine.export.SelectionManager;
+import com.darkbladedev.engine.export.StructureExporter;
+import com.darkbladedev.engine.export.ExportInteractListener;
 import com.darkbladedev.engine.storage.SqlStorage;
 import com.darkbladedev.engine.storage.StorageManager;
 import com.darkbladedev.engine.storage.FileInstanceStorage;
@@ -67,6 +73,8 @@ public class MultiBlockEngine extends JavaPlugin {
     private LoggingManager loggingManager;
     private AssemblyTriggerRegistry assemblyTriggers;
     private AssemblyCoordinator assemblyCoordinator;
+    private SelectionManager exportSelections;
+    private StructureExporter structureExporter;
 
     @Override
     public void onEnable() {
@@ -126,6 +134,13 @@ public class MultiBlockEngine extends JavaPlugin {
         addonManager.registerCoreService(ItemStackBridge.class, itemStackBridge);
         addonManager.registerCoreService(StorageRegistry.class, new DefaultStorageRegistry(log, storageExceptionHandler));
         addonManager.registerCoreService(PersistentStorageService.class, persistence);
+
+        ExportHookRegistry exportHooks = new DefaultExportHookRegistry();
+        addonManager.registerCoreService(ExportHookRegistry.class, exportHooks);
+
+        ExportConfig exportConfig = ExportConfig.from(getConfig().getConfigurationSection("export"));
+        exportSelections = new SelectionManager();
+        structureExporter = new StructureExporter(log, exportHooks, exportConfig);
 
         LocaleProvider localeProvider = new BukkitLocaleProvider(Locale.forLanguageTag("en-US"));
         I18nService i18n = new YamlI18nService(
@@ -211,8 +226,10 @@ public class MultiBlockEngine extends JavaPlugin {
         WrenchDispatcher wd = addonManager.getCoreService(WrenchDispatcher.class);
         getServer().getPluginManager().registerEvents(new MultiblockListener(manager, wd, assemblyCoordinator), this);
         
+        getServer().getPluginManager().registerEvents(new ExportInteractListener(exportSelections), this);
+
         // Register Commands
-        MultiblockCommand cmd = new MultiblockCommand(this);
+        MultiblockCommand cmd = new MultiblockCommand(this, exportSelections, structureExporter);
         getCommand("multiblock").setExecutor(cmd);
         getCommand("multiblock").setTabCompleter(cmd);
         
@@ -305,6 +322,14 @@ public class MultiBlockEngine extends JavaPlugin {
 
     public LoggingManager getLoggingManager() {
         return loggingManager;
+    }
+
+    public SelectionManager getExportSelections() {
+        return exportSelections;
+    }
+
+    public StructureExporter getStructureExporter() {
+        return structureExporter;
     }
 
     private void ensureDefaultLangFiles() {

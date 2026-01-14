@@ -19,3 +19,12 @@ i18n:
 # Database configuration (for future use if we switch from internal SQLite)
 database:
   type: sqlite
+
+export:
+  includeAir: false
+  includeBlockStates: true
+  includeNbt: false
+  includeWaterlogged: false
+  ignoreMaterials:
+    - TORCH
+    - WALL_TORCH

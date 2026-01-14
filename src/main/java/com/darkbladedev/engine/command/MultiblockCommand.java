@@ -8,6 +8,9 @@ import com.darkbladedev.engine.command.services.impl.ItemsCommandService;
 import com.darkbladedev.engine.command.services.impl.UiCommandService;
 import com.darkbladedev.engine.api.i18n.I18nService;
 import com.darkbladedev.engine.api.i18n.MessageKey;
+import com.darkbladedev.engine.export.ExportSession;
+import com.darkbladedev.engine.export.SelectionManager;
+import com.darkbladedev.engine.export.StructureExporter;
 import com.darkbladedev.engine.api.assembly.AssemblyReport;
 import com.darkbladedev.engine.model.MultiblockInstance;
 import com.darkbladedev.engine.model.MultiblockType;
@@ -30,6 +33,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 public class MultiblockCommand implements CommandExecutor, TabCompleter {
@@ -70,9 +74,13 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
 
     private final MultiBlockEngine plugin;
     private final ServicesCommandRouter services;
+    private final SelectionManager exportSelections;
+    private final StructureExporter structureExporter;
 
-    public MultiblockCommand(MultiBlockEngine plugin) {
+    public MultiblockCommand(MultiBlockEngine plugin, SelectionManager exportSelections, StructureExporter structureExporter) {
         this.plugin = plugin;
+        this.exportSelections = exportSelections;
+        this.structureExporter = structureExporter;
         this.services = new ServicesCommandRouter(plugin);
         this.services.registerInternal(new ItemsCommandService(plugin));
         this.services.registerInternal(new UiCommandService());
@@ -98,6 +106,9 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
         if (safeArgs[0].equalsIgnoreCase("inspect")) {
             handleInspect(player);
             return true;
+        } else if (safeArgs[0].equalsIgnoreCase("export")) {
+            handleExport(player, label, safeArgs);
+            return true;
         } else if (safeArgs[0].equalsIgnoreCase("status") || safeArgs[0].equalsIgnoreCase("stats")) {
             handleStatus(player);
             return true;
@@ -114,6 +125,85 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
 
         player.sendMessage(Component.text(tr(player, MSG_UNKNOWN_SUBCOMMAND), NamedTextColor.RED));
         return true;
+    }
+
+    private void handleExport(Player player, String label, String[] args) {
+        if (args.length < 2) {
+            player.sendMessage(Component.text("Uso: /" + label + " export <start|pos1|pos2|mark|save|cancel>", NamedTextColor.YELLOW));
+            return;
+        }
+
+        String op = args[1] == null ? "" : args[1].toLowerCase(Locale.ROOT);
+        switch (op) {
+            case "start" -> {
+                exportSelections.start(player);
+                player.sendMessage(Component.text("Export session iniciada.", NamedTextColor.GREEN));
+            }
+            case "cancel" -> {
+                boolean cancelled = exportSelections.cancel(player);
+                player.sendMessage(Component.text(cancelled ? "Export session cancelada." : "No hay sesión activa.", cancelled ? NamedTextColor.YELLOW : NamedTextColor.RED));
+            }
+            case "pos1" -> {
+                ExportSession s = ensureSession(player);
+                if (s == null) return;
+                Block b = player.getTargetBlockExact(10);
+                if (b == null) {
+                    player.sendMessage(Component.text("Debes mirar un bloque (rango 10).", NamedTextColor.RED));
+                    return;
+                }
+                s.setPos1(b.getLocation());
+                player.sendMessage(Component.text("pos1 = " + b.getX() + "," + b.getY() + "," + b.getZ(), NamedTextColor.GREEN));
+            }
+            case "pos2" -> {
+                ExportSession s = ensureSession(player);
+                if (s == null) return;
+                Block b = player.getTargetBlockExact(10);
+                if (b == null) {
+                    player.sendMessage(Component.text("Debes mirar un bloque (rango 10).", NamedTextColor.RED));
+                    return;
+                }
+                s.setPos2(b.getLocation());
+                player.sendMessage(Component.text("pos2 = " + b.getX() + "," + b.getY() + "," + b.getZ(), NamedTextColor.GREEN));
+            }
+            case "mark" -> {
+                ExportSession s = ensureSession(player);
+                if (s == null) return;
+                if (args.length < 3) {
+                    player.sendMessage(Component.text("Uso: /" + label + " export mark <controller|input|output|decorative>", NamedTextColor.YELLOW));
+                    return;
+                }
+                String role = args[2];
+                s.setPendingRole(role);
+                player.sendMessage(Component.text("Ahora haz click derecho en el bloque para marcar: " + role, NamedTextColor.AQUA));
+            }
+            case "save" -> {
+                ExportSession s = ensureSession(player);
+                if (s == null) return;
+                if (args.length < 3) {
+                    player.sendMessage(Component.text("Uso: /" + label + " export save <id>", NamedTextColor.YELLOW));
+                    return;
+                }
+                String id = args[2];
+                try {
+                    var res = structureExporter.exportToFile(id, s, plugin.getDataFolder().toPath().resolve("exports"));
+                    player.sendMessage(Component.text("Export OK: " + res.id() + " (blocks=" + res.blocks() + ")", NamedTextColor.GREEN));
+                    if (!res.warnings().isEmpty()) {
+                        player.sendMessage(Component.text("Warnings: " + res.warnings().size(), NamedTextColor.YELLOW));
+                    }
+                } catch (StructureExporter.ExportException e) {
+                    player.sendMessage(Component.text("Export error: " + e.getMessage(), NamedTextColor.RED));
+                }
+            }
+            default -> player.sendMessage(Component.text("Subcomando inválido. Uso: /" + label + " export <start|pos1|pos2|mark|save|cancel>", NamedTextColor.RED));
+        }
+    }
+
+    private ExportSession ensureSession(Player player) {
+        ExportSession s = exportSelections.session(player);
+        if (s == null) {
+            player.sendMessage(Component.text("No hay sesión activa. Usa: /mbe export start", NamedTextColor.RED));
+        }
+        return s;
     }
 
     private void handleDebug(Player player, String[] args) {
@@ -339,6 +429,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
         if (args.length == 1) {
             List<String> subcommands = new ArrayList<>();
             subcommands.add("inspect");
+            subcommands.add("export");
             subcommands.add("reload");
             subcommands.add("status");
             subcommands.add("stats");
@@ -347,6 +438,10 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
             subcommands.add("services");
             
             return filter(subcommands, args[0]);
+        } else if (args.length == 2 && args[0].equalsIgnoreCase("export")) {
+            return filter(List.of("start", "pos1", "pos2", "mark", "save", "cancel"), args[1]);
+        } else if (args.length == 3 && args[0].equalsIgnoreCase("export") && args[1].equalsIgnoreCase("mark")) {
+            return filter(List.of("controller", "input", "output", "decorative"), args[2]);
         } else if (args.length == 2 && args[0].equalsIgnoreCase("debug")) {
             // Autocomplete multiblock types
             List<String> types = new ArrayList<>();
