@@ -6,3 +6,4 @@ pattern:
     match: "minecraft:stone_brick_stairs[facing=north,half=bottom]"
 behavior:
   type: "machine"
+

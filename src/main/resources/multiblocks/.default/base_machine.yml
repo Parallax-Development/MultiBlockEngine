@@ -31,3 +31,4 @@ actions:
   on_break:
     - type: message
       value: "&cMachine destroyed!"
+

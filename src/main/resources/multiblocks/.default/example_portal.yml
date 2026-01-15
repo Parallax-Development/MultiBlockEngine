@@ -8,3 +8,4 @@ pattern:
     match: OBSIDIAN
   - offset: [0, 3, 0]
     match: OBSIDIAN
+

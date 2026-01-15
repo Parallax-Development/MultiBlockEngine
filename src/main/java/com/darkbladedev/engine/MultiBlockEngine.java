@@ -46,11 +46,13 @@ import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+
 
 import com.darkbladedev.engine.debug.DebugManager;
 import com.darkbladedev.engine.assembly.AssemblyCoordinator;
@@ -179,11 +181,17 @@ public class MultiBlockEngine extends JavaPlugin {
         
         // Load definitions
         log.setCorePhase(LogPhase.LOAD);
-        List<MultiblockType> types = parser.loadAll(multiblockDir);
-        for (MultiblockType type : types) {
+        List<MultiblockParser.LoadedType> loadedTypes = parser.loadAllWithSources(multiblockDir);
+        List<MultiblockType> types = new ArrayList<>(loadedTypes.size());
+        for (MultiblockParser.LoadedType loaded : loadedTypes) {
+            if (loaded == null || loaded.type() == null) {
+                continue;
+            }
+            MultiblockType type = loaded.type();
             try {
-                manager.registerType(type);
-                log.info("Loaded multiblock", com.darkbladedev.engine.api.logging.LogKv.kv("id", type.id()));
+                manager.registerType(type, loaded.source());
+                types.add(type);
+                log.info("Loaded multiblock", com.darkbladedev.engine.api.logging.LogKv.kv("id", type.id()), com.darkbladedev.engine.api.logging.LogKv.kv("source", loaded.source().type().name()), com.darkbladedev.engine.api.logging.LogKv.kv("path", loaded.source().path()));
             } catch (Exception e) {
                 log.log(LogLevel.ERROR, "Failed to register multiblock type", e, com.darkbladedev.engine.api.logging.LogKv.kv("id", type.id()));
             }
@@ -346,15 +354,19 @@ public class MultiBlockEngine extends JavaPlugin {
     }
 
     private void ensureDefaultMultiblockFiles() {
-        saveResource("multiblocks/base_machine.yml", false);
-        saveResource("multiblocks/mana_generator.yml", false);
-        saveResource("multiblocks/example_portal.yml", false);
-        saveResource("multiblocks/healer_machine.yml", false);
-        saveResource("multiblocks/miner_machine.yml", false);
-        saveResource("multiblocks/test_action.yml", false);
-        saveResource("multiblocks/test_complex.yml", false);
-        saveResource("multiblocks/test_optional.yml", false);
-        saveResource("multiblocks/test_ticking.yml", false);
+        File defaultDir = getDataFolder().toPath().resolve("multiblocks").resolve(".default").toFile();
+        if (!defaultDir.exists()) {
+            defaultDir.mkdirs();
+        }
+        saveResource("multiblocks/.default/base_machine.yml", false);
+        saveResource("multiblocks/.default/mana_generator.yml", false);
+        saveResource("multiblocks/.default/example_portal.yml", false);
+        saveResource("multiblocks/.default/healer_machine.yml", false);
+        saveResource("multiblocks/.default/miner_machine.yml", false);
+        saveResource("multiblocks/.default/test_action.yml", false);
+        saveResource("multiblocks/.default/test_complex.yml", false);
+        saveResource("multiblocks/.default/test_optional.yml", false);
+        saveResource("multiblocks/.default/test_ticking.yml", false);
     }
 
     private static void registerCoreItems(DefaultItemService itemService) {

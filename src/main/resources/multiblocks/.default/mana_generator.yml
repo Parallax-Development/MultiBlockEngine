@@ -79,13 +79,11 @@ actions:
     - type: actionbar
       message: "&aNivel de maná: <variable:mana>"
       target: "nearby:10"
-    # Check permissions with feedback using Conditional Action
     - type: conditional
       conditions:
         - type: permission
           value: "multiblock.use.mana_gen"
       then:
-        # If permitted, try toggling state
         - type: conditional
           conditions:
             - type: state
@@ -105,18 +103,15 @@ actions:
             - type: message
               value: "&c[ManaGen] Generator DEACTIVATED."
               target: trigger
-        # Always show mana to the interactor
         - type: message
           value: "&b[ManaGen] Current Mana: <variable:mana>/<variable:max_mana>"
           target: trigger
       else:
-        # If no permission
         - type: message
           value: "&c[ManaGen] You do not have permission to use this!"
           target: trigger
 
   on_tick:
-    # Generate Mana if Active
     - type: modify_variable
       key: mana
       operation: ADD
@@ -125,7 +120,6 @@ actions:
         - type: state
           value: ACTIVE
           
-    # Notify Progress
     - type: message
       value: "&7[ManaGen] Generating mana... (<variable:mana>)"
       target: "nearby:15"
@@ -141,7 +135,6 @@ actions:
           value: 55
           comparison: LESS
           
-    # Discharge at Max Mana
     - type: message
       value: "&d[ManaGen] &lDISCHARGE! &r&dYou received a reward."
       target: "nearby:10"
@@ -166,8 +159,6 @@ actions:
           
     - type: command
       value: "give @p[distance=..5] diamond 1" 
-      # Using vanilla selector for simplicity as we don't have player context in tick
-      # Or: summon firework_rocket %world% %x% %y% %z%
       conditions:
         - type: state
           value: ACTIVE
@@ -190,3 +181,4 @@ actions:
   on_break:
     - type: message
       value: "&c[ManaGen] Generator destroyed! Mana lost."
+

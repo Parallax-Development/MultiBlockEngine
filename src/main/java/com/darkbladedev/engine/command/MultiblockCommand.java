@@ -220,6 +220,11 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
             return;
         }
         MultiblockType type = typeOpt.get();
+
+        plugin.getManager().getSource(type.id()).ifPresent(src -> {
+            player.sendMessage(Component.text("sourceType=" + src.type().name() + " path=" + src.path(), NamedTextColor.GRAY));
+        });
+        player.sendMessage(Component.text("signature=" + plugin.getManager().signatureOf(type), NamedTextColor.GRAY));
         
         // Target player
         Player targetPlayer = player;
@@ -291,9 +296,18 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
         }
         
         MultiblockParser parser = plugin.getParser();
-        List<MultiblockType> newTypes = parser.loadAll(multiblockDir);
-        
-        plugin.getManager().reloadTypes(newTypes);
+        List<MultiblockParser.LoadedType> loaded = parser.loadAllWithSources(multiblockDir);
+        List<MultiblockType> newTypes = new ArrayList<>(loaded.size());
+        java.util.Map<String, com.darkbladedev.engine.model.MultiblockSource> sources = new java.util.HashMap<>();
+        for (MultiblockParser.LoadedType lt : loaded) {
+            if (lt == null || lt.type() == null) {
+                continue;
+            }
+            newTypes.add(lt.type());
+            sources.put(lt.type().id(), lt.source());
+        }
+
+        plugin.getManager().reloadTypesWithSources(newTypes, sources);
         
         // Restart ticking with new config
         plugin.getManager().startTicking(plugin);

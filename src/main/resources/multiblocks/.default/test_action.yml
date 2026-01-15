@@ -10,3 +10,4 @@ actions:
       value: "&aStructure Created! Coordinates: %x%, %y%, %z%"
     - type: command
       value: "say A new structure was built in %world%!"
+

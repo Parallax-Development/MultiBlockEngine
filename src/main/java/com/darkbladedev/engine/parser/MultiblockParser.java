@@ -25,15 +25,25 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.util.Vector;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 import java.util.function.Function;
+
+import com.darkbladedev.engine.model.MultiblockSource;
 
 public class MultiblockParser {
     
     private final MultiblockAPIImpl api;
     private final CoreLogger log;
     
-    private record RawDefinition(String id, File file, YamlConfiguration config) {}
+    private record RawDefinition(String id, File file, String relativePath, MultiblockSource source, YamlConfiguration config) {}
+
+    public record LoadedType(MultiblockType type, MultiblockSource source) {}
     
     public MultiblockParser(MultiblockAPIImpl api, CoreLogger log) {
         this.api = api;
@@ -148,60 +158,124 @@ public class MultiblockParser {
     }
 
     public List<MultiblockType> loadAll(File directory) {
-        Map<String, RawDefinition> rawDefinitions = new HashMap<>();
-        List<MultiblockType> types = new ArrayList<>();
-        
-        if (!directory.exists()) return types;
+        List<LoadedType> loaded = loadAllWithSources(directory);
+        List<MultiblockType> out = new ArrayList<>(loaded.size());
+        for (LoadedType lt : loaded) {
+            if (lt != null && lt.type() != null) {
+                out.add(lt.type());
+            }
+        }
+        return out;
+    }
 
-        File[] files = directory.listFiles((dir, name) -> name.endsWith(".yml"));
-        if (files == null) return types;
+    public List<LoadedType> loadAllWithSources(File directory) {
+        Map<String, List<RawDefinition>> candidatesById = new HashMap<>();
+        List<LoadedType> out = new ArrayList<>();
 
-        // 1. Load all raw definitions
-        for (File file : files) {
+        if (directory == null || !directory.exists()) {
+            return out;
+        }
+
+        Path base = directory.toPath();
+        List<Path> files = listYamlFilesRecursive(base);
+        for (Path file : files) {
+            String rel = toRelativePath(base, file);
+            MultiblockSource source = sourceForRelativePath(rel);
             try {
-                YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+                YamlConfiguration config = YamlConfiguration.loadConfiguration(file.toFile());
                 String id = config.getString("id");
-                if (id == null) {
-                    log.logInternal(new LogScope.Core(), LogPhase.LOAD, LogLevel.WARN, "Multiblock file missing id (skipping)", null, new LogKv[] {
-                        LogKv.kv("file", file.getName())
+                if (id == null || id.isBlank()) {
+                    id = deriveIdFromFile(file);
+                    if (id != null && !id.isBlank()) {
+                        config.set("id", id);
+                    }
+                }
+                if (id == null || id.isBlank()) {
+                    log.logInternal(new LogScope.Core(), LogPhase.LOAD, LogLevel.WARN, "Multiblock file has empty id (skipping)", null, new LogKv[] {
+                            LogKv.kv("file", rel)
                     }, Set.of());
                     continue;
                 }
-                rawDefinitions.put(id, new RawDefinition(id, file, config));
+                candidatesById.computeIfAbsent(id, k -> new ArrayList<>())
+                        .add(new RawDefinition(id, file.toFile(), rel, source, config));
             } catch (Exception e) {
                 log.logInternal(new LogScope.Core(), LogPhase.LOAD, LogLevel.ERROR, "Failed to load multiblock file", e, new LogKv[] {
-                    LogKv.kv("file", file.getName())
+                        LogKv.kv("file", rel)
                 }, Set.of());
             }
         }
 
-        // 2. Resolve inheritance
+        Map<String, RawDefinition> rawDefinitions = new HashMap<>();
+        for (Map.Entry<String, List<RawDefinition>> e : candidatesById.entrySet()) {
+            String id = e.getKey();
+            List<RawDefinition> list = e.getValue() == null ? List.of() : new ArrayList<>(e.getValue());
+            list.sort((a, b) -> {
+                int st = a.source().type().compareTo(b.source().type());
+                if (st != 0) {
+                    return st;
+                }
+                return a.relativePath().compareToIgnoreCase(b.relativePath());
+            });
+
+            RawDefinition chosen = list.isEmpty() ? null : list.get(0);
+            if (chosen == null) {
+                continue;
+            }
+
+            if (list.size() > 1) {
+                StringBuilder duplicates = new StringBuilder();
+                for (int i = 0; i < list.size(); i++) {
+                    if (i > 0) {
+                        duplicates.append(", ");
+                    }
+                    duplicates.append(list.get(i).relativePath());
+                }
+                log.logInternal(new LogScope.Core(), LogPhase.LOAD, LogLevel.WARN, "Duplicate definitionId", null, new LogKv[] {
+                        LogKv.kv("id", id),
+                        LogKv.kv("chosen", chosen.relativePath()),
+                        LogKv.kv("candidates", duplicates.toString())
+                }, Set.of());
+            }
+
+            rawDefinitions.put(id, chosen);
+        }
+
         Map<String, YamlConfiguration> resolvedConfigs = new HashMap<>();
         Set<String> resolving = new HashSet<>();
         Set<String> resolved = new HashSet<>();
-        
-        for (String id : rawDefinitions.keySet()) {
+
+        List<String> ids = new ArrayList<>(rawDefinitions.keySet());
+        ids.sort(String::compareToIgnoreCase);
+        for (String id : ids) {
             try {
                 resolve(id, rawDefinitions, resolvedConfigs, resolving, resolved);
-            } catch (Exception e) {
-                log.logInternal(new LogScope.Core(), LogPhase.LOAD, LogLevel.ERROR, "Error resolving template", e, new LogKv[] {
-                    LogKv.kv("id", id)
+            } catch (Exception ex) {
+                RawDefinition rd = rawDefinitions.get(id);
+                log.logInternal(new LogScope.Core(), LogPhase.LOAD, LogLevel.ERROR, "Error resolving template", ex, new LogKv[] {
+                        LogKv.kv("id", id),
+                        LogKv.kv("file", rd != null ? rd.relativePath() : "unknown")
                 }, Set.of());
             }
         }
-        
-        // 3. Parse resolved configs
-        for (String id : resolvedConfigs.keySet()) {
+
+        for (String id : ids) {
+            YamlConfiguration cfg = resolvedConfigs.get(id);
+            if (cfg == null) {
+                continue;
+            }
+            RawDefinition rd = rawDefinitions.get(id);
             try {
-                // File originalFile = rawDefinitions.get(id).file();
-                types.add(parse(resolvedConfigs.get(id))); 
-            } catch (Exception e) {
-                log.logInternal(new LogScope.Core(), LogPhase.LOAD, LogLevel.ERROR, "Failed to parse resolved multiblock", e, new LogKv[] {
-                    LogKv.kv("id", id)
+                MultiblockType type = parse(cfg);
+                out.add(new LoadedType(type, rd.source()));
+            } catch (Exception ex) {
+                log.logInternal(new LogScope.Core(), LogPhase.LOAD, LogLevel.ERROR, "Failed to parse resolved multiblock", ex, new LogKv[] {
+                        LogKv.kv("id", id),
+                        LogKv.kv("file", rd != null ? rd.relativePath() : "unknown")
                 }, Set.of());
             }
         }
-        return types;
+
+        return out;
     }
 
     private void resolve(String id, Map<String, RawDefinition> raw, Map<String, YamlConfiguration> resolvedConfigs, Set<String> resolving, Set<String> resolved) {
@@ -222,7 +296,7 @@ public class MultiblockParser {
         
         if (parentId != null) {
             if (!raw.containsKey(parentId)) {
-                throw new IllegalStateException("Missing parent: " + parentId + " required by " + id + " (in " + def.file().getName() + ")");
+                throw new IllegalStateException("Missing parent: " + parentId + " required by " + id + " (in " + def.relativePath() + ")");
             }
             resolve(parentId, raw, resolvedConfigs, resolving, resolved);
             YamlConfiguration parentConfig = resolvedConfigs.get(parentId);
@@ -240,6 +314,80 @@ public class MultiblockParser {
         resolvedConfigs.put(id, finalConfig);
         resolving.remove(id);
         resolved.add(id);
+    }
+
+    private static String deriveIdFromFile(Path file) {
+        if (file == null) {
+            return null;
+        }
+        String name = file.getFileName().toString();
+        int idx = name.lastIndexOf('.');
+        if (idx <= 0) {
+            return name;
+        }
+        return name.substring(0, idx);
+    }
+
+    private List<Path> listYamlFilesRecursive(Path base) {
+        List<Path> out = new ArrayList<>();
+        try {
+            Files.walkFileTree(base, new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+                    if (dir == null) {
+                        return FileVisitResult.SKIP_SUBTREE;
+                    }
+                    if (dir.equals(base)) {
+                        return FileVisitResult.CONTINUE;
+                    }
+                    Path name = dir.getFileName();
+                    String dirName = name == null ? "" : name.toString();
+                    if (dirName.isEmpty()) {
+                        return FileVisitResult.CONTINUE;
+                    }
+                    if (dirName.equalsIgnoreCase(".git")
+                            || dirName.equalsIgnoreCase(".svn")
+                            || dirName.equalsIgnoreCase(".hg")
+                            || dirName.equalsIgnoreCase("__MACOSX")
+                            || dirName.equalsIgnoreCase("backup")
+                            || dirName.equalsIgnoreCase("backups")) {
+                        return FileVisitResult.SKIP_SUBTREE;
+                    }
+                    if (dirName.startsWith(".") && !dirName.equals(".default")) {
+                        return FileVisitResult.SKIP_SUBTREE;
+                    }
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                    if (file != null && Files.isRegularFile(file) && file.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".yml")) {
+                        out.add(file);
+                    }
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (IOException e) {
+            log.logInternal(new LogScope.Core(), LogPhase.LOAD, LogLevel.ERROR, "Failed to scan multiblocks directory", e, new LogKv[] {
+                    LogKv.kv("dir", base.toString())
+            }, Set.of());
+        }
+        out.sort((a, b) -> toRelativePath(base, a).compareToIgnoreCase(toRelativePath(base, b)));
+        return out;
+    }
+
+    private static String toRelativePath(Path base, Path file) {
+        try {
+            return base.relativize(file).toString().replace('\\', '/');
+        } catch (Exception e) {
+            return String.valueOf(file);
+        }
+    }
+
+    private static MultiblockSource sourceForRelativePath(String relative) {
+        String rel = relative == null ? "" : relative.replace('\\', '/');
+        boolean isCoreDefault = rel.equals(".default") || rel.startsWith(".default/");
+        return new MultiblockSource(isCoreDefault ? MultiblockSource.Type.CORE_DEFAULT : MultiblockSource.Type.USER_DEFINED, rel);
     }
     
     private void deepMerge(ConfigurationSection target, ConfigurationSection source) {
@@ -297,19 +445,20 @@ public class MultiblockParser {
         // Parse pattern list
         List<PatternEntry> pattern = new ArrayList<>();
         List<?> patternList = config.getList("pattern");
-        if (patternList == null) throw new IllegalArgumentException("Missing 'pattern'");
 
-        for (Object obj : patternList) {
-            if (obj instanceof Map) {
-                Map<?, ?> map = (Map<?, ?>) obj;
-                // Parse offset
-                Vector offset = parseVector(map.get("offset"));
-                // Parse matcher
-                BlockMatcher matcher = parseMatcher(map.get("match"));
-                // Parse optional
-                boolean optional = map.containsKey("optional") && Boolean.TRUE.equals(map.get("optional"));
-                
-                pattern.add(new PatternEntry(offset, matcher, optional));
+        if (patternList == null || patternList.isEmpty()) {
+            log.logInternal(new LogScope.Core(), LogPhase.LOAD, LogLevel.WARN, "Empty or missing 'pattern'", null, new LogKv[] {
+                    LogKv.kv("id", id)
+            }, Set.of());
+        } else {
+            for (Object obj : patternList) {
+                if (obj instanceof Map) {
+                    Map<?, ?> map = (Map<?, ?>) obj;
+                    Vector offset = parseVector(map.get("offset"));
+                    BlockMatcher matcher = parseMatcher(map.get("match"));
+                    boolean optional = map.containsKey("optional") && Boolean.TRUE.equals(map.get("optional"));
+                    pattern.add(new PatternEntry(offset, matcher, optional));
+                }
             }
         }
         

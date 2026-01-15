@@ -11,6 +11,7 @@ import com.darkbladedev.engine.api.logging.LogPhase;
 import com.darkbladedev.engine.api.logging.LogScope;
 import com.darkbladedev.engine.model.MultiblockInstance;
 import com.darkbladedev.engine.model.MultiblockState;
+import com.darkbladedev.engine.model.MultiblockSource;
 import com.darkbladedev.engine.model.MultiblockType;
 import com.darkbladedev.engine.model.PatternEntry;
 import com.darkbladedev.engine.model.action.Action;
@@ -31,6 +32,7 @@ import java.util.Set;
 
 public class MultiblockManager {
     private final Map<String, MultiblockType> types = new HashMap<>();
+    private final Map<String, MultiblockSource> sourcesByTypeId = new HashMap<>();
     private final Map<Location, MultiblockInstance> activeInstances = new ConcurrentHashMap<>();
     private final Map<Location, MultiblockInstance> blockToInstanceMap = new ConcurrentHashMap<>();
     private final Set<Location> capabilitiesInitialized = ConcurrentHashMap.newKeySet();
@@ -53,10 +55,21 @@ public class MultiblockManager {
     }
 
     public void registerType(MultiblockType type) {
+        registerType(type, new MultiblockSource(MultiblockSource.Type.USER_DEFINED, "<runtime>"));
+    }
+
+    public void registerType(MultiblockType type, MultiblockSource source) {
+        if (type == null) {
+            throw new IllegalArgumentException("type");
+        }
+        if (source == null) {
+            source = new MultiblockSource(MultiblockSource.Type.USER_DEFINED, "<runtime>");
+        }
         if (types.containsKey(type.id())) {
             throw new IllegalArgumentException("Duplicate multiblock id: " + type.id());
         }
         types.put(type.id(), type);
+        sourcesByTypeId.put(type.id(), source);
         String sig = computeSignature(type);
         variantsBySignature.compute(sig, (k, list) -> {
             List<MultiblockType> next = list == null ? new ArrayList<>() : new ArrayList<>(list);
@@ -68,6 +81,10 @@ public class MultiblockManager {
     
     public Optional<MultiblockType> getType(String id) {
         return Optional.ofNullable(types.get(id));
+    }
+
+    public Optional<MultiblockSource> getSource(String typeId) {
+        return Optional.ofNullable(sourcesByTypeId.get(typeId));
     }
     
     public Collection<MultiblockType> getTypes() {
@@ -84,6 +101,7 @@ public class MultiblockManager {
         stopTicking();
         holograms.removeAll();
         types.clear();
+        sourcesByTypeId.clear();
         activeInstances.clear();
         blockToInstanceMap.clear();
         capabilitiesInitialized.clear();
@@ -93,9 +111,27 @@ public class MultiblockManager {
     
     public void reloadTypes(Collection<MultiblockType> newTypes) {
         types.clear();
+        sourcesByTypeId.clear();
+        variantsBySignature.clear();
         for (MultiblockType type : newTypes) {
             registerType(type);
         }
+    }
+
+    public void reloadTypesWithSources(Collection<MultiblockType> newTypes, Map<String, MultiblockSource> sources) {
+        types.clear();
+        sourcesByTypeId.clear();
+        variantsBySignature.clear();
+
+        Map<String, MultiblockSource> src = sources == null ? Map.of() : sources;
+        for (MultiblockType type : newTypes) {
+            MultiblockSource source = type == null ? null : src.get(type.id());
+            registerType(type, source);
+        }
+    }
+
+    public String signatureOf(MultiblockType type) {
+        return computeSignature(type);
     }
     
     public void stopTicking() {
@@ -341,12 +377,20 @@ public class MultiblockManager {
     }
 
     private int variantComparator(MultiblockType a, MultiblockType b) {
-        boolean aCore = !containsNamespace(a.id());
-        boolean bCore = !containsNamespace(b.id());
-        if (aCore != bCore) {
-            return aCore ? -1 : 1;
+        MultiblockSource.Type aSrc = sourceTypeOf(a);
+        MultiblockSource.Type bSrc = sourceTypeOf(b);
+        if (aSrc != bSrc) {
+            return aSrc == MultiblockSource.Type.CORE_DEFAULT ? -1 : 1;
         }
         return a.id().compareToIgnoreCase(b.id());
+    }
+
+    private MultiblockSource.Type sourceTypeOf(MultiblockType type) {
+        if (type == null || type.id() == null) {
+            return MultiblockSource.Type.USER_DEFINED;
+        }
+        MultiblockSource source = sourcesByTypeId.get(type.id());
+        return source == null ? MultiblockSource.Type.USER_DEFINED : source.type();
     }
 
     private boolean containsNamespace(String id) {

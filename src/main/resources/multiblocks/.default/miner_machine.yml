@@ -6,14 +6,7 @@ extends: base_machine
 
 display_name: "&6Miner Machine"
 
-# We can add to the pattern or override behavior
-# NOTE: In our current implementation, Lists replace parent lists entirely.
-# So if we want to KEEP the base pattern, we'd need to copy it if we define 'pattern' key.
-# But if we don't define 'pattern', we inherit the base one.
-# Let's keep the base pattern (Coal block + Stones) but add specific logic.
-
 actions:
-  # We override on_create to be more specific
   on_create:
     - type: message
       value: "&6Miner Machine &aactivated!"
@@ -23,7 +16,6 @@ actions:
       key: ore_count
       value: 0
 
-  # New logic specific to miner
   on_tick:
     - type: spawn_item
       material: RAW_IRON
@@ -35,3 +27,4 @@ actions:
       amount: 1
     - type: actionbar
       message: "&eOres Mined: <variable:ore_count>"
+

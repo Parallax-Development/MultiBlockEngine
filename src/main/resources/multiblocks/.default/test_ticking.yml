@@ -11,3 +11,4 @@ actions:
       value: "&eBeacon is running at %x%, %y%, %z%"
     - type: command
       value: "particle composter %x% %y% %z% 0.5 0.5 0.5 0 5"
+

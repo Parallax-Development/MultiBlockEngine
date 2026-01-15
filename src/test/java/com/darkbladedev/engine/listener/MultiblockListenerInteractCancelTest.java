@@ -70,8 +70,10 @@ public class MultiblockListenerInteractCancelTest {
 
         File multiblockDir = new File(plugin.getDataFolder(), "multiblocks");
         assertTrue(multiblockDir.exists());
-        assertTrue(new File(multiblockDir, "mana_generator.yml").exists());
-        assertTrue(new File(multiblockDir, "base_machine.yml").exists());
+        File defaultsDir = new File(multiblockDir, ".default");
+        assertTrue(defaultsDir.exists());
+        assertTrue(new File(defaultsDir, "mana_generator.yml").exists());
+        assertTrue(new File(defaultsDir, "base_machine.yml").exists());
     }
 
     @Test
