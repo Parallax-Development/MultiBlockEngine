@@ -4,9 +4,5 @@ plugins {
 
 rootProject.name = 'MultiBlockEngine'
 
+include 'core'
 include 'core-api'
-include 'mbe-wiring'
-include 'mbe-electricity'
-
-project(':mbe-wiring').projectDir = file('addons/mbe-wiring')
-project(':mbe-electricity').projectDir = file('addons/mbe-electricity')

@@ -1,81 +1,27 @@
 plugins {
-    id 'java'
-    id 'com.gradleup.shadow' version '9.3.0'
+    id 'base'
 }
 
-def releaseVersion = System.getenv("RELEASE_VERSION")
+def releaseVersion = System.getenv('RELEASE_VERSION')
 
-group = 'com.darkbladedev.engine'
-version = releaseVersion != null
-        ? releaseVersion
-        : "dev"
+allprojects {
+    group = 'com.mbe'
+    version = releaseVersion != null && !releaseVersion.isBlank() ? releaseVersion : 'dev'
+}
 
-repositories {
-    mavenCentral()
-    maven {
-        name = "papermc-repo"
-        url = "https://repo.papermc.io/repository/maven-public/"
+subprojects {
+    repositories {
+        mavenCentral()
+        maven {
+            name = 'papermc-repo'
+            url = 'https://repo.papermc.io/repository/maven-public/'
+        }
+        maven {
+            name = 'sonatype'
+            url = 'https://oss.sonatype.org/content/groups/public/'
+        }
+        maven {
+            url = 'https://repo.extendedclip.com/content/repositories/placeholderapi/'
+        }
     }
-    maven {
-        name = "sonatype"
-        url = "https://oss.sonatype.org/content/groups/public/"
-    }
-    maven {
-        url = 'https://repo.extendedclip.com/content/repositories/placeholderapi/'
-    }
-}
-
-dependencies {
-    implementation project(":core-api")
-
-    compileOnly "io.papermc.paper:paper-api:1.20.4-R0.1-SNAPSHOT" // Using 1.20.4 as a modern baseline, adaptable to 1.21
-    compileOnly 'me.clip:placeholderapi:2.11.5'
-
-    implementation 'com.google.code.gson:gson:2.10.1'
-    implementation "com.zaxxer:HikariCP:5.1.0"
-
-    shadow "com.zaxxer:HikariCP:5.1.0"
-
-    testImplementation platform('org.junit:junit-bom:5.10.2')
-    testImplementation 'org.junit.jupiter:junit-jupiter'
-    testImplementation 'com.github.seeseemelk:MockBukkit-v1.20:3.93.2'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-}
-
-def targetJavaVersion = 21
-java {
-    def javaVersion = JavaVersion.toVersion(targetJavaVersion)
-    sourceCompatibility = javaVersion
-    targetCompatibility = javaVersion
-    if (JavaVersion.current() < javaVersion) {
-        toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
-    }
-}
-
-tasks.withType(JavaCompile).configureEach {
-    options.encoding = 'UTF-8'
-    if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
-        options.release.set(targetJavaVersion)
-    }
-}
-
-processResources {
-    def props = [version: version]
-    inputs.properties props
-    filteringCharset 'UTF-8'
-    filesMatching('plugin.yml') {
-        expand props
-    }
-}
-
-shadowJar {
-    archiveClassifier.set('')
-    relocate 'com.zaxxer.hikari', 'com.darkbladedev.engine.libs.hikari'
-    relocate 'com.google.gson', 'com.darkbladedev.engine.libs.gson'
-}
-
-build.dependsOn shadowJar
-
-test {
-    useJUnitPlatform()
 }

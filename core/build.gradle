@@ -1,22 +1,28 @@
 plugins {
-    id 'java-library'
+    id 'java'
+    id 'com.gradleup.shadow' version '9.3.0'
     id 'maven-publish'
 }
 
-repositories {
-    mavenCentral()
-    maven {
-        name = "papermc-repo"
-        url = "https://repo.papermc.io/repository/maven-public/"
-    }
-    maven {
-        name = "sonatype"
-        url = "https://oss.sonatype.org/content/groups/public/"
-    }
+base {
+    archivesName = 'mbe-core'
 }
 
 dependencies {
+    implementation project(":core-api")
+
     compileOnly "io.papermc.paper:paper-api:1.20.4-R0.1-SNAPSHOT"
+    compileOnly 'me.clip:placeholderapi:2.11.5'
+
+    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation "com.zaxxer:HikariCP:5.1.0"
+
+    shadow "com.zaxxer:HikariCP:5.1.0"
+
+    testImplementation platform('org.junit:junit-bom:5.10.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'com.github.seeseemelk:MockBukkit-v1.20:3.93.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 def targetJavaVersion = 21
@@ -37,11 +43,33 @@ tasks.withType(JavaCompile).configureEach {
     }
 }
 
+processResources {
+    def props = [version: version]
+    inputs.properties props
+    filteringCharset 'UTF-8'
+    filesMatching('plugin.yml') {
+        expand props
+    }
+}
+
+shadowJar {
+    archiveClassifier.set('')
+    relocate 'com.zaxxer.hikari', 'com.darkbladedev.engine.libs.hikari'
+    relocate 'com.google.gson', 'com.darkbladedev.engine.libs.gson'
+}
+
+build.dependsOn shadowJar
+
+test {
+    useJUnitPlatform()
+}
+
 publishing {
     publications {
-        mbeCoreApi(MavenPublication) {
-            artifactId = 'mbe-core-api'
-            from components.java
+        mbeCore(MavenPublication) {
+            artifactId = 'mbe-core'
+            artifact(tasks.shadowJar)
+            artifact(tasks.sourcesJar)
         }
     }
     repositories {

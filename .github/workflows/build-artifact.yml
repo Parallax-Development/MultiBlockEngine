@@ -26,5 +26,7 @@ jobs:
       - name: Upload JAR artifact
         uses: actions/upload-artifact@v4
         with:
-          name: plugin-jar
-          path: build/libs/*.jar
+          name: mbe-core-jars
+          path: |
+            core/build/libs/*.jar
+            core-api/build/libs/*.jar

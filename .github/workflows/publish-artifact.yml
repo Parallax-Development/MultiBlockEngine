@@ -10,6 +10,7 @@ jobs:
 
     permissions:
       contents: write
+      packages: write
 
     steps:
       - name: Checkout release tag
@@ -31,8 +32,16 @@ jobs:
         env:
           RELEASE_VERSION: ${{ github.event.release.tag_name }}
 
+      - name: Publish
+        run: ./gradlew publish
+        env:
+          RELEASE_VERSION: ${{ github.event.release.tag_name }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
       - name: Upload JAR to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: build/libs/*.jar
+          files: |
+            core/build/libs/*.jar
+            core-api/build/libs/*.jar
