@@ -29,8 +29,7 @@ public final class JulConsoleBackend implements LogBackend {
 
     private static Level toJulLevel(LogLevel level) {
         return switch (level) {
-            case TRACE -> Level.FINEST;
-            case DEBUG -> Level.FINE;
+            case TRACE, DEBUG -> Level.INFO;
             case INFO -> Level.INFO;
             case WARN -> Level.WARNING;
             case ERROR, FATAL -> Level.SEVERE;

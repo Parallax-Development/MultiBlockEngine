@@ -38,6 +38,7 @@ import java.util.*;
 import java.util.function.Function;
 
 import com.darkbladedev.engine.model.MultiblockSource;
+import com.darkbladedev.engine.model.PatternBlock;
 
 public class MultiblockParser {
     
@@ -904,16 +905,8 @@ public class MultiblockParser {
                 if (tag == null) throw new IllegalArgumentException("Unknown tag: " + tagName);
                 return new TagMatcher(tag);
             } else if (s.contains("[")) {
-                // BlockData (e.g. "minecraft:chest[facing=north]")
-                try {
-                    // Normalize input if needed (Bukkit expects "minecraft:name[data]")
-                    // If user provides "CHEST[facing=north]", it might fail if not lowercase/namespaced
-                    // But Bukkit.createBlockData handles standard formats.
-                    org.bukkit.block.data.BlockData data = Bukkit.createBlockData(s.toLowerCase());
-                    return new BlockDataMatcher(data);
-                } catch (IllegalArgumentException e) {
-                    throw new IllegalArgumentException("Invalid BlockData string: " + s, e);
-                }
+                PatternBlock pb = parsePatternBlock(s);
+                return new BlockDataMatcher(pb);
             } else {
                 // Material
                 Material mat = Material.matchMaterial(s);
@@ -929,5 +922,77 @@ public class MultiblockParser {
             return new AnyOfMatcher(matchers);
         }
         throw new IllegalArgumentException("Invalid matcher format: " + obj);
+    }
+
+    private PatternBlock parsePatternBlock(String raw) {
+        if (raw == null) {
+            throw new IllegalArgumentException("Invalid BlockData string: null");
+        }
+
+        String s = raw.trim();
+        int start = s.indexOf('[');
+        int end = s.lastIndexOf(']');
+        if (start <= 0 || end < start) {
+            throw new IllegalArgumentException("Invalid BlockData string: " + raw);
+        }
+
+        String matRaw = s.substring(0, start).trim();
+        if (matRaw.isEmpty()) {
+            throw new IllegalArgumentException("Invalid BlockData string: " + raw);
+        }
+
+        String matKey = matRaw;
+        int colon = matKey.indexOf(':');
+        if (colon >= 0 && colon < matKey.length() - 1) {
+            matKey = matKey.substring(colon + 1);
+        }
+        Material mat = Material.matchMaterial(matKey.toUpperCase(Locale.ROOT));
+        if (mat == null) {
+            mat = Material.matchMaterial(matRaw);
+        }
+        if (mat == null) {
+            throw new IllegalArgumentException("Unknown material: " + matRaw);
+        }
+
+        String inner = s.substring(start + 1, end).trim();
+        Map<String, String> props = new LinkedHashMap<>();
+        if (!inner.isEmpty()) {
+            for (String part : inner.split(",")) {
+                if (part == null) {
+                    continue;
+                }
+                String t = part.trim();
+                if (t.isEmpty()) {
+                    continue;
+                }
+                int eq = t.indexOf('=');
+                if (eq <= 0 || eq == t.length() - 1) {
+                    continue;
+                }
+                String k = t.substring(0, eq).trim();
+                String v = t.substring(eq + 1).trim();
+                if (!k.isEmpty()) {
+                    String kk = k.trim().toLowerCase(Locale.ROOT);
+                    if (!kk.isEmpty() && !isIgnoredProperty(kk)) {
+                        props.put(kk, v);
+                    }
+                }
+            }
+        }
+
+        return new PatternBlock(mat, props);
+    }
+
+    private boolean isIgnoredProperty(String key) {
+        return "waterlogged".equals(key)
+            || "powered".equals(key)
+            || "lit".equals(key)
+            || "open".equals(key)
+            || "age".equals(key)
+            || "level".equals(key)
+            || "signal_fire".equals(key)
+            || "moisture".equals(key)
+            || "bites".equals(key)
+            || "honey_level".equals(key);
     }
 }

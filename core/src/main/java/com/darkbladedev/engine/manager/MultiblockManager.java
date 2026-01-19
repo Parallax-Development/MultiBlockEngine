@@ -478,7 +478,7 @@ public class MultiblockManager {
             return "AIR";
         }
         if (matcher instanceof com.darkbladedev.engine.model.matcher.BlockDataMatcher m) {
-            return m.expectedData() == null ? "" : m.expectedData().getAsString();
+            return m.pattern() == null ? "" : m.pattern().toString();
         }
         if (matcher instanceof com.darkbladedev.engine.model.matcher.AnyOfMatcher m) {
             List<String> parts = new ArrayList<>();

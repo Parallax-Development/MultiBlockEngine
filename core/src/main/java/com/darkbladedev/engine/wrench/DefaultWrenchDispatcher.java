@@ -449,7 +449,7 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
             return "AIR";
         }
         if (matcher instanceof BlockDataMatcher m) {
-            return m.expectedData() == null ? "" : m.expectedData().getAsString();
+            return m.pattern() == null ? "" : m.pattern().toString();
         }
         if (matcher instanceof AnyOfMatcher m) {
             List<String> parts = new ArrayList<>();

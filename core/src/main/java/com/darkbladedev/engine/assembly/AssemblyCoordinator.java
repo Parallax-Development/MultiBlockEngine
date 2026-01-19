@@ -11,9 +11,16 @@ import com.darkbladedev.engine.api.logging.LogLevel;
 import com.darkbladedev.engine.api.logging.LogPhase;
 import com.darkbladedev.engine.api.logging.LogScope;
 import com.darkbladedev.engine.manager.MultiblockManager;
+import com.darkbladedev.engine.model.BlockMatcher;
+import com.darkbladedev.engine.model.MatchResult;
 import com.darkbladedev.engine.model.MultiblockInstance;
 import com.darkbladedev.engine.model.MultiblockType;
 import com.darkbladedev.engine.model.PatternEntry;
+import com.darkbladedev.engine.model.matcher.BlockDataMatcher;
+import com.darkbladedev.engine.model.matcher.ExactMaterialMatcher;
+import com.darkbladedev.engine.model.matcher.TagMatcher;
+import com.darkbladedev.engine.model.matcher.AirMatcher;
+import com.darkbladedev.engine.model.matcher.AnyOfMatcher;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -198,15 +205,97 @@ public final class AssemblyCoordinator {
             Vector rotatedOffset = rotate(entry.offset(), facing);
             Block target = controller.getRelative(rotatedOffset.getBlockX(), rotatedOffset.getBlockY(), rotatedOffset.getBlockZ());
             if (!target.getChunk().isLoaded()) {
+                logMatchFail(type, facing, entry, target, "chunk not loaded");
                 return false;
             }
-            if (!entry.matcher().matches(target)) {
+
+            BlockMatcher matcher = entry.matcher();
+            MatchResult res = matcher == null ? MatchResult.fail("matcher is null") : matcher.match(target);
+            if (!res.success()) {
+                logMatchFail(type, facing, entry, target, res.reason());
                 if (!entry.optional()) {
                     return false;
                 }
             }
         }
         return true;
+    }
+
+    private void logMatchFail(MultiblockType type, BlockFace facing, PatternEntry entry, Block target, String reason) {
+        String expected = describeMatcher(entry == null ? null : entry.matcher());
+        String found = describeFound(target);
+
+        LogKv[] extra;
+        if (entry != null && entry.matcher() instanceof BlockDataMatcher bdm) {
+            String required = bdm.pattern() == null ? "" : bdm.pattern().requiredProperties().toString();
+            String ignored = bdm.ignoredPropertiesOf(target).toString();
+            extra = new LogKv[] {
+                LogKv.kv("required", required),
+                LogKv.kv("ignored", ignored)
+            };
+        } else {
+            extra = new LogKv[0];
+        }
+
+        List<LogKv> fields = new ArrayList<>();
+        fields.add(LogKv.kv("multiblock", type != null ? type.id() : ""));
+        fields.add(LogKv.kv("facing", facing != null ? facing.name() : ""));
+        fields.add(LogKv.kv("optional", entry != null && entry.optional()));
+        fields.add(LogKv.kv("offset", entry != null && entry.offset() != null ? entry.offset().getBlockX() + "," + entry.offset().getBlockY() + "," + entry.offset().getBlockZ() : ""));
+        fields.add(LogKv.kv("x", target != null ? target.getX() : 0));
+        fields.add(LogKv.kv("y", target != null ? target.getY() : 0));
+        fields.add(LogKv.kv("z", target != null ? target.getZ() : 0));
+        fields.add(LogKv.kv("expected", expected));
+        fields.add(LogKv.kv("found", found));
+        fields.add(LogKv.kv("reason", reason == null ? "" : reason));
+        for (LogKv kv : extra) {
+            fields.add(kv);
+        }
+
+        log.logInternal(new LogScope.Core(), LogPhase.RUNTIME, LogLevel.DEBUG, "[MATCH FAIL]", null, fields.toArray(new LogKv[0]), Set.of("match"));
+    }
+
+    private String describeMatcher(BlockMatcher matcher) {
+        if (matcher == null) {
+            return "";
+        }
+        if (matcher instanceof ExactMaterialMatcher m) {
+            return m.material() == null ? "" : m.material().name();
+        }
+        if (matcher instanceof TagMatcher m) {
+            if (m.tag() == null || m.tag().getKey() == null) {
+                return "";
+            }
+            return "#" + m.tag().getKey();
+        }
+        if (matcher instanceof AirMatcher) {
+            return "AIR";
+        }
+        if (matcher instanceof BlockDataMatcher m) {
+            return m.pattern() == null ? "" : m.pattern().toString();
+        }
+        if (matcher instanceof AnyOfMatcher m) {
+            List<String> parts = new ArrayList<>();
+            for (BlockMatcher sub : m.matchers()) {
+                String s = describeMatcher(sub);
+                if (!s.isBlank()) {
+                    parts.add(s);
+                }
+            }
+            return String.join(" | ", parts);
+        }
+        return matcher.getClass().getSimpleName();
+    }
+
+    private String describeFound(Block target) {
+        if (target == null) {
+            return "";
+        }
+        try {
+            return target.getBlockData().getAsString();
+        } catch (Throwable t) {
+            return target.getType().name();
+        }
     }
 
     private Vector rotate(Vector v, BlockFace facing) {
