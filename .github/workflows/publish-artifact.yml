@@ -32,12 +32,18 @@ jobs:
         env:
           RELEASE_VERSION: ${{ github.event.release.tag_name }}
 
+      - name: Publish
+        run: ./gradlew publish
+        env:
+          RELEASE_VERSION: ${{ github.event.release.tag_name }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Select release JAR
         id: jar
         shell: bash
         run: |
           set -euo pipefail
-          echo "Listing build/libs" 
+          echo "Listing build/libs"
           ls -lah build/libs || true
 
           mapfile -t jars < <(
@@ -53,17 +59,16 @@ jobs:
             exit 1
           fi
 
+          test -f "${jars[0]}"
+          echo "Selected jar: ${jars[0]}"
           echo "path=${jars[0]}" >> "$GITHUB_OUTPUT"
-
-      - name: Publish
-        run: ./gradlew publish
-        env:
-          RELEASE_VERSION: ${{ github.event.release.tag_name }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 
       - name: Upload JAR to GitHub Release
         uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          files: |
-            ${{ steps.jar.outputs.path }}
+          tag_name: ${{ github.event.release.tag_name }}
+          fail_on_unmatched_files: true
+          files: ${{ steps.jar.outputs.path }}
