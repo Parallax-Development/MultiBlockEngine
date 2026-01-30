@@ -37,7 +37,7 @@ java {
 }
 
 tasks.named('jar') {
-    enabled = false
+    enabled = true
 }
 
 tasks.named('sourcesJar') {
