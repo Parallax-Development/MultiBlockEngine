@@ -60,50 +60,6 @@ The engine compiles YAML patterns into efficient `BlockMatcher` instances:
 
 ---
 
-## 🏗️ Project Structure
-
-The codebase follows a modular architecture:
-
-```text
-src/main/java
-└─ com.darkbladedev.engine
-   ├─ api
-   │  └─ event
-   │     ├─ MultiblockFormEvent.java     # Cancellable creation event
-   │     ├─ MultiblockBreakEvent.java    # Cancellable destruction event
-   │     └─ MultiblockInteractEvent.java # Interaction handling
-   ├─ command
-   │  └─ MultiblockCommand.java          # /mb command (Inspect, Reload, Status)
-   ├─ listener
-   │  └─ MultiblockListener.java         # Core event handling (Place/Break/Interact)
-   ├─ manager
-   │  ├─ MultiblockManager.java          # State, Ticking & Logic controller
-   │  └─ MetricsManager.java             # Performance tracking
-   ├─ model
-   │  ├─ MultiblockType.java             # Immutable definition
-   │  ├─ MultiblockInstance.java         # Live structure instance
-   │  ├─ MultiblockState.java            # Enum: ACTIVE, DISABLED, etc.
-   │  ├─ PatternEntry.java               # Relative pattern rule
-   │  ├─ action
-   │  │  ├─ Action.java                  # Action interface
-   │  │  ├─ SendMessageAction.java
-   │  │  ├─ ConsoleCommandAction.java
-   │  │  └─ SetStateAction.java
-   │  └─ matcher
-   │     ├─ BlockMatcher.java            # Functional interface
-   │     ├─ ExactMaterialMatcher.java
-   │     ├─ TagMatcher.java
-   │     ├─ BlockDataMatcher.java        # State matching (stairs, slabs)
-   │     └─ ...
-   ├─ parser
-   │  └─ MultiblockParser.java           # YAML to Object compiler
-   └─ storage
-      ├─ StorageManager.java             # Persistence interface
-      └─ SqlStorage.java                 # SQLite implementation (w/ Migrations)
-```
-
----
-
 ## ⚙️ Execution Flow
 
 1.  **Startup**:
