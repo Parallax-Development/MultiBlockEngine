@@ -1,0 +1,30 @@
+# MultiBlockEngine Configuration
+
+# Enable debug mode to see verbose logging in console
+debug: false
+
+# Enable performance metrics collection
+metrics: true
+
+logging:
+  level: INFO
+  debug: false
+  debugCore: false
+  debugAddons: false
+  debugAddonsById: []
+
+i18n:
+  debugMissingKeys: false
+
+# Database configuration (for future use if we switch from internal SQLite)
+database:
+  type: sqlite
+
+export:
+  includeAir: false
+  includeBlockStates: true
+  includeNbt: false
+  includeWaterlogged: false
+  ignoreMaterials:
+    - TORCH
+    - WALL_TORCH

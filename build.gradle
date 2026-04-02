@@ -1,0 +1,55 @@
+plugins {
+    id 'base'
+}
+
+def releaseVersion = System.getenv('RELEASE_VERSION')
+def requestedTasks = gradle.startParameter.taskNames.collect { it.toLowerCase(Locale.ROOT) }
+def hasReleaseVersion = releaseVersion != null && !releaseVersion.isBlank()
+def isReleaseBuild = hasReleaseVersion || requestedTasks.any { it.contains('publish') || it.contains('release') }
+def artifactBaseName = 'MultiblockEngine'
+
+allprojects {
+    group = 'com.mbe'
+    version = releaseVersion != null && !releaseVersion.isBlank() ? releaseVersion : 'dev'
+}
+
+subprojects {
+    repositories {
+        mavenCentral()
+        maven {
+            name = 'papermc-repo'
+            url = 'https://repo.papermc.io/repository/maven-public/'
+        }
+        maven {
+            name = 'sonatype'
+            url = 'https://oss.sonatype.org/content/groups/public/'
+        }
+        maven {
+            url = 'https://repo.extendedclip.com/content/repositories/placeholderapi/'
+        }
+    }
+}
+
+def artifactVersionSuffix = isReleaseBuild ? rootProject.version.toString() : 'dev'
+def expectedArtifactDir = layout.buildDirectory.dir('libs').get().asFile
+def expectedArtifactFile = new File(expectedArtifactDir, "${artifactBaseName}-${artifactVersionSuffix}.jar")
+
+tasks.register('validateRootArtifact') {
+    dependsOn(':core:shadowJar')
+
+    doLast {
+        if (!expectedArtifactDir.exists()) {
+            throw new GradleException("No se encontró la carpeta de salida esperada: ${expectedArtifactDir.absolutePath}")
+        }
+        if (!expectedArtifactFile.exists()) {
+            throw new GradleException("No se generó el artifact esperado: ${expectedArtifactFile.absolutePath}")
+        }
+        if (!expectedArtifactFile.name.matches(/^${artifactBaseName}-(dev|.+)\.jar$/)) {
+            throw new GradleException("El nombre del artifact no cumple el formato esperado: ${expectedArtifactFile.name}")
+        }
+    }
+}
+
+tasks.named('build') {
+    dependsOn(':core:shadowJar', 'validateRootArtifact')
+}

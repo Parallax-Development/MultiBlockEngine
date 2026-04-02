@@ -1,0 +1,56 @@
+name: MultiBlockEngine
+version: ${version}
+main: dev.darkblade.mbe.core.MultiBlockEngine
+api-version: 1.20
+authors: [DarkbladeDev]
+description: A performant, extensible, and maintainable multi-block structure system.
+softdepend: [PlaceholderAPI]
+commands:
+  multiblock:
+    description: Main command for MultiBlockEngine
+    aliases: [mb, mbe]
+    permission: multiblockengine.use
+    usage: /multiblock <subcommand>
+permissions:
+  multiblockengine.use:
+    description: Allows basic access to MultiBlockEngine commands
+    default: true
+  multiblockengine.admin:
+    description: Allows full access to MultiBlockEngine commands
+    default: op
+    children:
+      multiblockengine.use: true
+      multiblockengine.admin.reload: true
+      multiblockengine.admin.export: true
+      multiblockengine.admin.services: true
+  multiblockengine.admin.reload:
+    description: Allows using /mbe reload and /mbe admin reload
+    default: op
+  multiblockengine.admin.export:
+    description: Allows using /mbe export and /mbe admin export
+    default: op
+  multiblockengine.admin.services:
+    description: Allows using /mbe services and /mbe admin <service>
+    default: op
+  multiblockengine.debug:
+    description: Allows access to debug command layer
+    default: false
+    children:
+      multiblockengine.use: true
+      multiblockengine.debug.session: true
+      multiblockengine.debug.services: true
+  multiblockengine.debug.session:
+    description: Allows starting debug sessions (/mbe debug type and /mbe debug <typeId>)
+    default: false
+  multiblockengine.debug.services:
+    description: Allows dispatching addon services via /mbe debug <service>
+    default: false
+  mbe.inspect.operator:
+    description: Allows requesting OPERATOR inspection level
+    default: op
+  mbe.inspect.debug:
+    description: Allows requesting DEBUG inspection level
+    default: false
+  mbe.inspect.internal:
+    description: Allows requesting INTERNAL inspection level
+    default: false

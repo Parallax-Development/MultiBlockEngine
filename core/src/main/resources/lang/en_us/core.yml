@@ -1,0 +1,13 @@
+core:
+  wrench:
+    cooldown: "Please wait {ms}ms before using the wrench again."
+    assembled: "Structure formed: {type}"
+    disassembled: "Structure destroyed: {type}"
+    missing: "Missing blocks: {missing}"
+    inspect:
+      title: "Structure found:"
+      type: "Type: {type}"
+      state: "State: {state}"
+      facing: "Facing: {facing}"
+      anchor: "Anchor: {anchor}"
+      components: "Required components:"

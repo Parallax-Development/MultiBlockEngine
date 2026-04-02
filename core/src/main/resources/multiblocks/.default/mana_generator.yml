@@ -1,0 +1,184 @@
+id: mana_generator
+version: 1.0
+tick_interval: 20 # 1 second
+
+display_name:
+  text: "&6✨ Mana Generator &6✨"
+  visible: true
+  display_method: hologram
+
+# Structure Controller: Diamond Block
+controller: DIAMOND_BLOCK
+
+# Pattern: 3x3 Base
+# L1 (Bottom): 
+# O O O
+# O O O
+# O O O
+# L2 (Top):
+# G   G
+#   D
+# G   G
+# O = Obsidian, G = Gold Block, D = Diamond Block (Controller)
+pattern:
+  # Base Layer (Y-1)
+  - offset: [0, -1, 0]
+    match: OBSIDIAN
+  - offset: [1, -1, 0]
+    match: OBSIDIAN
+  - offset: [-1, -1, 0]
+    match: OBSIDIAN
+  - offset: [0, -1, 1]
+    match: OBSIDIAN
+  - offset: [0, -1, -1]
+    match: OBSIDIAN
+  - offset: [1, -1, 1]
+    match: OBSIDIAN
+  - offset: [1, -1, -1]
+    match: OBSIDIAN
+  - offset: [-1, -1, 1]
+    match: OBSIDIAN
+  - offset: [-1, -1, -1]
+    match: OBSIDIAN
+    
+  # Pillars (Y=0)
+  - offset: [1, 0, 1]
+    match: GOLD_BLOCK
+  - offset: [1, 0, -1]
+    match: GOLD_BLOCK
+  - offset: [-1, 0, 1]
+    match: GOLD_BLOCK
+  - offset: [-1, 0, -1]
+    match: GOLD_BLOCK
+
+variables:
+  mana: 0
+  max_mana: 100
+
+actions:
+  on_create:
+    - type: message
+      value: "&a[ManaGen] Generator constructed! Right-click to activate."
+    - type: set_state
+      value: INACTIVE
+    - type: set_variable
+      key: mana
+      value: 0
+
+  on_interact:
+    - type: title
+      title: "&e¡Activado!"
+      subtitle: "Generando maná..."
+      target: trigger
+      
+    - type: spawn_item
+      material: DIAMOND
+      amount: 1
+      offset: [0, 2, 0]
+      
+    - type: actionbar
+      message: "&aNivel de maná: <variable:mana>"
+      target: "nearby:10"
+    - type: conditional
+      conditions:
+        - type: permission
+          value: "multiblock.use.mana_gen"
+      then:
+        - type: conditional
+          conditions:
+            - type: state
+              value: INACTIVE
+          then:
+            - type: set_state
+              value: ACTIVE
+            - type: message
+              value: "&e[ManaGen] Generator ACTIVATED."
+              target: trigger
+            - type: message
+              value: "&e[ManaGen] Generator activated by <player_name>!"
+              target: "nearby:20"
+          else:
+            - type: set_state
+              value: INACTIVE
+            - type: message
+              value: "&c[ManaGen] Generator DEACTIVATED."
+              target: trigger
+        - type: message
+          value: "&b[ManaGen] Current Mana: <variable:mana>/<variable:max_mana>"
+          target: trigger
+      else:
+        - type: message
+          value: "&c[ManaGen] You do not have permission to use this!"
+          target: trigger
+
+  on_tick:
+    - type: modify_variable
+      key: mana
+      operation: ADD
+      amount: 5
+      conditions:
+        - type: state
+          value: ACTIVE
+          
+    - type: message
+      value: "&7[ManaGen] Generating mana... (<variable:mana>)"
+      target: "nearby:15"
+      conditions:
+        - type: state
+          value: ACTIVE
+        - type: variable
+          key: mana
+          value: 50
+          comparison: GREATER_OR_EQUAL
+        - type: variable
+          key: mana
+          value: 55
+          comparison: LESS
+          
+    - type: message
+      value: "&d[ManaGen] &lDISCHARGE! &r&dYou received a reward."
+      target: "nearby:10"
+      conditions:
+        - type: state
+          value: ACTIVE
+        - type: variable
+          key: mana
+          value: 100
+          comparison: GREATER_OR_EQUAL
+          
+    - type: message
+      value: "&c[ManaGen] WARNING: High energy levels detected!"
+      target: "permission:multiblock.admin"
+      conditions:
+        - type: state
+          value: ACTIVE
+        - type: variable
+          key: mana
+          value: 90
+          comparison: GREATER_OR_EQUAL
+          
+    - type: command
+      value: "give @p[distance=..5] diamond 1" 
+      conditions:
+        - type: state
+          value: ACTIVE
+        - type: variable
+          key: mana
+          value: 100
+          comparison: GREATER_OR_EQUAL
+
+    - type: set_variable
+      key: mana
+      value: 0
+      conditions:
+        - type: state
+          value: ACTIVE
+        - type: variable
+          key: mana
+          value: 100
+          comparison: GREATER_OR_EQUAL
+
+  on_break:
+    - type: message
+      value: "&c[ManaGen] Generator destroyed! Mana lost."
+

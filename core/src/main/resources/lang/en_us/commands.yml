@@ -1,0 +1,39 @@
+commands:
+  usage:
+    console: "Usage: /{label} <help|status|report|admin|debug>"
+    player: "Usage: /{label} <help|inspect|assemble|disassemble|status|report|admin|debug>"
+  error:
+    unknown_subcommand: "Unknown subcommand. Use /mbe to see help."
+  debug:
+    usage: "Usage: /mbe debug <typeId> [player]"
+    type_not_found: "Type not found: {id}"
+    player_not_found: "Player not found: {player}"
+    must_look_at_block: "You must look at a block."
+  report:
+    none: "No recent assembly attempt."
+    title: "Last assembly attempt:"
+    result: "Result: {result}"
+    trigger: "Trigger: {trigger}"
+    multiblock: "Matched: {multiblock}"
+    reason: "Reason: {reason}"
+    player_not_found: "Player not found: {player}"
+  reload:
+    start: "Reloading..."
+    done_types: "Reloaded {count} multiblocks."
+    done_restart: "Ticking restarted."
+  status:
+    title: "MultiBlockEngine Status"
+    loaded_types: "Loaded types: "
+    total_created: "Total created: "
+    total_destroyed: "Total destroyed: "
+    structure_checks: "Structure checks: "
+    avg_tick: "Average tick: "
+  inspect:
+    must_look_at_block: "You must look at a block."
+    none_here: "No structure here."
+    title: "Structure found:"
+    type: "Type: "
+    state: "State: "
+    facing: "Facing: "
+    anchor: "Anchor: "
+    highlighted: "Structure highlighted with particles."

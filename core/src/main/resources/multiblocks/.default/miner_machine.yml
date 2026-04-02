@@ -1,0 +1,30 @@
+# Miner Machine - Extends base_machine
+# Inherits the pattern and on_break/on_create actions
+id: miner_machine
+version: "1.0"
+extends: base_machine
+
+display_name: "&6Miner Machine"
+
+actions:
+  on_create:
+    - type: message
+      value: "&6Miner Machine &aactivated!"
+    - type: set_state
+      value: ACTIVE
+    - type: set_variable
+      key: ore_count
+      value: 0
+
+  on_tick:
+    - type: spawn_item
+      material: RAW_IRON
+      amount: 1
+      offset: [0, 1, 0]
+    - type: modify_variable
+      key: ore_count
+      operation: ADD
+      amount: 1
+    - type: actionbar
+      message: "&eOres Mined: <variable:ore_count>"
+

@@ -1,0 +1,39 @@
+commands:
+  usage:
+    console: "Uso: /{label} <help|status|report|admin|debug>"
+    player: "Uso: /{label} <help|inspect|assemble|disassemble|status|report|admin|debug>"
+  error:
+    unknown_subcommand: "Subcomando desconocido. Usa /mbe para ver ayuda."
+  debug:
+    usage: "Uso: /mbe debug <typeId> [player]"
+    type_not_found: "Tipo no encontrado: {id}"
+    player_not_found: "Jugador no encontrado: {player}"
+    must_look_at_block: "Debes mirar a un bloque."
+  report:
+    none: "No hay intentos de ensamblado recientes."
+    title: "Último intento de ensamblado:"
+    result: "Resultado: {result}"
+    trigger: "Trigger: {trigger}"
+    multiblock: "Coincidencia: {multiblock}"
+    reason: "Motivo: {reason}"
+    player_not_found: "Jugador no encontrado: {player}"
+  reload:
+    start: "Recargando..."
+    done_types: "Recargados {count} multiblocks."
+    done_restart: "Reiniciado ticking."
+  status:
+    title: "Estado MultiBlockEngine"
+    loaded_types: "Tipos cargados: "
+    total_created: "Total creados: "
+    total_destroyed: "Total destruidos: "
+    structure_checks: "Checks de estructura: "
+    avg_tick: "Tick promedio: "
+  inspect:
+    must_look_at_block: "Debes mirar a un bloque."
+    none_here: "No hay ninguna estructura aquí."
+    title: "Estructura encontrada:"
+    type: "Tipo: "
+    state: "Estado: "
+    facing: "Dirección: "
+    anchor: "Ancla: "
+    highlighted: "Estructura resaltada con partículas."

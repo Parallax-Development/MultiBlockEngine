@@ -1,0 +1,34 @@
+# Base definition for generic machines
+# This file serves as a template and won't do much on its own
+id: base_machine
+version: "1.0"
+tick_interval: 20
+
+# All machines share this base structure layout
+controller: IRON_BLOCK
+
+pattern:
+  # A simple 3x3 platform below the controller
+  - offset: [0, -1, 0]
+    match: COAL_BLOCK
+  - offset: [1, -1, 0]
+    match: STONE
+  - offset: [-1, -1, 0]
+    match: STONE
+  - offset: [0, -1, 1]
+    match: STONE
+  - offset: [0, -1, -1]
+    match: STONE
+
+# Common behavior
+actions:
+  on_create:
+    - type: message
+      value: "&7Machine structure initialized."
+    - type: set_state
+      value: ACTIVE
+      
+  on_break:
+    - type: message
+      value: "&cMachine destroyed!"
+

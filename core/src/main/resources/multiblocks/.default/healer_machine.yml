@@ -1,0 +1,26 @@
+# Healer Machine - Extends base_machine
+id: healer_machine
+version: "1.0"
+extends: base_machine
+
+display_name: "&dHealer Machine"
+tick_interval: 100 # Slower tick (every 5s)
+
+# Overriding controller to Gold Block, but keeping the base pattern of stones below
+controller: GOLD_BLOCK
+
+actions:
+  on_create:
+    - type: message
+      value: "&dHealer Machine &aactivated!"
+    - type: set_state
+      value: ACTIVE
+      
+  on_tick:
+    - type: command
+      value: "execute in %world% positioned %x% %y% %z% run effect give @a[distance=..5] regeneration 5 1"
+      console: true
+    - type: message
+      value: "&dHealing wave emitted..."
+      target: nearby:5
+
