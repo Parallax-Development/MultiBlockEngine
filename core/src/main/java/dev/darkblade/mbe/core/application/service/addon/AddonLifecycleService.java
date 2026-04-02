@@ -26,8 +26,10 @@ import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -45,13 +47,21 @@ import java.util.Set;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
-import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class AddonLifecycleService {
 
     private static final String CORE_PROVIDER_ID = "mbe:core";
+    private static final Version MIN_DEPENDENCY_VERSION = Version.parse("0.0.0");
+    private static final String ADDON_API_DESCRIPTOR = "Ldev/darkblade/mbe/api/addon/AddonAPI;";
+    private static final String ATTR_RUNTIME_VISIBLE_ANNOTATIONS = "RuntimeVisibleAnnotations";
+    private static final String ATTR_RUNTIME_INVISIBLE_ANNOTATIONS = "RuntimeInvisibleAnnotations";
+
+    private enum ContractsEnforcementMode {
+        WARN,
+        ERROR
+    }
 
     public enum AddonState {
         DISCOVERED,
@@ -66,7 +76,7 @@ public class AddonLifecycleService {
     private record LoadedAddon(
         AddonMetadata metadata,
         MultiblockAddon addon,
-        URLClassLoader classLoader,
+        AddonClassLoader classLoader,
         AddonLogger logger,
         AtomicReference<LogPhase> phase,
         Path dataFolder
@@ -82,7 +92,9 @@ public class AddonLifecycleService {
         String mainClass,
         String rootPrefixInternal,
         List<String> classEntries,
+        Set<String> classInternalNames,
         Set<String> apiClasses,
+        Set<String> apiContractClasses,
         Set<String> embeddedCoreApiClasses,
         Set<String> embeddedJars
     ) {}
@@ -91,11 +103,16 @@ public class AddonLifecycleService {
         String addonId,
         String fileName,
         Set<String> sharedApis,
-        Set<String> implicitAddonRefs,
+        Set<String> declaredAddonRefs,
+        Set<String> undeclaredAddonRefs,
+        Set<String> nonApiAccessRefs,
         Set<String> embeddedJars,
         List<String> violations,
         boolean fatal
     ) {}
+
+    private record AddonReferenceHit(String targetAddonId, String ownerClass, String targetClass) {}
+    private record ClassFileInspection(String ownerInternalName, Set<String> referencedClassNames, Set<String> classAnnotationDescriptors) {}
 
     private final MultiBlockEngine plugin;
     private final MultiblockAPI api;
@@ -221,7 +238,11 @@ public class AddonLifecycleService {
             states.put(id, AddonState.DISCOVERED);
         }
 
-        Map<String, AddonAuditReport> auditReports = auditDiscoveredAddons(discoveredAddons, auditIndexesByFile);
+        ContractsEnforcementMode contractsMode = contractsEnforcementMode();
+        boolean strictContracts = contractsMode == ContractsEnforcementMode.ERROR;
+        core.info("Addon contracts enforcement mode", LogKv.kv("mode", contractsMode.name()));
+
+        Map<String, AddonAuditReport> auditReports = auditDiscoveredAddons(discoveredAddons, auditIndexesByFile, strictContracts);
         for (AddonAuditReport report : auditReports.values()) {
             if (!report.violations().isEmpty()) {
                 String violations = joinLimited(report.violations(), 10);
@@ -237,8 +258,16 @@ public class AddonLifecycleService {
                 core.warn("Addon shared APIs detected", LogKv.kv("id", report.addonId()), LogKv.kv("shared", joinLimited(new ArrayList<>(report.sharedApis()), 30)), LogKv.kv("count", report.sharedApis().size()));
             }
 
-            if (!report.implicitAddonRefs().isEmpty()) {
-                core.warn("Addon implicit cross-addon references detected", LogKv.kv("id", report.addonId()), LogKv.kv("refs", joinLimited(new ArrayList<>(report.implicitAddonRefs()), 30)), LogKv.kv("count", report.implicitAddonRefs().size()));
+            if (!report.declaredAddonRefs().isEmpty()) {
+                core.info("Addon cross-addon references validated", LogKv.kv("id", report.addonId()), LogKv.kv("refs", joinLimited(new ArrayList<>(report.declaredAddonRefs()), 30)), LogKv.kv("count", report.declaredAddonRefs().size()));
+            }
+
+            if (!report.undeclaredAddonRefs().isEmpty()) {
+                core.warn("Addon undeclared cross-addon references detected", LogKv.kv("id", report.addonId()), LogKv.kv("refs", joinLimited(new ArrayList<>(report.undeclaredAddonRefs()), 30)), LogKv.kv("count", report.undeclaredAddonRefs().size()));
+            }
+
+            if (!report.nonApiAccessRefs().isEmpty()) {
+                core.warn("Addon cross-addon internal access detected", LogKv.kv("id", report.addonId()), LogKv.kv("refs", joinLimited(new ArrayList<>(report.nonApiAccessRefs()), 30)), LogKv.kv("count", report.nonApiAccessRefs().size()));
             }
 
             if (!report.embeddedJars().isEmpty()) {
@@ -459,7 +488,8 @@ public class AddonLifecycleService {
         }
 
         URL[] urls = {discovered.file().toURI().toURL()};
-        URLClassLoader loader = new URLClassLoader(urls, plugin.getClass().getClassLoader());
+        List<AddonClassLoader> dependencyLoaders = dependencyClassLoaders(metadata);
+        AddonClassLoader loader = new AddonClassLoader(addonId, urls, plugin.getClass().getClassLoader(), dependencyLoaders);
         AtomicReference<LogPhase> phaseRef = new AtomicReference<>(LogPhase.LOAD);
         AddonLogger addonLogger = log.forAddon(addonId, metadata.version().toString(), phaseRef::get);
 
@@ -488,7 +518,7 @@ public class AddonLifecycleService {
         }
 
         if (!reportedId.equals(addonId)) {
-            failAddon(addonId, AddonException.Phase.LOAD, "Addon id mismatch. addon.properties=" + addonId + " getId()=" + reportedId, null, true);
+            failAddon(addonId, AddonException.Phase.LOAD, "Addon id mismatch. addon.yml=" + addonId + " getId()=" + reportedId, null, true);
             close(loader);
             return;
         }
@@ -503,7 +533,7 @@ public class AddonLifecycleService {
         }
 
         if (!reportedVersion.trim().equals(metadata.version().raw())) {
-            failAddon(addonId, AddonException.Phase.LOAD, "Addon version mismatch. addon.properties=" + metadata.version().raw() + " getVersion()=" + reportedVersion.trim(), null, true);
+            failAddon(addonId, AddonException.Phase.LOAD, "Addon version mismatch. addon.yml=" + metadata.version().raw() + " getVersion()=" + reportedVersion.trim(), null, true);
             close(loader);
             return;
         }
@@ -547,6 +577,25 @@ public class AddonLifecycleService {
         loadedAddons.put(addonId, new LoadedAddon(metadata, addon, loader, addonLogger, phaseRef, dataFolder));
         states.put(addonId, AddonState.LOADED);
         addonLogger.withPhase(LogPhase.LOAD).info("Loaded", LogKv.kv("version", metadata.version().toString()));
+    }
+
+    private List<AddonClassLoader> dependencyClassLoaders(AddonMetadata metadata) {
+        if (metadata == null || metadata.dependsIds() == null || metadata.dependsIds().isEmpty()) {
+            return List.of();
+        }
+
+        List<AddonClassLoader> out = new ArrayList<>();
+        for (String depId : metadata.dependsIds()) {
+            LoadedAddon dep = loadedAddons.get(depId);
+            if (dep == null) {
+                continue;
+            }
+            if (states.getOrDefault(depId, AddonState.DISABLED) != AddonState.LOADED) {
+                continue;
+            }
+            out.add(dep.classLoader());
+        }
+        return List.copyOf(out);
     }
 
     private void ensureAddonConfigAndLogging(File addonFile, String addonId, Path dataFolder, AddonLogger addonLogger) {
@@ -616,20 +665,21 @@ public class AddonLifecycleService {
 
     private AddonMetadata readMetadata(File file) throws IOException {
         try (JarFile jar = new JarFile(file)) {
-            JarEntry entry = jar.getJarEntry("addon.properties");
+            JarEntry entry = jar.getJarEntry("addon.yml");
             if (entry == null) {
-                coreLogger(LogPhase.LOAD).warn("Skipping addon: missing addon.properties", LogKv.kv("file", file.getName()));
+                coreLogger(LogPhase.LOAD).warn("Skipping addon: missing addon.yml", LogKv.kv("file", file.getName()));
                 return null;
             }
 
-            Properties props = new Properties();
-            try (InputStream in = jar.getInputStream(entry)) {
-                props.load(in);
+            YamlConfiguration yaml;
+            try (InputStream in = jar.getInputStream(entry);
+                 InputStreamReader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
+                yaml = YamlConfiguration.loadConfiguration(reader);
             }
 
-            String id = trimToNull(props.getProperty("id"));
-            String versionStr = trimToNull(props.getProperty("version"));
-            String main = trimToNull(props.getProperty("main"));
+            String id = trimToNull(yaml.getString("id"));
+            String versionStr = trimToNull(yaml.getString("version"));
+            String main = trimToNull(yaml.getString("main"));
 
             if (main == null) {
                 Attributes attributes = jar.getManifest() != null ? jar.getManifest().getMainAttributes() : null;
@@ -639,7 +689,7 @@ public class AddonLifecycleService {
             }
 
             if (id == null || versionStr == null || main == null) {
-                coreLogger(LogPhase.LOAD).warn("Skipping addon: addon.properties requires id, version, main", LogKv.kv("file", file.getName()));
+                coreLogger(LogPhase.LOAD).warn("Skipping addon: addon.yml requires id, version, main", LogKv.kv("file", file.getName()));
                 return null;
             }
 
@@ -656,46 +706,10 @@ public class AddonLifecycleService {
                 return null;
             }
 
-            int apiVersion;
-            String apiStr = trimToNull(props.getProperty("api"));
-            if (apiStr == null) {
-                apiStr = trimToNull(props.getProperty("apiVersion"));
-            }
+            int apiVersion = parseAddonApiVersion(yaml, file.getName());
 
-            if (apiStr == null) {
-                coreLogger(LogPhase.LOAD).warn("Skipping addon: missing api", LogKv.kv("file", file.getName()));
-                return null;
-            }
-
-            try {
-                apiVersion = Integer.parseInt(apiStr);
-            } catch (NumberFormatException ignored) {
-                coreLogger(LogPhase.LOAD).warn("Skipping addon: invalid api", LogKv.kv("file", file.getName()), LogKv.kv("api", apiStr));
-                return null;
-            }
-
-            Map<String, Version> required = parseDependencyMap(id, trimToNull(props.getProperty("depends.required")), file.getName());
-            Map<String, Version> optional = parseDependencyMap(id, trimToNull(props.getProperty("depends.optional")), file.getName());
-
-            String legacy = trimToNull(props.getProperty("depends"));
-            if (legacy != null && required.isEmpty()) {
-                Version min = Version.parse("0.0.0");
-                Map<String, Version> legacyReq = new HashMap<>();
-                for (String part : legacy.split("[,; ]+")) {
-                    String dep = trimToNull(part);
-                    if (dep == null) continue;
-                    if (!dep.matches("[a-z0-9][a-z0-9_\\-]*(?::[a-z0-9][a-z0-9_\\-]*)?")) {
-                        coreLogger(LogPhase.LOAD).warn("Invalid legacy depends entry", LogKv.kv("owner", id), LogKv.kv("dep", dep));
-                        continue;
-                    }
-                    if (dep.equals(id)) {
-                        coreLogger(LogPhase.LOAD).warn("Ignoring self-dependency", LogKv.kv("owner", id));
-                        continue;
-                    }
-                    legacyReq.put(dep, min);
-                }
-                required = Map.copyOf(legacyReq);
-            }
+            Map<String, Version> required = parseYamlDependencies(yaml.get("dependencies"), id, file.getName(), "dependencies");
+            Map<String, Version> optional = parseYamlDependencies(yaml.get("soft-dependencies"), id, file.getName(), "soft-dependencies");
 
             if (!required.isEmpty() && !optional.isEmpty()) {
                 for (String depId : required.keySet()) {
@@ -703,23 +717,25 @@ public class AddonLifecycleService {
                         coreLogger(LogPhase.LOAD).warn("Optional dependency overridden by required", LogKv.kv("owner", id), LogKv.kv("dep", depId));
                     }
                 }
-                Map<String, Version> filteredOpt = new HashMap<>(optional);
+                Map<String, Version> filteredOpt = new LinkedHashMap<>(optional);
                 filteredOpt.keySet().removeAll(required.keySet());
-                optional = Map.copyOf(filteredOpt);
+                optional = filteredOpt;
             }
 
             List<String> dependsIds = new ArrayList<>(required.keySet());
             dependsIds.addAll(optional.keySet());
             dependsIds = List.copyOf(dependsIds);
 
-            return new AddonMetadata(id, version, apiVersion, main, required, optional, dependsIds);
+            return new AddonMetadata(id, version, apiVersion, main, Map.copyOf(required), Map.copyOf(optional), dependsIds);
         }
     }
 
     private AddonAuditIndex buildAuditIndex(File file, AddonMetadata metadata) {
         try (JarFile jar = new JarFile(file)) {
             List<String> classEntries = new ArrayList<>();
+            Set<String> classInternalNames = new LinkedHashSet<>();
             Set<String> apiClasses = new LinkedHashSet<>();
+            Set<String> apiContractClasses = new LinkedHashSet<>();
             Set<String> embeddedCoreApiClasses = new LinkedHashSet<>();
             Set<String> embeddedJars = new LinkedHashSet<>();
 
@@ -738,6 +754,8 @@ public class AddonLifecycleService {
                 }
 
                 classEntries.add(name);
+                String internalName = name.substring(0, name.length() - ".class".length());
+                classInternalNames.add(internalName);
                 String fqcn = name.substring(0, name.length() - ".class".length()).replace('/', '.');
 
                 if (fqcn.contains(".api.")) {
@@ -747,15 +765,34 @@ public class AddonLifecycleService {
                 if (name.startsWith("com/darkbladedev/engine/api/") || name.startsWith("com/darkbladedev/engine/model/")) {
                     embeddedCoreApiClasses.add(fqcn);
                 }
+
+                try (InputStream in = jar.getInputStream(entry)) {
+                    ClassFileInspection inspection = inspectClassFile(in);
+                    if (inspection.classAnnotationDescriptors().contains(ADDON_API_DESCRIPTOR)) {
+                        apiContractClasses.add(fqcn);
+                    }
+                } catch (Exception ignored) {
+                }
             });
 
-            return new AddonAuditIndex(metadata.id(), file.getName(), metadata.mainClass(), rootPrefixInternal, List.copyOf(classEntries), Set.copyOf(apiClasses), Set.copyOf(embeddedCoreApiClasses), Set.copyOf(embeddedJars));
+            return new AddonAuditIndex(
+                metadata.id(),
+                file.getName(),
+                metadata.mainClass(),
+                rootPrefixInternal,
+                List.copyOf(classEntries),
+                Set.copyOf(classInternalNames),
+                Set.copyOf(apiClasses),
+                Set.copyOf(apiContractClasses),
+                Set.copyOf(embeddedCoreApiClasses),
+                Set.copyOf(embeddedJars)
+            );
         } catch (Exception ignored) {
             return null;
         }
     }
 
-    private Map<String, AddonAuditReport> auditDiscoveredAddons(Map<String, DiscoveredAddon> discovered, Map<File, AddonAuditIndex> byFile) {
+    private Map<String, AddonAuditReport> auditDiscoveredAddons(Map<String, DiscoveredAddon> discovered, Map<File, AddonAuditIndex> byFile, boolean strictContracts) {
         Map<String, AddonAuditIndex> indexes = new LinkedHashMap<>();
         for (DiscoveredAddon d : discovered.values()) {
             AddonAuditIndex idx = byFile.get(d.file());
@@ -779,18 +816,55 @@ public class AddonLifecycleService {
             }
         }
 
-        Map<String, Set<String>> implicitRefsByAddon = new LinkedHashMap<>();
-        Map<String, String> rootPrefixByAddon = new LinkedHashMap<>();
+        Map<String, Set<String>> declaredRefsByAddon = new LinkedHashMap<>();
+        Map<String, Set<String>> undeclaredRefsByAddon = new LinkedHashMap<>();
+        Map<String, Set<String>> nonApiRefsByAddon = new LinkedHashMap<>();
+        Map<String, String> classOwnerByInternal = new LinkedHashMap<>();
+        Map<String, Set<String>> apiContractsByAddon = new LinkedHashMap<>();
         for (AddonAuditIndex idx : indexes.values()) {
-            rootPrefixByAddon.put(idx.addonId(), idx.rootPrefixInternal());
+            for (String classInternal : idx.classInternalNames()) {
+                classOwnerByInternal.put(classInternal, idx.addonId());
+            }
+            Set<String> apiContracts = new LinkedHashSet<>();
+            for (String fqcn : idx.apiContractClasses()) {
+                apiContracts.add(fqcn.replace('.', '/'));
+            }
+            apiContractsByAddon.put(idx.addonId(), Set.copyOf(apiContracts));
         }
 
         for (AddonAuditIndex idx : indexes.values()) {
             DiscoveredAddon discoveredAddon = discovered.get(idx.addonId());
             if (discoveredAddon == null) continue;
-            Set<String> refs = scanCrossAddonReferences(discoveredAddon.file(), idx.classEntries(), rootPrefixByAddon, idx.addonId());
-            if (!refs.isEmpty()) {
-                implicitRefsByAddon.put(idx.addonId(), refs);
+            Set<AddonReferenceHit> refs = scanCrossAddonReferences(discoveredAddon.file(), idx.classEntries(), classOwnerByInternal, idx.addonId());
+            if (refs.isEmpty()) {
+                continue;
+            }
+
+            Set<String> declaredDeps = new LinkedHashSet<>(discoveredAddon.metadata().dependsIds());
+            Set<String> declaredRefs = new LinkedHashSet<>();
+            Set<String> undeclaredRefs = new LinkedHashSet<>();
+            Set<String> nonApiRefs = new LinkedHashSet<>();
+            for (AddonReferenceHit ref : refs) {
+                String entry = ref.targetAddonId() + "::" + ref.ownerClass() + " -> " + ref.targetClass();
+                if (declaredDeps.contains(ref.targetAddonId())) {
+                    declaredRefs.add(entry);
+                    Set<String> apiContracts = apiContractsByAddon.getOrDefault(ref.targetAddonId(), Set.of());
+                    if (!apiContracts.contains(ref.targetClass().replace('.', '/'))) {
+                        nonApiRefs.add(entry);
+                    }
+                } else {
+                    undeclaredRefs.add(entry);
+                }
+            }
+
+            if (!declaredRefs.isEmpty()) {
+                declaredRefsByAddon.put(idx.addonId(), Set.copyOf(declaredRefs));
+            }
+            if (!undeclaredRefs.isEmpty()) {
+                undeclaredRefsByAddon.put(idx.addonId(), Set.copyOf(undeclaredRefs));
+            }
+            if (!nonApiRefs.isEmpty()) {
+                nonApiRefsByAddon.put(idx.addonId(), Set.copyOf(nonApiRefs));
             }
         }
 
@@ -820,41 +894,54 @@ public class AddonLifecycleService {
                 fatal = true;
             }
 
-            Set<String> implicitRefs = implicitRefsByAddon.getOrDefault(idx.addonId(), Set.of());
-            if (!implicitRefs.isEmpty()) {
-                violations.add("references classes from other addons");
+            Set<String> declaredRefs = declaredRefsByAddon.getOrDefault(idx.addonId(), Set.of());
+            Set<String> undeclaredRefs = undeclaredRefsByAddon.getOrDefault(idx.addonId(), Set.of());
+            Set<String> nonApiRefs = nonApiRefsByAddon.getOrDefault(idx.addonId(), Set.of());
+            if (!undeclaredRefs.isEmpty()) {
+                List<String> undeclaredTargets = new ArrayList<>();
+                for (String ref : undeclaredRefs) {
+                    int sep = ref.indexOf("::");
+                    String target = sep < 0 ? ref : ref.substring(0, sep);
+                    if (!undeclaredTargets.contains(target)) {
+                        undeclaredTargets.add(target);
+                    }
+                }
+                violations.add("references classes from addons without declared dependency: " + joinLimited(undeclaredTargets, 10));
                 fatal = true;
             }
 
-            out.put(idx.addonId(), new AddonAuditReport(idx.addonId(), idx.fileName(), shared, implicitRefs, idx.embeddedJars(), List.copyOf(violations), fatal));
+            if (!nonApiRefs.isEmpty()) {
+                if (strictContracts) {
+                    violations.add("references non-@AddonAPI classes from dependencies (strict mode)");
+                } else {
+                    violations.add("references non-@AddonAPI classes from dependencies (compat mode warning)");
+                }
+                if (strictContracts) {
+                    fatal = true;
+                }
+            }
+
+            out.put(idx.addonId(), new AddonAuditReport(idx.addonId(), idx.fileName(), shared, declaredRefs, undeclaredRefs, nonApiRefs, idx.embeddedJars(), List.copyOf(violations), fatal));
         }
 
         return out;
     }
 
-    private Set<String> scanCrossAddonReferences(File addonJar, List<String> classEntries, Map<String, String> rootPrefixByAddon, String selfId) {
+    private Set<AddonReferenceHit> scanCrossAddonReferences(File addonJar, List<String> classEntries, Map<String, String> classOwnerByInternal, String selfId) {
         if (classEntries == null || classEntries.isEmpty()) {
             return Set.of();
         }
-        Map<String, String> otherPrefixes = new LinkedHashMap<>();
-        for (Map.Entry<String, String> e : rootPrefixByAddon.entrySet()) {
-            String addonId = e.getKey();
-            if (addonId.equals(selfId)) continue;
-            String prefix = e.getValue();
-            if (prefix == null || prefix.isBlank()) continue;
-            otherPrefixes.put(addonId, prefix);
-        }
-        if (otherPrefixes.isEmpty()) {
+        if (classOwnerByInternal == null || classOwnerByInternal.isEmpty()) {
             return Set.of();
         }
 
-        Set<String> hits = new LinkedHashSet<>();
+        Set<AddonReferenceHit> hits = new LinkedHashSet<>();
         try (JarFile jar = new JarFile(addonJar)) {
             for (String entryName : classEntries) {
                 JarEntry entry = jar.getJarEntry(entryName);
                 if (entry == null) continue;
                 try (InputStream in = jar.getInputStream(entry)) {
-                    Set<String> foundInClass = scanClassUtf8Constants(in, entryName, otherPrefixes);
+                    Set<AddonReferenceHit> foundInClass = scanClassReferences(in, classOwnerByInternal, selfId);
                     if (!foundInClass.isEmpty()) {
                         hits.addAll(foundInClass);
                         if (hits.size() >= 20) {
@@ -870,62 +957,25 @@ public class AddonLifecycleService {
         return Set.copyOf(hits);
     }
 
-    private Set<String> scanClassUtf8Constants(InputStream rawIn, String classEntryName, Map<String, String> otherPrefixes) throws IOException {
-        try (DataInputStream in = new DataInputStream(new BufferedInputStream(rawIn))) {
-            int magic = in.readInt();
-            if (magic != 0xCAFEBABE) {
-                return Set.of();
-            }
-            in.readUnsignedShort();
-            in.readUnsignedShort();
-            int cpCount = in.readUnsignedShort();
-
-            Set<String> hits = new LinkedHashSet<>();
-            String ownerClass = classEntryName == null ? "" : classEntryName.replace('/', '.');
-            if (ownerClass.endsWith(".class")) {
-                ownerClass = ownerClass.substring(0, ownerClass.length() - ".class".length());
-            }
-            for (int i = 1; i < cpCount; i++) {
-                int tag = in.readUnsignedByte();
-                switch (tag) {
-                    case 1 -> {
-                        String s = in.readUTF();
-                        for (Map.Entry<String, String> e : otherPrefixes.entrySet()) {
-                            String prefix = e.getValue();
-                            if (prefix == null || prefix.isBlank()) {
-                                continue;
-                            }
-
-                            if (s.contains(prefix)) {
-                                if (s.contains(prefix + "/api/") || s.contains(prefix + ".api.")) {
-                                    continue;
-                                }
-                                hits.add(e.getKey() + "::" + ownerClass);
-                            }
-                        }
-                    }
-                    case 3, 4 -> in.readInt();
-                    case 5, 6 -> {
-                        in.readLong();
-                        i++;
-                    }
-                    case 7, 8, 16 -> in.readUnsignedShort();
-                    case 9, 10, 11, 12, 18 -> {
-                        in.readUnsignedShort();
-                        in.readUnsignedShort();
-                    }
-                    case 15 -> {
-                        in.readUnsignedByte();
-                        in.readUnsignedShort();
-                    }
-                    default -> {
-                        return Set.of();
-                    }
-                }
-            }
-
-            return Set.copyOf(hits);
+    private Set<AddonReferenceHit> scanClassReferences(InputStream rawIn, Map<String, String> classOwnerByInternal, String selfId) throws IOException {
+        ClassFileInspection inspection = inspectClassFile(rawIn);
+        if (inspection.ownerInternalName() == null || inspection.ownerInternalName().isBlank()) {
+            return Set.of();
         }
+        String ownerClass = inspection.ownerInternalName().replace('/', '.');
+        Set<AddonReferenceHit> hits = new LinkedHashSet<>();
+        for (String refInternal : inspection.referencedClassNames()) {
+            String normalized = normalizeInternalClassName(refInternal);
+            if (normalized == null || normalized.isBlank()) {
+                continue;
+            }
+            String targetAddon = classOwnerByInternal.get(normalized);
+            if (targetAddon == null || targetAddon.equals(selfId)) {
+                continue;
+            }
+            hits.add(new AddonReferenceHit(targetAddon, ownerClass, normalized.replace('/', '.')));
+        }
+        return Set.copyOf(hits);
     }
 
     private static String rootPrefixInternal(String mainClass) {
@@ -949,50 +999,323 @@ public class AddonLifecycleService {
         return sb.toString();
     }
 
-    private Map<String, Version> parseDependencyMap(String ownerId, String raw, String fileName) {
+    private ContractsEnforcementMode contractsEnforcementMode() {
+        String raw = null;
+        try {
+            raw = trimToNull(plugin.getConfig().getString("addons.contracts.nonApiAccess"));
+            if (raw == null) {
+                raw = trimToNull(plugin.getConfig().getString("addons.audit.nonApiAccess"));
+            }
+        } catch (Throwable ignored) {
+            raw = null;
+        }
+        if (raw == null) {
+            return ContractsEnforcementMode.WARN;
+        }
+        String normalized = raw.trim().toUpperCase(java.util.Locale.ROOT);
+        if ("ERROR".equals(normalized) || "STRICT".equals(normalized)) {
+            return ContractsEnforcementMode.ERROR;
+        }
+        return ContractsEnforcementMode.WARN;
+    }
+
+    private ClassFileInspection inspectClassFile(InputStream rawIn) throws IOException {
+        try (DataInputStream in = new DataInputStream(new BufferedInputStream(rawIn))) {
+            int magic = in.readInt();
+            if (magic != 0xCAFEBABE) {
+                return new ClassFileInspection("", Set.of(), Set.of());
+            }
+            in.readUnsignedShort();
+            in.readUnsignedShort();
+            int cpCount = in.readUnsignedShort();
+            String[] utf8 = new String[cpCount];
+            int[] classNameIndex = new int[cpCount];
+
+            for (int i = 1; i < cpCount; i++) {
+                int tag = in.readUnsignedByte();
+                switch (tag) {
+                    case 1 -> utf8[i] = in.readUTF();
+                    case 3, 4 -> in.readInt();
+                    case 5, 6 -> {
+                        in.readLong();
+                        i++;
+                    }
+                    case 7 -> classNameIndex[i] = in.readUnsignedShort();
+                    case 8, 16, 19, 20 -> in.readUnsignedShort();
+                    case 9, 10, 11, 12, 17, 18 -> {
+                        in.readUnsignedShort();
+                        in.readUnsignedShort();
+                    }
+                    case 15 -> {
+                        in.readUnsignedByte();
+                        in.readUnsignedShort();
+                    }
+                    default -> {
+                        return new ClassFileInspection("", Set.of(), Set.of());
+                    }
+                }
+            }
+
+            in.readUnsignedShort();
+            int thisClassIndex = in.readUnsignedShort();
+            in.readUnsignedShort();
+
+            String ownerInternal = "";
+            if (thisClassIndex > 0 && thisClassIndex < classNameIndex.length) {
+                int ownerNameIdx = classNameIndex[thisClassIndex];
+                if (ownerNameIdx > 0 && ownerNameIdx < utf8.length) {
+                    ownerInternal = normalizeInternalClassName(utf8[ownerNameIdx]);
+                    if (ownerInternal == null) {
+                        ownerInternal = "";
+                    }
+                }
+            }
+
+            Set<String> referenced = new LinkedHashSet<>();
+            for (int i = 1; i < classNameIndex.length; i++) {
+                int nameIdx = classNameIndex[i];
+                if (nameIdx <= 0 || nameIdx >= utf8.length) {
+                    continue;
+                }
+                String ref = normalizeInternalClassName(utf8[nameIdx]);
+                if (ref != null && !ref.isBlank()) {
+                    referenced.add(ref);
+                }
+            }
+            referenced.remove(ownerInternal);
+
+            int interfaceCount = in.readUnsignedShort();
+            for (int i = 0; i < interfaceCount; i++) {
+                in.readUnsignedShort();
+            }
+
+            int fieldsCount = in.readUnsignedShort();
+            for (int i = 0; i < fieldsCount; i++) {
+                skipMemberInfo(in);
+            }
+
+            int methodsCount = in.readUnsignedShort();
+            for (int i = 0; i < methodsCount; i++) {
+                skipMemberInfo(in);
+            }
+
+            Set<String> classAnnotations = new LinkedHashSet<>();
+            int attributesCount = in.readUnsignedShort();
+            for (int i = 0; i < attributesCount; i++) {
+                int nameIndex = in.readUnsignedShort();
+                long length = Integer.toUnsignedLong(in.readInt());
+                String attributeName = nameIndex > 0 && nameIndex < utf8.length ? utf8[nameIndex] : null;
+                if (length <= 0L) {
+                    continue;
+                }
+                if (ATTR_RUNTIME_VISIBLE_ANNOTATIONS.equals(attributeName) || ATTR_RUNTIME_INVISIBLE_ANNOTATIONS.equals(attributeName)) {
+                    byte[] data = in.readNBytes((int) length);
+                    collectAnnotationDescriptors(data, utf8, classAnnotations);
+                    continue;
+                }
+                in.skipNBytes(length);
+            }
+
+            return new ClassFileInspection(ownerInternal, Set.copyOf(referenced), Set.copyOf(classAnnotations));
+        }
+    }
+
+    private static void skipMemberInfo(DataInputStream in) throws IOException {
+        in.readUnsignedShort();
+        in.readUnsignedShort();
+        in.readUnsignedShort();
+        int attributesCount = in.readUnsignedShort();
+        for (int j = 0; j < attributesCount; j++) {
+            in.readUnsignedShort();
+            long len = Integer.toUnsignedLong(in.readInt());
+            in.skipNBytes(len);
+        }
+    }
+
+    private static void collectAnnotationDescriptors(byte[] data, String[] utf8, Set<String> out) throws IOException {
+        try (DataInputStream in = new DataInputStream(new BufferedInputStream(new ByteArrayInputStream(data)))) {
+            int numAnnotations = in.readUnsignedShort();
+            for (int i = 0; i < numAnnotations; i++) {
+                int typeIndex = in.readUnsignedShort();
+                String descriptor = typeIndex > 0 && typeIndex < utf8.length ? utf8[typeIndex] : null;
+                if (descriptor != null && !descriptor.isBlank()) {
+                    out.add(descriptor);
+                }
+                int pairs = in.readUnsignedShort();
+                for (int p = 0; p < pairs; p++) {
+                    in.readUnsignedShort();
+                    skipElementValue(in);
+                }
+            }
+        }
+    }
+
+    private static void skipElementValue(DataInputStream in) throws IOException {
+        int tag = in.readUnsignedByte();
+        switch (tag) {
+            case 'B', 'C', 'D', 'F', 'I', 'J', 'S', 'Z', 's' -> in.readUnsignedShort();
+            case 'e' -> {
+                in.readUnsignedShort();
+                in.readUnsignedShort();
+            }
+            case 'c' -> in.readUnsignedShort();
+            case '@' -> {
+                in.readUnsignedShort();
+                int pairs = in.readUnsignedShort();
+                for (int i = 0; i < pairs; i++) {
+                    in.readUnsignedShort();
+                    skipElementValue(in);
+                }
+            }
+            case '[' -> {
+                int count = in.readUnsignedShort();
+                for (int i = 0; i < count; i++) {
+                    skipElementValue(in);
+                }
+            }
+            default -> {
+            }
+        }
+    }
+
+    private static String normalizeInternalClassName(String raw) {
         if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        String v = raw.trim();
+        while (v.startsWith("[")) {
+            v = v.substring(1);
+        }
+        if (v.startsWith("L") && v.endsWith(";")) {
+            v = v.substring(1, v.length() - 1);
+        }
+        if (v.isBlank()) {
+            return null;
+        }
+        return v.contains(".") ? v.replace('.', '/') : v;
+    }
+
+    private int parseAddonApiVersion(YamlConfiguration yaml, String fileName) {
+        Object raw = yaml.get("api");
+        if (raw == null) {
+            raw = yaml.get("apiVersion");
+        }
+        if (raw == null) {
+            return MultiBlockEngine.getApiVersion();
+        }
+        String text = trimToNull(String.valueOf(raw));
+        if (text == null) {
+            return MultiBlockEngine.getApiVersion();
+        }
+        try {
+            return Integer.parseInt(text);
+        } catch (NumberFormatException ignored) {
+            throw new IllegalArgumentException("Invalid addon.yml in " + fileName + ": Invalid api value: " + text);
+        }
+    }
+
+    private Map<String, Version> parseYamlDependencies(Object raw, String ownerId, String fileName, String fieldName) {
+        if (raw == null) {
             return Map.of();
         }
 
-        Map<String, Version> map = new HashMap<>();
-        for (String part : raw.split("[,; ]+")) {
-            String token = trimToNull(part);
-            if (token == null) continue;
-
-            int idx = token.indexOf(">=");
-            if (idx < 1 || idx + 2 >= token.length()) {
-                throw new IllegalArgumentException("Invalid addon.properties in " + ownerId + ": Invalid dependency format: " + token + " (expected <id>>=<version>)");
+        Map<String, Version> out = new LinkedHashMap<>();
+        if (raw instanceof List<?> list) {
+            for (Object entry : list) {
+                parseYamlDependencyEntry(out, entry, ownerId, fileName, fieldName);
             }
-
-            String depId = trimToNull(token.substring(0, idx));
-            String verStr = trimToNull(token.substring(idx + 2));
-
-            if (depId == null || verStr == null) {
-                throw new IllegalArgumentException("Invalid addon.properties in " + ownerId + ": Invalid dependency format: " + token + " (expected <id>>=<version>)");
+            return Map.copyOf(out);
+        }
+        if (raw instanceof Map<?, ?> map) {
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                String depId = trimToNull(entry.getKey() == null ? null : String.valueOf(entry.getKey()));
+                validateDependencyId(ownerId, depId, fileName, fieldName);
+                Version min = parseDependencyVersionConstraint(
+                    ownerId,
+                    depId,
+                    entry.getValue() == null ? null : String.valueOf(entry.getValue()),
+                    fileName,
+                    fieldName
+                );
+                putDependency(out, depId, min, ownerId, fileName, fieldName);
             }
+            return Map.copyOf(out);
+        }
+        throw new IllegalArgumentException("Invalid addon.yml in " + fileName + ": " + fieldName + " must be a list or map");
+    }
 
-            if (!depId.matches("[a-z0-9][a-z0-9_\\-]*(?::[a-z0-9][a-z0-9_\\-]*)?")) {
-                throw new IllegalArgumentException("Invalid addon.properties in " + ownerId + ": Invalid dependency id: " + depId);
-            }
+    private void parseYamlDependencyEntry(Map<String, Version> out, Object entry, String ownerId, String fileName, String fieldName) {
+        if (entry == null) {
+            return;
+        }
+        if (entry instanceof String token) {
+            String depId = trimToNull(token);
+            validateDependencyId(ownerId, depId, fileName, fieldName);
+            putDependency(out, depId, MIN_DEPENDENCY_VERSION, ownerId, fileName, fieldName);
+            return;
+        }
+        if (!(entry instanceof Map<?, ?> map)) {
+            throw new IllegalArgumentException("Invalid addon.yml in " + fileName + ": " + fieldName + " entries must be strings or maps");
+        }
+        String depId = trimToNull(map.get("id") == null ? null : String.valueOf(map.get("id")));
+        validateDependencyId(ownerId, depId, fileName, fieldName);
+        String versionConstraint = map.get("version") == null ? null : String.valueOf(map.get("version"));
+        Version min = parseDependencyVersionConstraint(ownerId, depId, versionConstraint, fileName, fieldName);
+        putDependency(out, depId, min, ownerId, fileName, fieldName);
+    }
 
-            if (depId.equals(ownerId)) {
-                throw new IllegalArgumentException("Invalid addon.properties in " + ownerId + ": Self dependency not allowed");
-            }
+    private void validateDependencyId(String ownerId, String depId, String fileName, String fieldName) {
+        if (depId == null || !depId.matches("[a-z0-9][a-z0-9_\\-]*(?::[a-z0-9][a-z0-9_\\-]*)?")) {
+            throw new IllegalArgumentException("Invalid addon.yml in " + fileName + ": Invalid dependency id in " + fieldName + ": " + depId);
+        }
+        if (depId.equals(ownerId)) {
+            throw new IllegalArgumentException("Invalid addon.yml in " + fileName + ": Self dependency not allowed in " + fieldName);
+        }
+    }
 
-            Version min;
-            try {
-                min = Version.parse(verStr);
-            } catch (IllegalArgumentException e) {
-                throw new IllegalArgumentException("Invalid addon.properties in " + ownerId + ": Invalid dependency version: " + depId + ">=" + verStr);
-            }
-
-            if (map.containsKey(depId)) {
-                coreLogger(LogPhase.LOAD).warn("Duplicate dependency (last one wins)", LogKv.kv("owner", ownerId), LogKv.kv("dep", depId), LogKv.kv("file", fileName));
-            }
-            map.put(depId, min);
+    private Version parseDependencyVersionConstraint(String ownerId, String depId, String rawConstraint, String fileName, String fieldName) {
+        String constraint = trimToNull(rawConstraint);
+        if (constraint == null) {
+            return MIN_DEPENDENCY_VERSION;
         }
 
-        return Map.copyOf(map);
+        String candidate = null;
+        for (String token : constraint.split("\\s+")) {
+            String t = trimToNull(token);
+            if (t == null) {
+                continue;
+            }
+            if (t.startsWith(">=")) {
+                candidate = trimToNull(t.substring(2));
+                break;
+            }
+            if (candidate == null) {
+                candidate = t.startsWith("=") ? trimToNull(t.substring(1)) : t;
+            }
+        }
+        if (candidate == null) {
+            return MIN_DEPENDENCY_VERSION;
+        }
+        try {
+            return Version.parse(candidate);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(
+                "Invalid addon.yml in " + fileName + ": Invalid dependency version in " + fieldName + ": " + depId + " (" + constraint + ")"
+            );
+        }
+    }
+
+    private void putDependency(Map<String, Version> out, String depId, Version min, String ownerId, String fileName, String fieldName) {
+        if (out.containsKey(depId)) {
+            coreLogger(LogPhase.LOAD).warn(
+                "Duplicate dependency declaration (last one wins)",
+                LogKv.kv("owner", ownerId),
+                LogKv.kv("dep", depId),
+                LogKv.kv("field", fieldName),
+                LogKv.kv("file", fileName)
+            );
+        }
+        out.put(depId, min == null ? MIN_DEPENDENCY_VERSION : min);
     }
 
     private static String trimToNull(String s) {
@@ -1005,6 +1328,102 @@ public class AddonLifecycleService {
         try {
             loader.close();
         } catch (IOException ignored) {
+        }
+    }
+
+    private static final class AddonClassLoader extends URLClassLoader {
+        private final String addonId;
+        private final List<AddonClassLoader> dependencies;
+
+        private AddonClassLoader(String addonId, URL[] urls, ClassLoader parent, List<AddonClassLoader> dependencies) {
+            super(urls, parent);
+            this.addonId = addonId == null ? "unknown" : addonId;
+            this.dependencies = dependencies == null ? List.of() : List.copyOf(dependencies);
+        }
+
+        @Override
+        protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+            synchronized (getClassLoadingLock(name)) {
+                Class<?> loaded = findLoadedClass(name);
+                if (loaded != null) {
+                    if (resolve) {
+                        resolveClass(loaded);
+                    }
+                    return loaded;
+                }
+
+                if (isParentFirst(name)) {
+                    try {
+                        Class<?> parentClass = getParent().loadClass(name);
+                        if (resolve) {
+                            resolveClass(parentClass);
+                        }
+                        return parentClass;
+                    } catch (ClassNotFoundException ignored) {
+                    }
+                }
+
+                Class<?> local = tryLoadOwnClass(name);
+                if (local != null) {
+                    if (resolve) {
+                        resolveClass(local);
+                    }
+                    return local;
+                }
+
+                for (AddonClassLoader dependency : dependencies) {
+                    if (dependency == null) {
+                        continue;
+                    }
+                    Class<?> depClass = dependency.tryLoadOwnClass(name);
+                    if (depClass != null) {
+                        if (resolve) {
+                            resolveClass(depClass);
+                        }
+                        return depClass;
+                    }
+                }
+
+                Class<?> parentClass = getParent().loadClass(name);
+                if (resolve) {
+                    resolveClass(parentClass);
+                }
+                return parentClass;
+            }
+        }
+
+        private Class<?> tryLoadOwnClass(String name) {
+            synchronized (getClassLoadingLock(name)) {
+                Class<?> loaded = findLoadedClass(name);
+                if (loaded != null) {
+                    return loaded;
+                }
+                try {
+                    return findClass(name);
+                } catch (ClassNotFoundException ignored) {
+                    return null;
+                }
+            }
+        }
+
+        private boolean isParentFirst(String name) {
+            if (name == null || name.isBlank()) {
+                return true;
+            }
+            return name.startsWith("java.")
+                || name.startsWith("javax.")
+                || name.startsWith("jdk.")
+                || name.startsWith("sun.")
+                || name.startsWith("com.sun.")
+                || name.startsWith("org.bukkit.")
+                || name.startsWith("io.papermc.")
+                || name.startsWith("net.minecraft.")
+                || name.startsWith("com.destroystokyo.paper.");
+        }
+
+        @Override
+        public String toString() {
+            return "AddonClassLoader[" + addonId + "]";
         }
     }
 

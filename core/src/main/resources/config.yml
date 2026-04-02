@@ -28,3 +28,7 @@ export:
   ignoreMaterials:
     - TORCH
     - WALL_TORCH
+
+addons:
+  contracts:
+    nonApiAccess: WARN
