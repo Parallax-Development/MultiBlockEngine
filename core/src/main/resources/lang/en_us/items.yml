@@ -1,1 +1,15 @@
-{}
+core:
+  items:
+    wrench:
+      display_name: "Wrench"
+      lore:
+        assemble: "&eRight-click: &aAssemble multiblock"
+        disassemble: "&eLeft-click: &cDisassemble multiblock"
+        inspect: "&eShift + Right-click: &bShow information"
+        variant: "&eShift + Left-click: &dSwitch variant"
+    blueprint:
+      display_name: "Blueprint"
+      lore:
+        hold: "&bHold: &fDynamic preview"
+        right_click: "&aRight-click on the ground: &fConfirm position"
+        left_click: "&cLeft-click: &fCancel guide"

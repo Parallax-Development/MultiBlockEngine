@@ -61,6 +61,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -136,7 +137,7 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
 
         if (isWrench && player != null && (action == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK || action == org.bukkit.event.block.Action.LEFT_CLICK_BLOCK)) {
             if (!tryAcquireCooldown(player)) {
-                send(player, MSG_COOLDOWN, Map.of("ms", COOLDOWN.toMillis()));
+                send(player, MSG_COOLDOWN, Map.of("s", cooldownSecondsLabel(player)));
                 return WrenchResult.handled(true);
             }
         }
@@ -482,6 +483,20 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
         }
         cooldowns.put(player.getUniqueId(), now);
         return true;
+    }
+
+    private String cooldownSecondsLabel(Player player) {
+        Locale locale = Locale.ROOT;
+        try {
+            if (i18n != null && i18n.localeProvider() != null) {
+                Locale resolved = i18n.localeProvider().localeOf(player);
+                if (resolved != null) {
+                    locale = resolved;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return String.format(locale, "%.1f", COOLDOWN.toMillis() / 1000.0D);
     }
 
     private void playSuccess(Player player, Location loc) {

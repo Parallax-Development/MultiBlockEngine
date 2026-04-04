@@ -34,7 +34,7 @@ public final class BukkitServiceBridge {
         }
 
         Object exposed = wrapIfNeededRaw(api, implementation);
-        Bukkit.getServicesManager().register((Class) api, exposed, plugin, priority);
+        Bukkit.getServicesManager().register((Class<Object>) api, exposed, plugin, priority);
         return exposed;
     }
 
@@ -65,7 +65,7 @@ public final class BukkitServiceBridge {
     public static void unexpose(Class<?> api, Object provider) {
         Objects.requireNonNull(api, "api");
         Objects.requireNonNull(provider, "provider");
-        Bukkit.getServicesManager().unregister((Class) api, provider);
+        Bukkit.getServicesManager().unregister((Class<Object>) api, provider);
     }
 
     public static void unexposeAll(Plugin plugin) {

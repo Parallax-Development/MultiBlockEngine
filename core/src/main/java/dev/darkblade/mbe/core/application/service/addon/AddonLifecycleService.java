@@ -354,6 +354,14 @@ public class AddonLifecycleService {
         return serviceRegistry.resolveIfEnabled(CORE_PROVIDER_ID, serviceType, this::getState).orElse(null);
     }
 
+    public <T> T getService(Class<T> serviceType) {
+        return serviceRegistry.resolveIfEnabled(CORE_PROVIDER_ID, serviceType, this::getState).orElse(null);
+    }
+
+    public <T> List<T> getServicesByType(Class<T> serviceType) {
+        return serviceLifecycleManager.getByType(serviceType);
+    }
+
     public record AddonRuntime(String id, ClassLoader classLoader, Path dataFolder) {
         public AddonRuntime {
             if (id == null || id.isBlank()) {

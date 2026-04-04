@@ -27,7 +27,7 @@ commands:
     total_created: "Total created: "
     total_destroyed: "Total destroyed: "
     structure_checks: "Structure checks: "
-    avg_tick: "Average tick: "
+    avg_tick: "Average tick (s): "
   inspect:
     must_look_at_block: "You must look at a block."
     none_here: "No structure here."
@@ -35,5 +35,5 @@ commands:
     type: "Type: "
     state: "State: "
     facing: "Facing: "
-    anchor: "Anchor: "
+    anchor: "Controller: "
     highlighted: "Structure highlighted with particles."

@@ -1,6 +1,10 @@
 core:
+  preview:
+    started: "Preview started."
+    cancelled: "Preview cancelled."
+    completed: "Preview completed."
   wrench:
-    cooldown: "Please wait {ms}ms before using the wrench again."
+    cooldown: "Please wait {s}s before using the wrench again."
     assembled: "Structure formed: {type}"
     disassembled: "Structure destroyed: {type}"
     missing: "Missing blocks: {missing}"

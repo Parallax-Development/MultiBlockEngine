@@ -32,3 +32,9 @@ export:
 addons:
   contracts:
     nonApiAccess: WARN
+
+preview:
+  batchSize: 30
+  timeoutSeconds: 20
+  maxDistance: 24.0
+  raycastDistance: 8

@@ -1,12 +1,17 @@
 package dev.darkblade.mbe.core.application.command;
 
+import dev.darkblade.mbe.api.item.ItemService;
+import dev.darkblade.mbe.blueprint.BlueprintItem;
 import dev.darkblade.mbe.core.MultiBlockEngine;
 import dev.darkblade.mbe.core.application.service.MetricsService;
 import dev.darkblade.mbe.core.application.service.MultiblockRuntimeService;
 import dev.darkblade.mbe.core.application.command.service.ServicesCommandRouter;
 import dev.darkblade.mbe.core.application.command.service.impl.ItemsCommandService;
+import dev.darkblade.mbe.core.application.command.service.impl.UiCommandService;
+import dev.darkblade.mbe.catalog.StructureCatalogService;
 import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.MessageKey;
+import dev.darkblade.mbe.core.infrastructure.bridge.item.ItemStackBridge;
 import dev.darkblade.mbe.core.internal.tooling.export.ExportSession;
 import dev.darkblade.mbe.core.internal.tooling.export.SelectionService;
 import dev.darkblade.mbe.core.internal.tooling.export.StructureExporter;
@@ -53,6 +58,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
     private static final String PERM_ADMIN_RELOAD = "multiblockengine.admin.reload";
     private static final String PERM_ADMIN_EXPORT = "multiblockengine.admin.export";
     private static final String PERM_ADMIN_SERVICES = "multiblockengine.admin.services";
+    private static final String PERM_ADMIN_BLUEPRINT = "multiblockengine.admin.blueprint";
     private static final String PERM_DEBUG_SESSION = "multiblockengine.debug.session";
     private static final String PERM_DEBUG_SERVICES = "multiblockengine.debug.services";
 
@@ -99,6 +105,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
         this.structureExporter = structureExporter;
         this.services = new ServicesCommandRouter(plugin);
         this.services.registerInternal(new ItemsCommandService(plugin));
+        this.services.registerInternal(new UiCommandService(plugin));
     }
 
     @Override
@@ -197,6 +204,15 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
                 return true;
             }
             handleExport(player, label, safeArgs);
+            return true;
+        }
+
+        if (root.equals("blueprint")) {
+            if (!sender.hasPermission(PERM_ADMIN_BLUEPRINT) && !sender.hasPermission(PERM_ADMIN)) {
+                sender.sendMessage(Component.text("No tienes permiso.", NamedTextColor.RED));
+                return true;
+            }
+            handleBlueprint(sender, label, safeArgs);
             return true;
         }
 
@@ -323,6 +339,10 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(Component.text("/" + label + " disassemble", NamedTextColor.YELLOW));
         sender.sendMessage(Component.text("/" + label + " status", NamedTextColor.YELLOW));
         sender.sendMessage(Component.text("/" + label + " report [jugador]", NamedTextColor.YELLOW));
+        if (sender.hasPermission(PERM_ADMIN_BLUEPRINT) || sender.hasPermission(PERM_ADMIN)) {
+            sender.sendMessage(Component.text("/" + label + " blueprint list", NamedTextColor.YELLOW));
+            sender.sendMessage(Component.text("/" + label + " blueprint give <id> [jugador]", NamedTextColor.YELLOW));
+        }
 
         if (sender.hasPermission(PERM_ADMIN)) {
             sender.sendMessage(Component.text("/" + label + " admin reload", NamedTextColor.GRAY));
@@ -407,6 +427,92 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
                 }
             }
             default -> player.sendMessage(Component.text("Subcomando inválido. Uso: /" + label + " export <start|pos1|pos2|mark|save|cancel>", NamedTextColor.RED));
+        }
+    }
+
+    private void handleBlueprint(CommandSender sender, String label, String[] args) {
+        if (args.length < 2) {
+            sender.sendMessage(Component.text("Uso: /" + label + " blueprint <list|give>", NamedTextColor.YELLOW));
+            return;
+        }
+        String op = args[1] == null ? "" : args[1].trim().toLowerCase(Locale.ROOT);
+        StructureCatalogService catalogService = plugin.getAddonLifecycleService().getCoreService(StructureCatalogService.class);
+        ItemService itemService = plugin.getAddonLifecycleService().getCoreService(ItemService.class);
+        ItemStackBridge itemStackBridge = plugin.getAddonLifecycleService().getCoreService(ItemStackBridge.class);
+        if (catalogService == null || itemService == null || itemStackBridge == null) {
+            sender.sendMessage(Component.text("Servicios de blueprint no disponibles.", NamedTextColor.RED));
+            return;
+        }
+
+        if ("list".equalsIgnoreCase(op)) {
+            List<String> ids = new ArrayList<>();
+            for (dev.darkblade.mbe.preview.MultiblockDefinition definition : catalogService.getAll()) {
+                if (definition == null || definition.id() == null || definition.id().isBlank()) {
+                    continue;
+                }
+                ids.add(definition.id());
+            }
+            if (ids.isEmpty()) {
+                sender.sendMessage(Component.text("No hay multibloques cargados.", NamedTextColor.YELLOW));
+                return;
+            }
+            java.util.Collections.sort(ids);
+            sender.sendMessage(Component.text("Multibloques disponibles (" + ids.size() + "):", NamedTextColor.AQUA));
+            sender.sendMessage(Component.text(String.join(", ", ids), NamedTextColor.GRAY));
+            return;
+        }
+
+        if (!"give".equalsIgnoreCase(op)) {
+            sender.sendMessage(Component.text("Uso: /" + label + " blueprint <list|give>", NamedTextColor.YELLOW));
+            return;
+        }
+        if (args.length < 3) {
+            sender.sendMessage(Component.text("Uso: /" + label + " blueprint give <id> [jugador]", NamedTextColor.YELLOW));
+            return;
+        }
+        String id = args[2] == null ? "" : args[2].trim();
+        if (id.isBlank()) {
+            sender.sendMessage(Component.text("Debes indicar un id de multibloque.", NamedTextColor.RED));
+            return;
+        }
+
+        Player receiver;
+        if (args.length >= 4 && args[3] != null && !args[3].isBlank()) {
+            receiver = org.bukkit.Bukkit.getPlayer(args[3]);
+            if (receiver == null) {
+                sender.sendMessage(Component.text("Jugador no encontrado: " + args[3], NamedTextColor.RED));
+                return;
+            }
+        } else if (sender instanceof Player playerSender) {
+            receiver = playerSender;
+        } else {
+            sender.sendMessage(Component.text("Desde consola debes indicar un jugador: /" + label + " blueprint give <id> <jugador>", NamedTextColor.RED));
+            return;
+        }
+
+        dev.darkblade.mbe.preview.MultiblockDefinition definition = null;
+        for (dev.darkblade.mbe.preview.MultiblockDefinition candidate : catalogService.getAll()) {
+            if (candidate == null || candidate.id() == null) {
+                continue;
+            }
+            if (candidate.id().equalsIgnoreCase(id)) {
+                definition = candidate;
+                break;
+            }
+        }
+        if (definition == null) {
+            sender.sendMessage(Component.text("No existe multibloque con id: " + id, NamedTextColor.RED));
+            return;
+        }
+        org.bukkit.inventory.ItemStack blueprint = BlueprintItem.create(itemService, itemStackBridge, definition);
+        if (blueprint == null) {
+            sender.sendMessage(Component.text("No se pudo crear el blueprint para: " + definition.id(), NamedTextColor.RED));
+            return;
+        }
+        receiver.getInventory().addItem(blueprint);
+        receiver.sendMessage(Component.text("Blueprint recibido: " + definition.id(), NamedTextColor.GREEN));
+        if (sender != receiver) {
+            sender.sendMessage(Component.text("Blueprint entregado a " + receiver.getName() + ": " + definition.id(), NamedTextColor.GREEN));
         }
     }
 
@@ -553,7 +659,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
         ));
         sender.sendMessage(Component.textOfChildren(
                 Component.text(tr(sender, MSG_STATUS_AVG_TICK), NamedTextColor.GRAY),
-                Component.text(String.format("%.4f ms", metrics.getAverageTickTimeMs()), NamedTextColor.WHITE)
+                Component.text(String.format("%.1f s", metrics.getAverageTickTimeMs() / 1000.0D), NamedTextColor.WHITE)
         ));
     }
 
@@ -818,6 +924,9 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
             if (sender.hasPermission(PERM_ADMIN_EXPORT) || sender.hasPermission(PERM_ADMIN)) {
                 roots.add("export");
             }
+            if (sender.hasPermission(PERM_ADMIN_BLUEPRINT) || sender.hasPermission(PERM_ADMIN)) {
+                roots.add("blueprint");
+            }
             if (sender.hasPermission(PERM_ADMIN_RELOAD) || sender.hasPermission(PERM_ADMIN)) {
                 roots.add("reload");
             }
@@ -843,6 +952,32 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
             }
             if (safeArgs.length == 3 && "mark".equalsIgnoreCase(safeArgs[1])) {
                 return filter(List.of("controller", "input", "output", "decorative"), safeArgs[2]);
+            }
+        }
+
+        if (root.equals("blueprint")) {
+            if (safeArgs.length == 2) {
+                return filter(List.of("give", "list"), safeArgs[1]);
+            }
+            if (safeArgs.length == 3 && "give".equalsIgnoreCase(safeArgs[1])) {
+                List<String> ids = new ArrayList<>();
+                for (MultiblockType type : plugin.getManager().getTypes()) {
+                    if (type == null || type.id() == null || type.id().isBlank()) {
+                        continue;
+                    }
+                    ids.add(type.id());
+                }
+                return filter(ids, safeArgs[2]);
+            }
+            if (safeArgs.length == 4 && "give".equalsIgnoreCase(safeArgs[1])) {
+                List<String> players = new ArrayList<>();
+                for (Player player : org.bukkit.Bukkit.getOnlinePlayers()) {
+                    if (player == null || player.getName() == null || player.getName().isBlank()) {
+                        continue;
+                    }
+                    players.add(player.getName());
+                }
+                return filter(players, safeArgs[3]);
             }
         }
 

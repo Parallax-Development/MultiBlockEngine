@@ -1,1 +1,15 @@
-{}
+core:
+  items:
+    wrench:
+      display_name: "Llave inglesa"
+      lore:
+        assemble: "&eClick derecho: &aEnsamblar multibloque"
+        disassemble: "&eClick izquierdo: &cDesensamblar multibloque"
+        inspect: "&eShift + Click derecho: &bMostrar información"
+        variant: "&eShift + Click izquierdo: &dCambiar variante"
+    blueprint:
+      display_name: "Blueprint"
+      lore:
+        hold: "&bSostener: &fPreview dinámica"
+        right_click: "&aClick derecho en el suelo: &fConfirmar posición"
+        left_click: "&cClick izquierdo: &fCancelar guía"

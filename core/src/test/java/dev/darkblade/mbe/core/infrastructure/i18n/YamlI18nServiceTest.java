@@ -7,9 +7,11 @@ import dev.darkblade.mbe.api.logging.LogBackend;
 import dev.darkblade.mbe.api.logging.LogLevel;
 import dev.darkblade.mbe.api.logging.LoggingConfig;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,10 +19,12 @@ import java.text.NumberFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class YamlI18nServiceTest {
 
@@ -139,5 +143,36 @@ final class YamlI18nServiceTest {
         );
 
         assertEquals("Core", svc.resolve(MessageKey.of("addon1", "shared"), Locale.US));
+    }
+
+    @Test
+    void coreWrenchDisassembledExistsInBundledLanguages() {
+        YamlConfiguration en = YamlConfiguration.loadConfiguration(new InputStreamReader(
+                Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("lang/en_us/core.yml")),
+                StandardCharsets.UTF_8
+        ));
+        YamlConfiguration es = YamlConfiguration.loadConfiguration(new InputStreamReader(
+                Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("lang/es_es/core.yml")),
+                StandardCharsets.UTF_8
+        ));
+        YamlConfiguration enItems = YamlConfiguration.loadConfiguration(new InputStreamReader(
+                Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("lang/en_us/items.yml")),
+                StandardCharsets.UTF_8
+        ));
+        YamlConfiguration esItems = YamlConfiguration.loadConfiguration(new InputStreamReader(
+                Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("lang/es_es/items.yml")),
+                StandardCharsets.UTF_8
+        ));
+
+        assertTrue(en.isString("core.wrench.disassembled"));
+        assertTrue(es.isString("core.wrench.disassembled"));
+        assertTrue(enItems.isString("core.items.wrench.display_name"));
+        assertTrue(esItems.isString("core.items.wrench.display_name"));
+        assertTrue(enItems.isString("core.items.wrench.lore.assemble"));
+        assertTrue(esItems.isString("core.items.wrench.lore.assemble"));
+        assertTrue(enItems.isString("core.items.blueprint.display_name"));
+        assertTrue(esItems.isString("core.items.blueprint.display_name"));
+        assertTrue(enItems.isString("core.items.blueprint.lore.right_click"));
+        assertTrue(esItems.isString("core.items.blueprint.lore.right_click"));
     }
 }
