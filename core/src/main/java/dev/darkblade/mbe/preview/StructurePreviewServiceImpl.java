@@ -182,6 +182,19 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
         return sessions.get(player.getUniqueId());
     }
 
+    public boolean switchDefinition(Player player, MultiblockDefinition definition) {
+        if (player == null || definition == null) {
+            return false;
+        }
+        PreviewSession session = sessions.get(player.getUniqueId());
+        if (session == null) {
+            return false;
+        }
+        session.definition(definition);
+        rerender(player, session);
+        return true;
+    }
+
     void handlePlacedBlock(Player player, BlockPosition position, BlockData placedBlockData) {
         if (player == null || position == null || placedBlockData == null) {
             return;

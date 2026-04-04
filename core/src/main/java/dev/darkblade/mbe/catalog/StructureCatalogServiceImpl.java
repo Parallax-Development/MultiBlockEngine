@@ -52,6 +52,13 @@ public final class StructureCatalogServiceImpl implements StructureCatalogServic
             Vector3i position = Vector3i.fromVector(entry.offset());
             unique.put(position, new PreviewBlock(position, blockData));
         }
+        if (type.controllerOffset() != null && type.controllerMatcher() != null) {
+            BlockData controllerData = toBlockData(type.controllerMatcher());
+            if (controllerData != null) {
+                Vector3i controllerPosition = Vector3i.fromVector(type.controllerOffset());
+                unique.put(controllerPosition, new PreviewBlock(controllerPosition, controllerData));
+            }
+        }
         return new SimpleMultiblockDefinition(type.id(), new ArrayList<>(unique.values()));
     }
 
