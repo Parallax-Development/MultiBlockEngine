@@ -1,0 +1,25 @@
+views:
+  blueprint_catalog:
+    title: "&8Catálogo de Blueprints"
+    size: 54
+    layout:
+      - "FFFFFFFFF"
+      - "FBBBBBBBF"
+      - "FBBBBBBBF"
+      - "FBBBBBBBF"
+      - "FBBBBBBBF"
+      - "FFFFFFFFF"
+    items:
+      "F":
+        material: BLACK_STAINED_GLASS_PANE
+        name: " "
+      "B":
+        material: PAPER
+        name: "&b{id}"
+        lore:
+          - "&7Bloques: &f{blocks}"
+          - "&aClick para iniciar placement"
+    dynamic_sections:
+      blueprints:
+        symbol: "B"
+        provider: "blueprints"

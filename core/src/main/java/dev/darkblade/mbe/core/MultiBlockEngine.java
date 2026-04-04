@@ -13,6 +13,7 @@ import dev.darkblade.mbe.api.item.ItemKeys;
 import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.LocaleProvider;
 import dev.darkblade.mbe.api.i18n.MessageKey;
+import dev.darkblade.mbe.api.blueprint.BlueprintService;
 import dev.darkblade.mbe.api.service.InspectionPipelineService;
 import dev.darkblade.mbe.api.wiring.PortResolutionService;
 import dev.darkblade.mbe.api.command.WrenchDispatcher;
@@ -21,15 +22,15 @@ import dev.darkblade.mbe.api.persistence.StorageExceptionHandler;
 import dev.darkblade.mbe.api.persistence.StorageRegistry;
 import dev.darkblade.mbe.api.event.MultiblockFormEvent;
 import dev.darkblade.mbe.blueprint.BlueprintDefinitionResolver;
+import dev.darkblade.mbe.blueprint.BlueprintHeldItemResolver;
+import dev.darkblade.mbe.blueprint.BlueprintController;
 import dev.darkblade.mbe.blueprint.BlueprintInputListener;
 import dev.darkblade.mbe.blueprint.BlueprintItem;
+import dev.darkblade.mbe.blueprint.BlueprintServiceImpl;
 import dev.darkblade.mbe.blueprint.BuildContextService;
 import dev.darkblade.mbe.blueprint.InMemoryBuildContextService;
 import dev.darkblade.mbe.blueprint.PreviewPlacementController;
-import dev.darkblade.mbe.catalog.CatalogItemMapper;
 import dev.darkblade.mbe.catalog.CatalogListener;
-import dev.darkblade.mbe.catalog.CatalogMenu;
-import dev.darkblade.mbe.catalog.DefaultCatalogItemMapper;
 import dev.darkblade.mbe.catalog.PreviewOriginResolver;
 import dev.darkblade.mbe.catalog.RaycastPreviewOriginResolver;
 import dev.darkblade.mbe.catalog.StructureCatalogService;
@@ -78,13 +79,23 @@ import dev.darkblade.mbe.preview.StructurePreviewRequestListener;
 import dev.darkblade.mbe.preview.StructurePreviewService;
 import dev.darkblade.mbe.preview.StructurePreviewServiceImpl;
 import dev.darkblade.mbe.preview.UnknownValidationStrategy;
+import dev.darkblade.mbe.uiengine.BlueprintDataProvider;
+import dev.darkblade.mbe.uiengine.InventoryConfigLoader;
+import dev.darkblade.mbe.uiengine.InventoryDataProvider;
+import dev.darkblade.mbe.uiengine.InventoryRenderer;
+import dev.darkblade.mbe.uiengine.InventorySessionStore;
+import dev.darkblade.mbe.uiengine.InventoryUIListener;
+import dev.darkblade.mbe.uiengine.InventoryUIService;
+import dev.darkblade.mbe.uiengine.InventoryUIServiceImpl;
 import org.bukkit.Bukkit;
+import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -131,6 +142,7 @@ public class MultiBlockEngine extends JavaPlugin {
 
         // Save default config
         saveDefaultConfig();
+        saveResource("inventories.yml", false);
 
         loggingManager = new LoggingService(this);
         CoreLogger log = loggingManager.core();
@@ -230,13 +242,28 @@ public class MultiBlockEngine extends JavaPlugin {
         BuildContextService buildContextService = new InMemoryBuildContextService();
         addonManager.registerCoreService(BuildContextService.class, buildContextService);
         BlueprintDefinitionResolver blueprintDefinitionResolver = new BlueprintDefinitionResolver(structureCatalogService);
-        BlueprintInputListener blueprintInputListener = new BlueprintInputListener(
-            buildContextService,
-            structurePreviewService,
-            blueprintDefinitionResolver,
-            new RaycastPreviewOriginResolver(getConfig().getInt("preview.raycastDistance", 8)),
-            itemStackBridge
+        Map<String, InventoryDataProvider> uiProviders = new HashMap<>();
+        uiProviders.put("blueprints", new BlueprintDataProvider(structureCatalogService));
+        InventorySessionStore inventorySessions = new InventorySessionStore();
+        InventoryUIService inventoryUIService = new InventoryUIServiceImpl(
+                new InventoryConfigLoader(new File(getDataFolder(), "inventories.yml")),
+                new InventoryRenderer(uiProviders),
+                inventorySessions
         );
+        addonManager.registerCoreService(InventoryUIService.class, inventoryUIService);
+        PreviewOriginResolver previewOriginResolver = new RaycastPreviewOriginResolver(getConfig().getInt("preview.raycastDistance", 8));
+        BlueprintController blueprintController = new BlueprintController(
+                buildContextService,
+                structurePreviewService,
+                blueprintDefinitionResolver,
+                previewOriginResolver,
+                new BlueprintHeldItemResolver(itemStackBridge)
+        );
+        BlueprintServiceImpl blueprintService = new BlueprintServiceImpl(blueprintController, inventoryUIService);
+        addonManager.registerCoreService(BlueprintService.class, blueprintService);
+        addonManager.registerCoreMbeService(blueprintService);
+        Bukkit.getServicesManager().register(BlueprintService.class, blueprintService, this, ServicePriority.Normal);
+        BlueprintInputListener blueprintInputListener = new BlueprintInputListener(blueprintController);
 
         editorSessions = new EditorSessionManager();
         interactionRouter = new InteractionRouter();
@@ -318,24 +345,13 @@ public class MultiBlockEngine extends JavaPlugin {
         getServer().getPluginManager().registerEvents(interactionRouter, this);
         getServer().getPluginManager().registerEvents(new ExportInteractListener(exportSelections), this);
         getServer().getPluginManager().registerEvents(blueprintInputListener, this);
-        getServer().getPluginManager().registerEvents(new PreviewPlacementController(
-            buildContextService,
-            new RaycastPreviewOriginResolver(getConfig().getInt("preview.raycastDistance", 8)),
-            structurePreviewService,
-            blueprintInputListener
-        ), this);
+        getServer().getPluginManager().registerEvents(new PreviewPlacementController(blueprintController), this);
         getServer().getPluginManager().registerEvents(new PreviewBlockPlaceListener(structurePreviewService, buildContextService), this);
         getServer().getPluginManager().registerEvents(new StructurePreviewRequestListener(structurePreviewService), this);
-        CatalogItemMapper catalogItemMapper = new DefaultCatalogItemMapper();
-        CatalogMenu catalogMenu = new CatalogMenu(structureCatalogService, catalogItemMapper);
-        PreviewOriginResolver originResolver = new RaycastPreviewOriginResolver(getConfig().getInt("preview.raycastDistance", 8));
+        getServer().getPluginManager().registerEvents(new InventoryUIListener(inventorySessions, blueprintService), this);
         getServer().getPluginManager().registerEvents(new CatalogListener(
-            catalogMenu,
-            itemService,
-            itemStackBridge,
-            structurePreviewService,
-            originResolver,
-            buildContextService
+                blueprintService,
+                itemStackBridge
         ), this);
 
         // Register Commands

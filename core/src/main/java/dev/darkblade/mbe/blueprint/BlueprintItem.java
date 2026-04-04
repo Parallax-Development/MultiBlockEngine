@@ -33,36 +33,4 @@ public final class BlueprintItem {
         }
         return stack;
     }
-
-    public static boolean isBlueprint(ItemStack stack, ItemStackBridge bridge) {
-        ItemInstance instance = read(stack, bridge);
-        if (instance == null || instance.definition() == null) {
-            return false;
-        }
-        ItemKey key = instance.definition().key();
-        return BLUEPRINT_KEY.equals(key);
-    }
-
-    public static String structureId(ItemStack stack, ItemStackBridge bridge) {
-        ItemInstance instance = read(stack, bridge);
-        if (instance == null || instance.definition() == null || !BLUEPRINT_KEY.equals(instance.definition().key())) {
-            return null;
-        }
-        Object raw = instance.data().get(DATA_STRUCTURE_ID);
-        if (!(raw instanceof String id) || id.isBlank()) {
-            return null;
-        }
-        return id;
-    }
-
-    private static ItemInstance read(ItemStack stack, ItemStackBridge bridge) {
-        if (stack == null || stack.getType().isAir() || bridge == null) {
-            return null;
-        }
-        try {
-            return bridge.fromItemStack(stack);
-        } catch (Throwable ignored) {
-            return null;
-        }
-    }
 }

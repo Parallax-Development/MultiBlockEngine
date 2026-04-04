@@ -6,6 +6,7 @@ import dev.darkblade.mbe.core.MultiBlockEngine;
 import dev.darkblade.mbe.core.application.service.MetricsService;
 import dev.darkblade.mbe.core.application.service.MultiblockRuntimeService;
 import dev.darkblade.mbe.core.application.command.service.ServicesCommandRouter;
+import dev.darkblade.mbe.core.application.command.service.impl.BlueprintCommandService;
 import dev.darkblade.mbe.core.application.command.service.impl.ItemsCommandService;
 import dev.darkblade.mbe.core.application.command.service.impl.UiCommandService;
 import dev.darkblade.mbe.catalog.StructureCatalogService;
@@ -98,14 +99,17 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
     private final ServicesCommandRouter services;
     private final SelectionService exportSelections;
     private final StructureExporter structureExporter;
+    private final BlueprintCommandService blueprintCommands;
 
     public MultiblockCommand(MultiBlockEngine plugin, SelectionService exportSelections, StructureExporter structureExporter) {
         this.plugin = plugin;
         this.exportSelections = exportSelections;
         this.structureExporter = structureExporter;
+        this.blueprintCommands = new BlueprintCommandService(plugin);
         this.services = new ServicesCommandRouter(plugin);
         this.services.registerInternal(new ItemsCommandService(plugin));
         this.services.registerInternal(new UiCommandService(plugin));
+        this.services.registerInternal(this.blueprintCommands);
     }
 
     @Override
@@ -340,6 +344,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(Component.text("/" + label + " status", NamedTextColor.YELLOW));
         sender.sendMessage(Component.text("/" + label + " report [jugador]", NamedTextColor.YELLOW));
         if (sender.hasPermission(PERM_ADMIN_BLUEPRINT) || sender.hasPermission(PERM_ADMIN)) {
+            sender.sendMessage(Component.text("/" + label + " blueprint catalog", NamedTextColor.YELLOW));
             sender.sendMessage(Component.text("/" + label + " blueprint list", NamedTextColor.YELLOW));
             sender.sendMessage(Component.text("/" + label + " blueprint give <id> [jugador]", NamedTextColor.YELLOW));
         }
@@ -432,10 +437,18 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
 
     private void handleBlueprint(CommandSender sender, String label, String[] args) {
         if (args.length < 2) {
-            sender.sendMessage(Component.text("Uso: /" + label + " blueprint <list|give>", NamedTextColor.YELLOW));
+            sender.sendMessage(Component.text("Uso: /" + label + " blueprint <catalog|list|give>", NamedTextColor.YELLOW));
             return;
         }
         String op = args[1] == null ? "" : args[1].trim().toLowerCase(Locale.ROOT);
+        if ("catalog".equalsIgnoreCase(op)) {
+            if (!(sender instanceof Player player)) {
+                sender.sendMessage(Component.text("Solo jugadores pueden abrir el catálogo.", NamedTextColor.RED));
+                return;
+            }
+            blueprintCommands.openCatalog(player);
+            return;
+        }
         StructureCatalogService catalogService = plugin.getAddonLifecycleService().getCoreService(StructureCatalogService.class);
         ItemService itemService = plugin.getAddonLifecycleService().getCoreService(ItemService.class);
         ItemStackBridge itemStackBridge = plugin.getAddonLifecycleService().getCoreService(ItemStackBridge.class);
@@ -463,7 +476,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
         }
 
         if (!"give".equalsIgnoreCase(op)) {
-            sender.sendMessage(Component.text("Uso: /" + label + " blueprint <list|give>", NamedTextColor.YELLOW));
+            sender.sendMessage(Component.text("Uso: /" + label + " blueprint <catalog|list|give>", NamedTextColor.YELLOW));
             return;
         }
         if (args.length < 3) {
@@ -957,7 +970,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
 
         if (root.equals("blueprint")) {
             if (safeArgs.length == 2) {
-                return filter(List.of("give", "list"), safeArgs[1]);
+                return filter(List.of("catalog", "give", "list"), safeArgs[1]);
             }
             if (safeArgs.length == 3 && "give".equalsIgnoreCase(safeArgs[1])) {
                 List<String> ids = new ArrayList<>();

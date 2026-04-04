@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public final class PreviewSession {
     private final UUID playerId;
-    private final MultiblockDefinition definition;
+    private volatile MultiblockDefinition definition;
     private final Map<BlockPosition, SessionPreviewBlock> blocks;
     private final AtomicLong renderVersion;
     private volatile Location origin;
@@ -35,6 +35,11 @@ public final class PreviewSession {
 
     public MultiblockDefinition definition() {
         return definition;
+    }
+
+    public void definition(MultiblockDefinition definition) {
+        this.definition = definition;
+        touch();
     }
 
     public Location origin() {

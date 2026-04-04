@@ -1,12 +1,14 @@
 package dev.darkblade.mbe.blueprint;
 
 import dev.darkblade.mbe.preview.PreviewSession;
+import dev.darkblade.mbe.preview.MultiblockDefinition;
 import org.bukkit.Location;
 
 public final class PlayerBuildContext {
     private volatile Mode mode;
     private volatile PreviewSession preview;
     private volatile String blueprintId;
+    private volatile MultiblockDefinition activeBlueprint;
     private volatile Location lastResolvedOrigin;
 
     public PlayerBuildContext() {
@@ -35,6 +37,14 @@ public final class PlayerBuildContext {
 
     public void blueprintId(String blueprintId) {
         this.blueprintId = blueprintId;
+    }
+
+    public MultiblockDefinition activeBlueprint() {
+        return activeBlueprint;
+    }
+
+    public void activeBlueprint(MultiblockDefinition activeBlueprint) {
+        this.activeBlueprint = activeBlueprint;
     }
 
     public Location lastResolvedOrigin() {

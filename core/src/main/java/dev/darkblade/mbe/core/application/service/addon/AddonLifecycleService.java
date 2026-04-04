@@ -13,6 +13,7 @@ import dev.darkblade.mbe.api.logging.LogKv;
 import dev.darkblade.mbe.api.logging.LogLevel;
 import dev.darkblade.mbe.api.logging.LogPhase;
 import dev.darkblade.mbe.api.logging.LogScope;
+import dev.darkblade.mbe.api.service.MBEService;
 import dev.darkblade.mbe.core.application.service.addon.crossref.AddonCrossReferenceService;
 import dev.darkblade.mbe.core.application.service.MBEServiceRegistry;
 import dev.darkblade.mbe.core.application.service.ServiceInjector;
@@ -348,6 +349,10 @@ public class AddonLifecycleService {
 
     public <T> void registerCoreService(Class<T> serviceType, T service) {
         serviceRegistry.register(CORE_PROVIDER_ID, serviceType, service);
+    }
+
+    public void registerCoreMbeService(MBEService service) {
+        serviceLifecycleManager.registerService(CORE_PROVIDER_ID, service);
     }
 
     public <T> T getCoreService(Class<T> serviceType) {
