@@ -4,7 +4,7 @@ main: dev.darkblade.mbe.core.MultiBlockEngine
 api-version: 1.20
 authors: [DarkbladeDev]
 description: A performant, extensible, and maintainable multi-block structure system.
-softdepend: [PlaceholderAPI]
+softdepend: [PlaceholderAPI, ProtocolLib]
 commands:
   multiblock:
     description: Main command for MultiBlockEngine
@@ -23,6 +23,7 @@ permissions:
       multiblockengine.admin.reload: true
       multiblockengine.admin.export: true
       multiblockengine.admin.services: true
+      multiblockengine.admin.blueprint: true
   multiblockengine.admin.reload:
     description: Allows using /mbe reload and /mbe admin reload
     default: op
@@ -31,6 +32,9 @@ permissions:
     default: op
   multiblockengine.admin.services:
     description: Allows using /mbe services and /mbe admin <service>
+    default: op
+  multiblockengine.admin.blueprint:
+    description: Allows using /mbe blueprint give <id>
     default: op
   multiblockengine.debug:
     description: Allows access to debug command layer

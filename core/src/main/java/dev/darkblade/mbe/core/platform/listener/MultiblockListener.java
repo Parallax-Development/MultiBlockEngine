@@ -11,6 +11,8 @@ import dev.darkblade.mbe.api.logging.LogScope;
 import dev.darkblade.mbe.api.command.WrenchContext;
 import dev.darkblade.mbe.api.command.WrenchDispatcher;
 import dev.darkblade.mbe.api.command.WrenchResult;
+import dev.darkblade.mbe.api.i18n.I18nService;
+import dev.darkblade.mbe.api.i18n.MessageKey;
 import dev.darkblade.mbe.core.domain.assembly.AssemblyCoordinator;
 import dev.darkblade.mbe.api.assembly.AssemblyContext;
 import dev.darkblade.mbe.core.application.service.MultiblockRuntimeService;
@@ -37,37 +39,48 @@ import org.bukkit.event.Event;
 
 public class MultiblockListener implements Listener {
 
+    private static final MessageKey MSG_DISASSEMBLED = MessageKey.of("mbe", "core.wrench.disassembled");
+
     private final MultiblockRuntimeService manager;
     private final Consumer<Event> eventCaller;
     private final WrenchDispatcher wrenchDispatcher;
     private final AssemblyCoordinator assembly;
+    private final I18nService i18n;
 
     public MultiblockListener(MultiblockRuntimeService manager) {
-        this(manager, Bukkit.getPluginManager()::callEvent, null, null);
+        this(manager, Bukkit.getPluginManager()::callEvent, null, null, null);
     }
 
     public MultiblockListener(MultiblockRuntimeService manager, Consumer<Event> eventCaller) {
-        this(manager, eventCaller, null, null);
+        this(manager, eventCaller, null, null, null);
     }
 
     public MultiblockListener(MultiblockRuntimeService manager, Consumer<Event> eventCaller, WrenchDispatcher wrenchDispatcher) {
-        this(manager, eventCaller, wrenchDispatcher, null);
+        this(manager, eventCaller, wrenchDispatcher, null, null);
     }
 
     public MultiblockListener(MultiblockRuntimeService manager, WrenchDispatcher wrenchDispatcher) {
-        this(manager, Bukkit.getPluginManager()::callEvent, wrenchDispatcher, null);
+        this(manager, Bukkit.getPluginManager()::callEvent, wrenchDispatcher, null, null);
     }
 
     public MultiblockListener(MultiblockRuntimeService manager, WrenchDispatcher wrenchDispatcher, AssemblyCoordinator assembly) {
-        this(manager, Bukkit.getPluginManager()::callEvent, wrenchDispatcher, assembly);
+        this(manager, Bukkit.getPluginManager()::callEvent, wrenchDispatcher, assembly, null);
     }
 
+    public MultiblockListener(MultiblockRuntimeService manager, WrenchDispatcher wrenchDispatcher, AssemblyCoordinator assembly, I18nService i18n) {
+        this(manager, Bukkit.getPluginManager()::callEvent, wrenchDispatcher, assembly, i18n);
+    }
 
     public MultiblockListener(MultiblockRuntimeService manager, Consumer<Event> eventCaller, WrenchDispatcher wrenchDispatcher, AssemblyCoordinator assembly) {
+        this(manager, eventCaller, wrenchDispatcher, assembly, null);
+    }
+
+    public MultiblockListener(MultiblockRuntimeService manager, Consumer<Event> eventCaller, WrenchDispatcher wrenchDispatcher, AssemblyCoordinator assembly, I18nService i18n) {
         this.manager = manager;
         this.eventCaller = eventCaller;
         this.wrenchDispatcher = wrenchDispatcher;
         this.assembly = assembly;
+        this.i18n = i18n;
     }
 
     @EventHandler
@@ -93,6 +106,9 @@ public class MultiblockListener implements Listener {
     
     @EventHandler
     public void onInteract(PlayerInteractEvent event) {
+        if (event.isCancelled()) {
+            return;
+        }
         if (event.getClickedBlock() == null) {
             return;
         }
@@ -163,11 +179,52 @@ public class MultiblockListener implements Listener {
             }
             
             manager.destroyInstance(instance);
-            event.getPlayer().sendMessage(Component.textOfChildren(
-                    Component.text("Structure destroyed: ", NamedTextColor.RED),
-                    Component.text(instance.type().id(), NamedTextColor.WHITE)
-            ));
+            sendDisassembledMessage(event.getPlayer(), instance);
         }
+    }
+
+    private void sendDisassembledMessage(Player player, MultiblockInstance instance) {
+        if (player == null || instance == null || instance.type() == null) {
+            return;
+        }
+        String typeId = instance.type().id() == null ? "" : instance.type().id();
+        String translated = null;
+        I18nService service = resolveI18n();
+        if (service != null) {
+            try {
+                translated = service.tr(player, MSG_DISASSEMBLED, Map.of("type", typeId));
+            } catch (Throwable ignored) {
+            }
+        }
+        if (!isValidTranslation(translated)) {
+            player.sendMessage(Component.textOfChildren(
+                    Component.text("Structure destroyed: ", NamedTextColor.RED),
+                    Component.text(typeId, NamedTextColor.WHITE)
+            ));
+            return;
+        }
+        player.sendMessage(Component.text(translated, NamedTextColor.RED));
+    }
+
+    private I18nService resolveI18n() {
+        if (i18n != null) {
+            return i18n;
+        }
+        MultiBlockEngine plugin = MultiBlockEngine.getInstance();
+        if (plugin == null || plugin.getAddonLifecycleService() == null) {
+            return null;
+        }
+        return plugin.getAddonLifecycleService().getCoreService(I18nService.class);
+    }
+
+    private boolean isValidTranslation(String translated) {
+        if (translated == null || translated.isBlank()) {
+            return false;
+        }
+        if (translated.equals(MSG_DISASSEMBLED.fullKey())) {
+            return false;
+        }
+        return !translated.equals("??" + MSG_DISASSEMBLED.fullKey() + "??");
     }
 
     private void executeActionSafely(String runtimePhase, dev.darkblade.mbe.core.domain.action.Action action, MultiblockInstance instance, Player player) {

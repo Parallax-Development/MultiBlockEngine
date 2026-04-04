@@ -12,6 +12,7 @@ import dev.darkblade.mbe.api.item.ItemDefinition;
 import dev.darkblade.mbe.api.item.ItemKeys;
 import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.LocaleProvider;
+import dev.darkblade.mbe.api.i18n.MessageKey;
 import dev.darkblade.mbe.api.service.InspectionPipelineService;
 import dev.darkblade.mbe.api.wiring.PortResolutionService;
 import dev.darkblade.mbe.api.command.WrenchDispatcher;
@@ -19,12 +20,33 @@ import dev.darkblade.mbe.api.persistence.PersistentStorageService;
 import dev.darkblade.mbe.api.persistence.StorageExceptionHandler;
 import dev.darkblade.mbe.api.persistence.StorageRegistry;
 import dev.darkblade.mbe.api.event.MultiblockFormEvent;
+import dev.darkblade.mbe.blueprint.BlueprintDefinitionResolver;
+import dev.darkblade.mbe.blueprint.BlueprintInputListener;
+import dev.darkblade.mbe.blueprint.BlueprintItem;
+import dev.darkblade.mbe.blueprint.BuildContextService;
+import dev.darkblade.mbe.blueprint.InMemoryBuildContextService;
+import dev.darkblade.mbe.blueprint.PreviewPlacementController;
+import dev.darkblade.mbe.catalog.CatalogItemMapper;
+import dev.darkblade.mbe.catalog.CatalogListener;
+import dev.darkblade.mbe.catalog.CatalogMenu;
+import dev.darkblade.mbe.catalog.DefaultCatalogItemMapper;
+import dev.darkblade.mbe.catalog.PreviewOriginResolver;
+import dev.darkblade.mbe.catalog.RaycastPreviewOriginResolver;
+import dev.darkblade.mbe.catalog.StructureCatalogService;
+import dev.darkblade.mbe.catalog.StructureCatalogServiceImpl;
 import dev.darkblade.mbe.core.application.command.MultiblockCommand;
 import dev.darkblade.mbe.core.infrastructure.i18n.BukkitLocaleProvider;
 import dev.darkblade.mbe.core.infrastructure.i18n.YamlI18nService;
 import dev.darkblade.mbe.core.infrastructure.integration.MultiblockExpansion;
+import dev.darkblade.mbe.core.platform.listener.EditorInputListener;
 import dev.darkblade.mbe.core.platform.listener.MultiblockListener;
 import dev.darkblade.mbe.core.application.service.MultiblockRuntimeService;
+import dev.darkblade.mbe.core.application.service.editor.EditorSessionManager;
+import dev.darkblade.mbe.api.ui.binding.PanelBindingRegistry;
+import dev.darkblade.mbe.api.ui.binding.PanelBindingMutationService;
+import dev.darkblade.mbe.api.ui.binding.PanelBindingLinkService;
+import dev.darkblade.mbe.core.application.service.ui.InteractionRouter;
+import dev.darkblade.mbe.core.application.service.ui.PanelBindingService;
 import dev.darkblade.mbe.core.domain.MultiblockInstance;
 import dev.darkblade.mbe.core.domain.MultiblockType;
 import dev.darkblade.mbe.core.infrastructure.config.parser.MultiblockParser;
@@ -46,10 +68,21 @@ import dev.darkblade.mbe.core.infrastructure.persistence.InstanceStorageService;
 import dev.darkblade.mbe.core.infrastructure.persistence.FileInstanceStorage;
 import dev.darkblade.mbe.core.infrastructure.persistence.DefaultStorageRegistry;
 import dev.darkblade.mbe.core.infrastructure.persistence.FilePersistentStorageService;
+import dev.darkblade.mbe.preview.DisplayEntityRenderer;
+import dev.darkblade.mbe.preview.EntityIdAllocator;
+import dev.darkblade.mbe.preview.NoOpDisplayRenderer;
+import dev.darkblade.mbe.preview.PreviewBlockPlaceListener;
+import dev.darkblade.mbe.preview.PreviewSettings;
+import dev.darkblade.mbe.preview.ProtocolLibDisplayRenderer;
+import dev.darkblade.mbe.preview.StructurePreviewRequestListener;
+import dev.darkblade.mbe.preview.StructurePreviewService;
+import dev.darkblade.mbe.preview.StructurePreviewServiceImpl;
+import dev.darkblade.mbe.preview.UnknownValidationStrategy;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -81,6 +114,11 @@ public class MultiBlockEngine extends JavaPlugin {
     private AssemblyCoordinator assemblyCoordinator;
     private SelectionService exportSelections;
     private StructureExporter structureExporter;
+    private EditorSessionManager editorSessions;
+    private PanelBindingService panelBindings;
+    private InteractionRouter interactionRouter;
+    private StructurePreviewServiceImpl structurePreviewService;
+    private StructureCatalogService structureCatalogService;
 
     @Override
     public void onEnable() {
@@ -175,6 +213,41 @@ public class MultiBlockEngine extends JavaPlugin {
         WrenchDispatcher wrenchDispatcher = new DefaultWrenchDispatcher(manager, itemStackBridge, i18n, assemblyCoordinator);
         addonManager.registerCoreService(WrenchDispatcher.class, wrenchDispatcher);
 
+        DisplayEntityRenderer displayRenderer = getServer().getPluginManager().getPlugin("ProtocolLib") != null
+            ? new ProtocolLibDisplayRenderer(new EntityIdAllocator())
+            : new NoOpDisplayRenderer();
+        PreviewSettings previewSettings = new PreviewSettings(
+            getConfig().getInt("preview.batchSize", 30),
+            getConfig().getInt("preview.raycastDistance", 8),
+            getConfig().getDouble("preview.maxDistance", 24.0D),
+            Duration.ofSeconds(Math.max(3, getConfig().getLong("preview.timeoutSeconds", 20L)))
+        );
+        structurePreviewService = new StructurePreviewServiceImpl(this, displayRenderer, i18n, new UnknownValidationStrategy(), previewSettings);
+        structurePreviewService.start();
+        addonManager.registerCoreService(StructurePreviewService.class, structurePreviewService);
+        structureCatalogService = new StructureCatalogServiceImpl(manager);
+        addonManager.registerCoreService(StructureCatalogService.class, structureCatalogService);
+        BuildContextService buildContextService = new InMemoryBuildContextService();
+        addonManager.registerCoreService(BuildContextService.class, buildContextService);
+        BlueprintDefinitionResolver blueprintDefinitionResolver = new BlueprintDefinitionResolver(structureCatalogService);
+        BlueprintInputListener blueprintInputListener = new BlueprintInputListener(
+            buildContextService,
+            structurePreviewService,
+            blueprintDefinitionResolver,
+            new RaycastPreviewOriginResolver(getConfig().getInt("preview.raycastDistance", 8)),
+            itemStackBridge
+        );
+
+        editorSessions = new EditorSessionManager();
+        interactionRouter = new InteractionRouter();
+        panelBindings = new PanelBindingService(new File(getDataFolder(), "panel-bindings.yml"), interactionRouter);
+        panelBindings.load();
+        addonManager.registerCoreService(EditorSessionManager.class, editorSessions);
+        addonManager.registerCoreService(PanelBindingService.class, panelBindings);
+        addonManager.registerCoreService(PanelBindingRegistry.class, panelBindings);
+        addonManager.registerCoreService(PanelBindingMutationService.class, panelBindings);
+        addonManager.registerCoreService(PanelBindingLinkService.class, panelBindings);
+
         addonManager.loadAddons();
 
         ensureDefaultLangFiles();
@@ -240,9 +313,30 @@ public class MultiBlockEngine extends JavaPlugin {
         
         // Register Listeners
         WrenchDispatcher wd = addonManager.getCoreService(WrenchDispatcher.class);
-        getServer().getPluginManager().registerEvents(new MultiblockListener(manager, wd, assemblyCoordinator), this);
-        
+        getServer().getPluginManager().registerEvents(new MultiblockListener(manager, wd, assemblyCoordinator, i18n), this);
+        getServer().getPluginManager().registerEvents(new EditorInputListener(this, editorSessions), this);
+        getServer().getPluginManager().registerEvents(interactionRouter, this);
         getServer().getPluginManager().registerEvents(new ExportInteractListener(exportSelections), this);
+        getServer().getPluginManager().registerEvents(blueprintInputListener, this);
+        getServer().getPluginManager().registerEvents(new PreviewPlacementController(
+            buildContextService,
+            new RaycastPreviewOriginResolver(getConfig().getInt("preview.raycastDistance", 8)),
+            structurePreviewService,
+            blueprintInputListener
+        ), this);
+        getServer().getPluginManager().registerEvents(new PreviewBlockPlaceListener(structurePreviewService, buildContextService), this);
+        getServer().getPluginManager().registerEvents(new StructurePreviewRequestListener(structurePreviewService), this);
+        CatalogItemMapper catalogItemMapper = new DefaultCatalogItemMapper();
+        CatalogMenu catalogMenu = new CatalogMenu(structureCatalogService, catalogItemMapper);
+        PreviewOriginResolver originResolver = new RaycastPreviewOriginResolver(getConfig().getInt("preview.raycastDistance", 8));
+        getServer().getPluginManager().registerEvents(new CatalogListener(
+            catalogMenu,
+            itemService,
+            itemStackBridge,
+            structurePreviewService,
+            originResolver,
+            buildContextService
+        ), this);
 
         // Register Commands
         MultiblockCommand cmd = new MultiblockCommand(this, exportSelections, structureExporter);
@@ -280,6 +374,15 @@ public class MultiBlockEngine extends JavaPlugin {
         Bukkit.getScheduler().cancelTasks(this);
         if (debugManager != null) {
             debugManager.stopAll();
+        }
+        if (editorSessions != null) {
+            editorSessions.cancelAll();
+        }
+        if (structurePreviewService != null) {
+            structurePreviewService.stop();
+        }
+        if (panelBindings != null) {
+            panelBindings.save();
         }
         if (addonManager != null) {
             addonManager.disableAddons();
@@ -379,6 +482,15 @@ public class MultiBlockEngine extends JavaPlugin {
         if (itemService == null) {
             return;
         }
+        MessageKey wrenchName = MessageKey.of("mbe", "core.items.wrench.display_name");
+        MessageKey wrenchLoreAssemble = MessageKey.of("mbe", "core.items.wrench.lore.assemble");
+        MessageKey wrenchLoreDisassemble = MessageKey.of("mbe", "core.items.wrench.lore.disassemble");
+        MessageKey wrenchLoreInspect = MessageKey.of("mbe", "core.items.wrench.lore.inspect");
+        MessageKey wrenchLoreVariant = MessageKey.of("mbe", "core.items.wrench.lore.variant");
+        MessageKey blueprintName = MessageKey.of("mbe", "core.items.blueprint.display_name");
+        MessageKey blueprintLoreHold = MessageKey.of("mbe", "core.items.blueprint.lore.hold");
+        MessageKey blueprintLoreRightClick = MessageKey.of("mbe", "core.items.blueprint.lore.right_click");
+        MessageKey blueprintLoreLeftClick = MessageKey.of("mbe", "core.items.blueprint.lore.left_click");
         ItemDefinition wrench = new ItemDefinition() {
             private final dev.darkblade.mbe.api.item.ItemKey key = ItemKeys.of("mbe:wrench", 0);
 
@@ -389,7 +501,7 @@ public class MultiBlockEngine extends JavaPlugin {
 
             @Override
             public String displayName() {
-                return "Wrench";
+                return wrenchName.fullKey();
             }
 
             @Override
@@ -398,16 +510,43 @@ public class MultiBlockEngine extends JavaPlugin {
                         "material", "IRON_HOE",
                         "unstackable", false,
                         "lore", List.of(
-                                "&eClick derecho: &aEnsamblar multibloque",
-                                "&eClick izquierdo: &cDesensamblar multibloque",
-                                "&eShift + Click derecho: &bMostrar información",
-                                "&eShift + Click izquierdo: &dCambiar variante"
+                                wrenchLoreAssemble.fullKey(),
+                                wrenchLoreDisassemble.fullKey(),
+                                wrenchLoreInspect.fullKey(),
+                                wrenchLoreVariant.fullKey()
                         )
                 );
             }
         };
 
         itemService.registry().register(wrench);
+        ItemDefinition blueprint = new ItemDefinition() {
+            private final dev.darkblade.mbe.api.item.ItemKey key = BlueprintItem.BLUEPRINT_KEY;
+
+            @Override
+            public dev.darkblade.mbe.api.item.ItemKey key() {
+                return key;
+            }
+
+            @Override
+            public String displayName() {
+                return blueprintName.fullKey();
+            }
+
+            @Override
+            public Map<String, Object> properties() {
+                return Map.of(
+                    "material", "PAPER",
+                    "unstackable", true,
+                    "lore", List.of(
+                        blueprintLoreHold.fullKey(),
+                        blueprintLoreRightClick.fullKey(),
+                        blueprintLoreLeftClick.fullKey()
+                    )
+                );
+            }
+        };
+        itemService.registry().register(blueprint);
     }
 
     private boolean isSqliteDriverPresent() {

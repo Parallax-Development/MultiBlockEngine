@@ -1,6 +1,10 @@
 core:
+  preview:
+    started: "Preview iniciada."
+    cancelled: "Preview cancelada."
+    completed: "Preview completada."
   wrench:
-    cooldown: "Espera {ms}ms antes de volver a usar la llave inglesa."
+    cooldown: "Espera {s}s antes de volver a usar la llave inglesa."
     assembled: "Estructura formada: {type}"
     disassembled: "Estructura destruida: {type}"
     missing: "Faltan bloques: {missing}"
@@ -9,5 +13,5 @@ core:
       type: "Tipo: {type}"
       state: "Estado: {state}"
       facing: "Dirección: {facing}"
-      anchor: "Ancla: {anchor}"
+      anchor: "Controlador: {anchor}"
       components: "Componentes requeridos:"

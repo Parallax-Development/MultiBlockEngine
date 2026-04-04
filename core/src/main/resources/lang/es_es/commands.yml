@@ -27,7 +27,7 @@ commands:
     total_created: "Total creados: "
     total_destroyed: "Total destruidos: "
     structure_checks: "Checks de estructura: "
-    avg_tick: "Tick promedio: "
+    avg_tick: "Tick promedio (s): "
   inspect:
     must_look_at_block: "Debes mirar a un bloque."
     none_here: "No hay ninguna estructura aquí."

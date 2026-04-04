@@ -5,6 +5,9 @@ import dev.darkblade.mbe.api.item.ItemInstance;
 import dev.darkblade.mbe.api.item.ItemKey;
 import dev.darkblade.mbe.api.item.ItemKeys;
 import dev.darkblade.mbe.api.item.ItemService;
+import dev.darkblade.mbe.api.i18n.I18nService;
+import dev.darkblade.mbe.api.i18n.MessageKey;
+import dev.darkblade.mbe.core.MultiBlockEngine;
 import dev.darkblade.mbe.core.internal.tooling.StringUtil;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -63,7 +66,7 @@ public final class PdcItemStackBridge implements ItemStackBridge {
 
         ItemMeta meta = stack.getItemMeta();
         if (meta != null) {
-            String name = def.displayName();
+            String name = resolveText(def.displayName());
             if (name != null && !name.isBlank()) {
                 meta.displayName(Component.text(name, NamedTextColor.WHITE));
             }
@@ -175,15 +178,16 @@ public final class PdcItemStackBridge implements ItemStackBridge {
         return used;
     }
 
-    private static List<Component> parseLore(Object raw) {
+    private List<Component> parseLore(Object raw) {
         if (raw == null) {
             return List.of();
         }
         if (raw instanceof String s) {
-            if (s.isBlank()) {
+            String resolved = resolveText(s);
+            if (resolved == null || resolved.isBlank()) {
                 return List.of();
             }
-            return List.of(StringUtil.legacyText(s));
+            return List.of(StringUtil.legacyText(resolved));
         }
         if (raw instanceof List<?> list) {
             List<Component> out = new ArrayList<>();
@@ -191,8 +195,8 @@ public final class PdcItemStackBridge implements ItemStackBridge {
                 if (o == null) {
                     continue;
                 }
-                String s = String.valueOf(o);
-                if (s.isBlank()) {
+                String s = resolveText(String.valueOf(o));
+                if (s == null || s.isBlank()) {
                     continue;
                 }
                 out.add(StringUtil.legacyText(s));
@@ -200,6 +204,74 @@ public final class PdcItemStackBridge implements ItemStackBridge {
             return out;
         }
         return List.of();
+    }
+
+    private String resolveText(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return raw;
+        }
+        MessageKey key = parseMessageKey(raw);
+        if (key == null) {
+            return raw;
+        }
+        I18nService i18n = resolveI18n();
+        if (i18n == null || i18n.localeProvider() == null) {
+            return raw;
+        }
+        try {
+            String translated = i18n.resolve(key, i18n.localeProvider().fallbackLocale());
+            if (translated == null || translated.isBlank()) {
+                return raw;
+            }
+            if (translated.equals(key.fullKey())) {
+                return raw;
+            }
+            if (translated.equals("??" + key.fullKey() + "??")) {
+                return raw;
+            }
+            return translated;
+        } catch (Throwable ignored) {
+            return raw;
+        }
+    }
+
+    private MessageKey parseMessageKey(String raw) {
+        String value = raw == null ? "" : raw.trim();
+        if (value.isBlank()) {
+            return null;
+        }
+        int idx = value.indexOf(':');
+        if (idx <= 0 || idx >= value.length() - 1) {
+            return null;
+        }
+        String origin = value.substring(0, idx).trim();
+        String path = value.substring(idx + 1).trim();
+        if (origin.isBlank() || path.isBlank()) {
+            return null;
+        }
+        if (!origin.matches("[a-z0-9_.-]+")) {
+            return null;
+        }
+        if (!path.matches("[a-zA-Z0-9_.-]+")) {
+            return null;
+        }
+        try {
+            return MessageKey.of(origin, path);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private I18nService resolveI18n() {
+        try {
+            MultiBlockEngine plugin = MultiBlockEngine.getInstance();
+            if (plugin == null || plugin.getAddonLifecycleService() == null) {
+                return null;
+            }
+            return plugin.getAddonLifecycleService().getCoreService(I18nService.class);
+        } catch (Throwable ignored) {
+            return null;
+        }
     }
 
     @Override
@@ -308,4 +380,3 @@ public final class PdcItemStackBridge implements ItemStackBridge {
         return Material.PAPER;
     }
 }
-

@@ -311,7 +311,6 @@ public final class ServicesCommandRouter {
                 LogKv.kv("service", svc == null ? "?" : svc.id()),
                 LogKv.kv("mode", mode == null ? "?" : mode.name().toLowerCase(Locale.ROOT)),
                 LogKv.kv("args", joined),
-                LogKv.kv("senderType", senderType),
                 LogKv.kv("sender", senderName),
                 LogKv.kv("ok", ok)
         );
