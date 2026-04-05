@@ -50,15 +50,37 @@ public final class ServiceInjector {
 
     private void injectField(Object target, Field field, String serviceId, String ownerId) {
         String id = serviceId == null ? "" : serviceId.trim();
-        if (id.isEmpty()) {
-            warn(ownerId, "Service injection skipped: empty service id", field, null, null);
-            return;
-        }
-
         boolean optionalTarget = Optional.class.equals(field.getType());
         field.setAccessible(true);
 
         try {
+            if (id.isEmpty()) {
+                if (optionalTarget) {
+                    Class<?> wrappedType = optionalFieldType(field);
+                    if (wrappedType == null) {
+                        warn(ownerId, "Service injection skipped: Optional field without concrete generic type", field, id, null);
+                        field.set(target, Optional.empty());
+                        return;
+                    }
+                    java.util.List<?> matches = registry.getByType(wrappedType);
+                    if (matches.isEmpty()) {
+                        field.set(target, Optional.empty());
+                        warn(ownerId, "Optional service not available", field, id, wrappedType);
+                        return;
+                    }
+                    field.set(target, Optional.of(matches.get(0)));
+                    return;
+                }
+
+                java.util.List<?> matches = registry.getByType(field.getType());
+                if (!matches.isEmpty()) {
+                    field.set(target, matches.get(0));
+                    return;
+                }
+                warn(ownerId, "Service not available for type-based injection", field, id, field.getType());
+                return;
+            }
+
             if (optionalTarget) {
                 Class<?> wrappedType = optionalFieldType(field);
                 if (wrappedType == null) {

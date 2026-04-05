@@ -423,6 +423,22 @@ public class MultiblockListenerInteractCancelTest {
         assertFalse(interactEvent.isCancelled());
     }
 
+    @Test
+    void interactOnTillableSoilWithWrenchIsCancelled() throws Exception {
+        MultiblockRuntimeService manager = new MultiblockRuntimeService();
+        WrenchTestHarness harness = new WrenchTestHarness(manager);
+        MultiblockListener listener = new MultiblockListener(manager, e -> {
+        }, harness.dispatcher);
+
+        Block dirt = world.getBlockAt(11, 64, 11);
+        dirt.setType(Material.DIRT);
+        PlayerInteractEvent interactEvent = newPlayerInteractEvent(player, org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK, harness.wrench, dirt, EquipmentSlot.HAND);
+
+        listener.onInteract(interactEvent);
+
+        assertTrue(interactEvent.isCancelled());
+    }
+
     private static PlayerInteractEvent newPlayerInteractEvent(Player player, org.bukkit.event.block.Action action, ItemStack item, Block clickedBlock, EquipmentSlot hand) throws Exception {
         for (Constructor<?> c : PlayerInteractEvent.class.getConstructors()) {
             Class<?>[] p = c.getParameterTypes();

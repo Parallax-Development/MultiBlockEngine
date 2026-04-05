@@ -14,6 +14,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
@@ -77,6 +78,15 @@ public final class PdcItemStackBridge implements ItemStackBridge {
                 List<Component> lore = parseLore(loreRaw);
                 if (!lore.isEmpty()) {
                     meta.lore(lore);
+                }
+                Object customModelRaw = props.get("custom-model-data");
+                if (customModelRaw instanceof Number number) {
+                    int customModelData = Math.max(0, number.intValue());
+                    meta.setCustomModelData(customModelData);
+                }
+                List<ItemFlag> flags = parseFlags(props.get("flags"));
+                if (!flags.isEmpty()) {
+                    meta.addItemFlags(flags.toArray(ItemFlag[]::new));
                 }
             }
 
@@ -204,6 +214,30 @@ public final class PdcItemStackBridge implements ItemStackBridge {
             return out;
         }
         return List.of();
+    }
+
+    private List<ItemFlag> parseFlags(Object raw) {
+        if (raw == null) {
+            return List.of();
+        }
+        if (!(raw instanceof List<?> list) || list.isEmpty()) {
+            return List.of();
+        }
+        List<ItemFlag> out = new ArrayList<>();
+        for (Object value : list) {
+            if (value == null) {
+                continue;
+            }
+            String candidate = String.valueOf(value).trim();
+            if (candidate.isBlank()) {
+                continue;
+            }
+            try {
+                out.add(ItemFlag.valueOf(candidate.toUpperCase(Locale.ROOT)));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        return out;
     }
 
     private String resolveText(String raw) {

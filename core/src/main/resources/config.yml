@@ -38,3 +38,11 @@ preview:
   timeoutSeconds: 20
   maxDistance: 24.0
   raycastDistance: 8
+
+placeholder:
+  cache-ttl-ms: 1000
+  max-list-size: 50
+
+metadata:
+  placeholder-cache-ttl-ms: 1000
+  placeholder-context-max-distance: 12.0
