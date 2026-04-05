@@ -267,6 +267,9 @@ public class MultiblockRuntimeService {
                 MultiblockInstance instance = new MultiblockInstance(type, anchor.getLocation(), facing);
                 instance.setVariable("signature", computeSignature(type));
                 instance.setVariable("variant", type.id());
+                if (player != null) {
+                    instance.setVariable("owner_uuid", player.getUniqueId().toString());
+                }
                 
                 // Fire Event
                 MultiblockFormEvent event = new MultiblockFormEvent(instance, player);
@@ -404,6 +407,9 @@ public class MultiblockRuntimeService {
         MultiblockInstance next = new MultiblockInstance(nextType, current.anchorLocation(), facing, current.state(), preserved);
         next.setVariable("signature", sig);
         next.setVariable("variant", nextType.id());
+        if (player != null) {
+            next.setVariable("owner_uuid", player.getUniqueId().toString());
+        }
         MultiblockFormEvent event = new MultiblockFormEvent(next, player);
         Bukkit.getPluginManager().callEvent(event);
         if (event.isCancelled()) {
@@ -573,6 +579,10 @@ public class MultiblockRuntimeService {
     
     public Optional<MultiblockInstance> getInstanceAt(Location loc) {
         return Optional.ofNullable(blockToInstanceMap.get(loc));
+    }
+
+    public Collection<MultiblockInstance> getActiveInstancesSnapshot() {
+        return List.copyOf(activeInstances.values());
     }
     
     public void destroyInstance(MultiblockInstance instance) {

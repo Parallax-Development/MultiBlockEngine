@@ -1,0 +1,19 @@
+items:
+  wrench:
+    key: mbe:wrench
+    material: IRON_HOE
+    display-name: "mbe:core.items.wrench.display_name"
+    lore:
+      - "mbe:core.items.wrench.lore.assemble"
+      - "mbe:core.items.wrench.lore.disassemble"
+      - "mbe:core.items.wrench.lore.inspect"
+      - "mbe:core.items.wrench.lore.variant"
+  blueprint:
+    key: mbe:blueprint
+    material: PAPER
+    display-name: "mbe:core.items.blueprint.display_name"
+    unstackable: true
+    lore:
+      - "mbe:core.items.blueprint.lore.hold"
+      - "mbe:core.items.blueprint.lore.right_click"
+      - "mbe:core.items.blueprint.lore.left_click"

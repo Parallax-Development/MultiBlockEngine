@@ -46,6 +46,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.Directional;
 import org.bukkit.entity.Player;
@@ -85,6 +86,12 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
     private static final MessageKey MSG_INSPECT_FACING = MessageKey.of(ORIGIN, "core.wrench.inspect.facing");
     private static final MessageKey MSG_INSPECT_ANCHOR = MessageKey.of(ORIGIN, "core.wrench.inspect.anchor");
     private static final MessageKey MSG_INSPECT_COMPONENTS = MessageKey.of(ORIGIN, "core.wrench.inspect.components");
+    private static final Set<Material> TILLABLE_SOIL = Set.of(
+            Material.GRASS_BLOCK,
+            Material.DIRT,
+            Material.COARSE_DIRT,
+            Material.ROOTED_DIRT
+    );
 
     private final MultiblockRuntimeService manager;
     private final ItemStackBridge itemStackBridge;
@@ -195,6 +202,10 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
         }
 
         if (controllerCandidate) {
+            return WrenchResult.handled(true);
+        }
+
+        if (isTillableSoil(block)) {
             return WrenchResult.handled(true);
         }
 
@@ -470,6 +481,10 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
             return false;
         }
         return block.getLocation().equals(instance.anchorLocation());
+    }
+
+    private boolean isTillableSoil(Block block) {
+        return block != null && TILLABLE_SOIL.contains(block.getType());
     }
 
     private boolean tryAcquireCooldown(Player player) {

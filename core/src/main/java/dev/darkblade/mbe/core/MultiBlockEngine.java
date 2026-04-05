@@ -3,16 +3,15 @@ package dev.darkblade.mbe.core;
 import dev.darkblade.mbe.api.MultiblockAPI;
 import dev.darkblade.mbe.core.application.service.api.MultiblockAPIImpl;
 import dev.darkblade.mbe.core.application.service.addon.AddonLifecycleService;
+import dev.darkblade.mbe.api.item.ItemDefinition;
+import dev.darkblade.mbe.api.item.ItemKey;
 import dev.darkblade.mbe.api.logging.CoreLogger;
 import dev.darkblade.mbe.api.logging.LogLevel;
 import dev.darkblade.mbe.api.logging.LogPhase;
 import dev.darkblade.mbe.api.logging.LogScope;
 import dev.darkblade.mbe.api.item.ItemService;
-import dev.darkblade.mbe.api.item.ItemDefinition;
-import dev.darkblade.mbe.api.item.ItemKeys;
 import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.LocaleProvider;
-import dev.darkblade.mbe.api.i18n.MessageKey;
 import dev.darkblade.mbe.api.blueprint.BlueprintService;
 import dev.darkblade.mbe.api.service.InspectionPipelineService;
 import dev.darkblade.mbe.api.wiring.PortResolutionService;
@@ -25,7 +24,6 @@ import dev.darkblade.mbe.blueprint.BlueprintDefinitionResolver;
 import dev.darkblade.mbe.blueprint.BlueprintHeldItemResolver;
 import dev.darkblade.mbe.blueprint.BlueprintController;
 import dev.darkblade.mbe.blueprint.BlueprintInputListener;
-import dev.darkblade.mbe.blueprint.BlueprintItem;
 import dev.darkblade.mbe.blueprint.BlueprintServiceImpl;
 import dev.darkblade.mbe.blueprint.BuildContextService;
 import dev.darkblade.mbe.blueprint.InMemoryBuildContextService;
@@ -38,11 +36,20 @@ import dev.darkblade.mbe.catalog.StructureCatalogServiceImpl;
 import dev.darkblade.mbe.core.application.command.MultiblockCommand;
 import dev.darkblade.mbe.core.infrastructure.i18n.BukkitLocaleProvider;
 import dev.darkblade.mbe.core.infrastructure.i18n.YamlI18nService;
+import dev.darkblade.mbe.core.infrastructure.integration.MetadataInvalidationListener;
 import dev.darkblade.mbe.core.infrastructure.integration.MultiblockExpansion;
+import dev.darkblade.mbe.core.infrastructure.integration.PlaceholderCacheInvalidationListener;
 import dev.darkblade.mbe.core.platform.listener.EditorInputListener;
 import dev.darkblade.mbe.core.platform.listener.MultiblockListener;
 import dev.darkblade.mbe.core.application.service.MultiblockRuntimeService;
 import dev.darkblade.mbe.core.application.service.editor.EditorSessionManager;
+import dev.darkblade.mbe.api.metadata.MetadataAccess;
+import dev.darkblade.mbe.api.metadata.MetadataKeyBuilder;
+import dev.darkblade.mbe.api.metadata.MetadataService;
+import dev.darkblade.mbe.core.application.service.metadata.MetadataServiceImpl;
+import dev.darkblade.mbe.core.application.service.metadata.PlayerMultiblockContextResolver;
+import dev.darkblade.mbe.core.application.service.query.PlayerMultiblockQueryService;
+import dev.darkblade.mbe.core.application.service.query.PlayerMultiblockQueryServiceImpl;
 import dev.darkblade.mbe.api.ui.binding.PanelBindingRegistry;
 import dev.darkblade.mbe.api.ui.binding.PanelBindingMutationService;
 import dev.darkblade.mbe.api.ui.binding.PanelBindingLinkService;
@@ -51,6 +58,8 @@ import dev.darkblade.mbe.core.application.service.ui.PanelBindingService;
 import dev.darkblade.mbe.core.domain.MultiblockInstance;
 import dev.darkblade.mbe.core.domain.MultiblockType;
 import dev.darkblade.mbe.core.infrastructure.config.parser.MultiblockParser;
+import dev.darkblade.mbe.core.infrastructure.config.item.ItemConfigLoader;
+import dev.darkblade.mbe.core.infrastructure.config.parser.item.ItemConfigParser;
 import dev.darkblade.mbe.core.infrastructure.logging.LoggingService;
 import dev.darkblade.mbe.core.infrastructure.bridge.item.PdcItemStackBridge;
 import dev.darkblade.mbe.core.infrastructure.bridge.item.ItemStackBridge;
@@ -88,6 +97,7 @@ import dev.darkblade.mbe.uiengine.InventoryUIListener;
 import dev.darkblade.mbe.uiengine.InventoryUIService;
 import dev.darkblade.mbe.uiengine.InventoryUIServiceImpl;
 import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -100,6 +110,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 
 import dev.darkblade.mbe.core.internal.debug.DebugSessionService;
@@ -130,6 +141,9 @@ public class MultiBlockEngine extends JavaPlugin {
     private InteractionRouter interactionRouter;
     private StructurePreviewServiceImpl structurePreviewService;
     private StructureCatalogService structureCatalogService;
+    private PlayerMultiblockQueryServiceImpl playerMultiblockQueryService;
+    private MetadataServiceImpl metadataService;
+    private PlayerMultiblockContextResolver metadataContextResolver;
 
     @Override
     public void onEnable() {
@@ -143,6 +157,7 @@ public class MultiBlockEngine extends JavaPlugin {
         // Save default config
         saveDefaultConfig();
         saveResource("inventories.yml", false);
+        saveResource("items.yml", false);
 
         loggingManager = new LoggingService(this);
         CoreLogger log = loggingManager.core();
@@ -184,7 +199,7 @@ public class MultiBlockEngine extends JavaPlugin {
         };
 
         DefaultItemService itemService = new DefaultItemService();
-        registerCoreItems(itemService);
+        loadConfiguredItems(itemService, log);
         addonManager.registerCoreService(ItemService.class, itemService);
         ItemStackBridge itemStackBridge = new PdcItemStackBridge(itemService);
         addonManager.registerCoreService(ItemStackBridge.class, itemStackBridge);
@@ -274,6 +289,17 @@ public class MultiBlockEngine extends JavaPlugin {
         addonManager.registerCoreService(PanelBindingRegistry.class, panelBindings);
         addonManager.registerCoreService(PanelBindingMutationService.class, panelBindings);
         addonManager.registerCoreService(PanelBindingLinkService.class, panelBindings);
+        long metadataPlaceholderCacheTtlMs = Math.max(0L, getConfig().getLong("metadata.placeholder-cache-ttl-ms", 1000L));
+        metadataService = new MetadataServiceImpl(metadataPlaceholderCacheTtlMs);
+        addonManager.registerCoreService(MetadataService.class, metadataService);
+        metadataContextResolver = new PlayerMultiblockContextResolver(
+                manager,
+                Math.max(1D, getConfig().getDouble("metadata.placeholder-context-max-distance", 12D))
+        );
+        registerDefaultMetadata(metadataService);
+        long placeholderCacheTtlMs = Math.max(0L, getConfig().getLong("placeholder.cache-ttl-ms", 1000L));
+        playerMultiblockQueryService = new PlayerMultiblockQueryServiceImpl(manager, placeholderCacheTtlMs);
+        addonManager.registerCoreService(PlayerMultiblockQueryService.class, playerMultiblockQueryService);
 
         addonManager.loadAddons();
 
@@ -353,6 +379,8 @@ public class MultiBlockEngine extends JavaPlugin {
                 blueprintService,
                 itemStackBridge
         ), this);
+        getServer().getPluginManager().registerEvents(new PlaceholderCacheInvalidationListener(playerMultiblockQueryService), this);
+        getServer().getPluginManager().registerEvents(new MetadataInvalidationListener(metadataService), this);
 
         // Register Commands
         MultiblockCommand cmd = new MultiblockCommand(this, exportSelections, structureExporter);
@@ -373,7 +401,8 @@ public class MultiBlockEngine extends JavaPlugin {
         
         // Register PlaceholderExpansion
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
-            new MultiblockExpansion(this).register();
+            int placeholderMaxListSize = Math.max(1, getConfig().getInt("placeholder.max-list-size", 50));
+            new MultiblockExpansion(this, playerMultiblockQueryService, metadataService, metadataContextResolver, placeholderMaxListSize).register();
             log.info("Hooked into PlaceholderAPI");
         }
 
@@ -494,75 +523,89 @@ public class MultiBlockEngine extends JavaPlugin {
         saveResource("multiblocks/.default/test_ticking.yml", false);
     }
 
-    private static void registerCoreItems(DefaultItemService itemService) {
+    private void loadConfiguredItems(DefaultItemService itemService, CoreLogger log) {
         if (itemService == null) {
             return;
         }
-        MessageKey wrenchName = MessageKey.of("mbe", "core.items.wrench.display_name");
-        MessageKey wrenchLoreAssemble = MessageKey.of("mbe", "core.items.wrench.lore.assemble");
-        MessageKey wrenchLoreDisassemble = MessageKey.of("mbe", "core.items.wrench.lore.disassemble");
-        MessageKey wrenchLoreInspect = MessageKey.of("mbe", "core.items.wrench.lore.inspect");
-        MessageKey wrenchLoreVariant = MessageKey.of("mbe", "core.items.wrench.lore.variant");
-        MessageKey blueprintName = MessageKey.of("mbe", "core.items.blueprint.display_name");
-        MessageKey blueprintLoreHold = MessageKey.of("mbe", "core.items.blueprint.lore.hold");
-        MessageKey blueprintLoreRightClick = MessageKey.of("mbe", "core.items.blueprint.lore.right_click");
-        MessageKey blueprintLoreLeftClick = MessageKey.of("mbe", "core.items.blueprint.lore.left_click");
-        ItemDefinition wrench = new ItemDefinition() {
-            private final dev.darkblade.mbe.api.item.ItemKey key = ItemKeys.of("mbe:wrench", 0);
-
-            @Override
-            public dev.darkblade.mbe.api.item.ItemKey key() {
-                return key;
+        File itemConfigFile = new File(getDataFolder(), "items.yml");
+        ItemConfigParser parser = new ItemConfigParser(log);
+        ItemConfigLoader loader = new ItemConfigLoader(itemConfigFile, parser, log);
+        Map<ItemKey, ItemDefinition> loaded = loader.load();
+        int registered = 0;
+        for (ItemDefinition definition : loaded.values()) {
+            if (definition == null || definition.key() == null) {
+                continue;
             }
+            itemService.registry().register(definition);
+            registered++;
+        }
+        log.info("Item definitions registered", dev.darkblade.mbe.api.logging.LogKv.kv("count", registered));
+    }
 
-            @Override
-            public String displayName() {
-                return wrenchName.fullKey();
-            }
+    private void registerDefaultMetadata(MetadataService service) {
+        service.define(
+                MetadataKeyBuilder.<Integer>of("multiblock_energy", Integer.class)
+                        .apiAccess(MetadataAccess.READ)
+                        .papiAccess(MetadataAccess.READ)
+                        .formatter(value -> value + " RF")
+                        .visibility(context -> true)
+                        .computed(context -> {
+                            Object raw = context.instance().getVariable("energy");
+                            if (raw instanceof Number number) {
+                                return number.intValue();
+                            }
+                            return 0;
+                        })
+        );
 
-            @Override
-            public Map<String, Object> properties() {
-                return Map.of(
-                        "material", "IRON_HOE",
-                        "unstackable", false,
-                        "lore", List.of(
-                                wrenchLoreAssemble.fullKey(),
-                                wrenchLoreDisassemble.fullKey(),
-                                wrenchLoreInspect.fullKey(),
-                                wrenchLoreVariant.fullKey()
-                        )
-                );
-            }
-        };
+        service.define(
+                MetadataKeyBuilder.<UUID>of("multiblock_owner", UUID.class)
+                        .apiAccess(MetadataAccess.READ)
+                        .papiAccess(MetadataAccess.READ)
+                        .formatter(value -> {
+                            OfflinePlayer owner = Bukkit.getOfflinePlayer(value);
+                            String name = owner == null ? null : owner.getName();
+                            if (name == null || name.isBlank()) {
+                                return value.toString();
+                            }
+                            return name;
+                        })
+                        .visibility(context -> true)
+                        .computed(context -> {
+                            Object raw = context.instance().getVariable("owner_uuid");
+                            if (raw instanceof UUID uuid) {
+                                return uuid;
+                            }
+                            if (raw instanceof String str && !str.isBlank()) {
+                                try {
+                                    return UUID.fromString(str.trim());
+                                } catch (IllegalArgumentException ignored) {
+                                    return new UUID(0L, 0L);
+                                }
+                            }
+                            return new UUID(0L, 0L);
+                        })
+        );
 
-        itemService.registry().register(wrench);
-        ItemDefinition blueprint = new ItemDefinition() {
-            private final dev.darkblade.mbe.api.item.ItemKey key = BlueprintItem.BLUEPRINT_KEY;
-
-            @Override
-            public dev.darkblade.mbe.api.item.ItemKey key() {
-                return key;
-            }
-
-            @Override
-            public String displayName() {
-                return blueprintName.fullKey();
-            }
-
-            @Override
-            public Map<String, Object> properties() {
-                return Map.of(
-                    "material", "PAPER",
-                    "unstackable", true,
-                    "lore", List.of(
-                        blueprintLoreHold.fullKey(),
-                        blueprintLoreRightClick.fullKey(),
-                        blueprintLoreLeftClick.fullKey()
-                    )
-                );
-            }
-        };
-        itemService.registry().register(blueprint);
+        service.define(
+                MetadataKeyBuilder.<Double>of("multiblock_efficiency", Double.class)
+                        .apiAccess(MetadataAccess.READ)
+                        .papiAccess(MetadataAccess.READ)
+                        .formatter(value -> String.format("%.2f%%", value * 100D))
+                        .visibility(context -> true)
+                        .computed(context -> {
+                            Object energyRaw = context.instance().getVariable("energy");
+                            Object maxRaw = context.instance().getVariable("maxEnergy");
+                            if (!(energyRaw instanceof Number energyNumber) || !(maxRaw instanceof Number maxNumber)) {
+                                return 0D;
+                            }
+                            double max = maxNumber.doubleValue();
+                            if (max <= 0D) {
+                                return 0D;
+                            }
+                            return Math.max(0D, Math.min(1D, energyNumber.doubleValue() / max));
+                        })
+        );
     }
 
     private boolean isSqliteDriverPresent() {
