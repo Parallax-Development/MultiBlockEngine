@@ -14,6 +14,7 @@ import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.LocaleProvider;
 import dev.darkblade.mbe.api.blueprint.BlueprintService;
 import dev.darkblade.mbe.api.service.InspectionPipelineService;
+import dev.darkblade.mbe.api.service.interaction.InteractionPipelineService;
 import dev.darkblade.mbe.api.wiring.PortResolutionService;
 import dev.darkblade.mbe.api.command.WrenchDispatcher;
 import dev.darkblade.mbe.api.persistence.PersistentStorageService;
@@ -41,8 +42,10 @@ import dev.darkblade.mbe.core.infrastructure.integration.MultiblockExpansion;
 import dev.darkblade.mbe.core.infrastructure.integration.PlaceholderCacheInvalidationListener;
 import dev.darkblade.mbe.core.platform.listener.EditorInputListener;
 import dev.darkblade.mbe.core.platform.listener.MultiblockListener;
+import dev.darkblade.mbe.core.platform.interaction.BukkitInteractionIntentFactory;
 import dev.darkblade.mbe.core.application.service.MultiblockRuntimeService;
 import dev.darkblade.mbe.core.application.service.editor.EditorSessionManager;
+import dev.darkblade.mbe.core.application.service.interaction.DefaultInteractionPipelineService;
 import dev.darkblade.mbe.api.metadata.MetadataAccess;
 import dev.darkblade.mbe.api.metadata.MetadataKeyBuilder;
 import dev.darkblade.mbe.api.metadata.MetadataService;
@@ -282,6 +285,8 @@ public class MultiBlockEngine extends JavaPlugin {
 
         editorSessions = new EditorSessionManager();
         interactionRouter = new InteractionRouter();
+        InteractionPipelineService pipelineService = new DefaultInteractionPipelineService(assemblyCoordinator, wrenchDispatcher, interactionRouter, itemStackBridge);
+        addonManager.registerCoreService(InteractionPipelineService.class, pipelineService);
         panelBindings = new PanelBindingService(new File(getDataFolder(), "panel-bindings.yml"), interactionRouter);
         panelBindings.load();
         addonManager.registerCoreService(EditorSessionManager.class, editorSessions);
@@ -365,10 +370,19 @@ public class MultiBlockEngine extends JavaPlugin {
         }
         
         // Register Listeners
-        WrenchDispatcher wd = addonManager.getCoreService(WrenchDispatcher.class);
-        getServer().getPluginManager().registerEvents(new MultiblockListener(manager, wd, assemblyCoordinator, i18n), this);
+        InteractionPipelineService interactionPipeline = addonManager.getCoreService(InteractionPipelineService.class);
+        getServer().getPluginManager().registerEvents(
+                new MultiblockListener(
+                        manager,
+                        Bukkit.getPluginManager()::callEvent,
+                        assemblyCoordinator,
+                        i18n,
+                        interactionPipeline,
+                        new BukkitInteractionIntentFactory()
+                ),
+                this
+        );
         getServer().getPluginManager().registerEvents(new EditorInputListener(this, editorSessions), this);
-        getServer().getPluginManager().registerEvents(interactionRouter, this);
         getServer().getPluginManager().registerEvents(new ExportInteractListener(exportSelections), this);
         getServer().getPluginManager().registerEvents(blueprintInputListener, this);
         getServer().getPluginManager().registerEvents(new PreviewPlacementController(blueprintController), this);

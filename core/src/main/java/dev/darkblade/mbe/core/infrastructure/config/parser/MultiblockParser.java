@@ -423,22 +423,7 @@ public class MultiblockParser {
         String version = config.getString("version");
         if (version == null) throw new IllegalArgumentException("Missing 'version'");
 
-        String triggerRaw = config.getString("assembly.trigger");
-        String assemblyTrigger;
-        if (triggerRaw == null || triggerRaw.isBlank()) {
-            assemblyTrigger = AssemblyTriggerType.WRENCH_USE.id();
-            log.logInternal(new LogScope.Core(), LogPhase.LOAD, LogLevel.WARN, "Missing 'assembly.trigger' (defaulting)", null, new LogKv[] {
-                    LogKv.kv("id", id),
-                    LogKv.kv("default", assemblyTrigger)
-            }, Set.of());
-        } else {
-            String trimmed = triggerRaw.trim();
-            if (trimmed.contains(":")) {
-                assemblyTrigger = trimmed;
-            } else {
-                assemblyTrigger = AssemblyTriggerType.valueOf(trimmed.toUpperCase(Locale.ROOT)).id();
-            }
-        }
+        String assemblyTrigger = parseAssemblyTrigger(config, id);
 
         // Parse controller matcher
         Object controllerObj = config.get("controller");
@@ -503,6 +488,46 @@ public class MultiblockParser {
         int tickInterval = config.getInt("tick_interval", 20);
         
         return new MultiblockType(id, version, assemblyTrigger, new Vector(0, 0, 0), controllerMatcher, pattern, true, behaviorConfig, defaultVariables, ports, extensions, onCreateActions, onTickActions, onInteractActions, onBreakActions, displayName, tickInterval);
+    }
+
+    private String parseAssemblyTrigger(YamlConfiguration config, String id) {
+        List<?> triggerEntries = config.getList("assembly.triggers");
+        if (triggerEntries != null && !triggerEntries.isEmpty()) {
+            for (Object entry : triggerEntries) {
+                String value = null;
+                if (entry instanceof Map<?, ?> map) {
+                    Object type = map.get("type");
+                    if (type instanceof String str && !str.isBlank()) {
+                        value = str;
+                    }
+                } else if (entry instanceof String str && !str.isBlank()) {
+                    value = str;
+                }
+                if (value != null) {
+                    return normalizeAssemblyTrigger(value);
+                }
+            }
+        }
+
+        String triggerRaw = config.getString("assembly.trigger");
+        if (triggerRaw != null && !triggerRaw.isBlank()) {
+            return normalizeAssemblyTrigger(triggerRaw);
+        }
+
+        String fallback = AssemblyTriggerType.WRENCH_USE.id();
+        log.logInternal(new LogScope.Core(), LogPhase.LOAD, LogLevel.WARN, "Missing assembly trigger (defaulting)", null, new LogKv[] {
+                LogKv.kv("id", id),
+                LogKv.kv("default", fallback)
+        }, Set.of());
+        return fallback;
+    }
+
+    private String normalizeAssemblyTrigger(String raw) {
+        String trimmed = raw.trim();
+        if (trimmed.contains(":")) {
+            return trimmed;
+        }
+        return AssemblyTriggerType.valueOf(trimmed.toUpperCase(Locale.ROOT)).id();
     }
 
     private Map<String, PortDefinition> parsePorts(YamlConfiguration config, String multiblockId) {

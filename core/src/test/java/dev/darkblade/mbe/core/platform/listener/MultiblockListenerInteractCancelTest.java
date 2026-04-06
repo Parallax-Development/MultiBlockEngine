@@ -204,6 +204,57 @@ public class MultiblockListenerInteractCancelTest {
     }
 
     @Test
+    void tileEntityTriggerAssemblesOnLoomInteract() throws Exception {
+        MultiBlockEngine plugin = MockBukkit.load(MultiBlockEngine.class);
+        MultiblockType type = singleBlockType("custom:loom_controller", Material.LOOM, AssemblyTriggerType.TILE_ENTITY_INTERACT.id());
+        plugin.getManager().registerType(type);
+
+        Location controllerLoc = new Location(world, 25, 64, 25);
+        Block controller = world.getBlockAt(controllerLoc);
+        controller.setType(Material.LOOM);
+
+        PlayerInteractEvent interactEvent = newPlayerInteractEvent(player, org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK, null, controller, EquipmentSlot.HAND);
+        server.getPluginManager().callEvent(interactEvent);
+
+        Optional<MultiblockInstance> created = plugin.getManager().getInstanceAt(controllerLoc);
+        assertTrue(created.isPresent());
+        assertEquals("custom:loom_controller", created.get().type().id());
+    }
+
+    @Test
+    void tileEntityTriggerAssemblesOnLecternInteractWhenEventCancelled() throws Exception {
+        MultiBlockEngine plugin = MockBukkit.load(MultiBlockEngine.class);
+        MultiblockType type = singleBlockType("custom:lectern_controller", Material.LECTERN, AssemblyTriggerType.TILE_ENTITY_INTERACT.id());
+        plugin.getManager().registerType(type);
+
+        Location controllerLoc = new Location(world, 26, 64, 26);
+        Block controller = world.getBlockAt(controllerLoc);
+        controller.setType(Material.LECTERN);
+
+        PlayerInteractEvent interactEvent = newPlayerInteractEvent(player, org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK, null, controller, EquipmentSlot.HAND);
+        interactEvent.setCancelled(true);
+        server.getPluginManager().callEvent(interactEvent);
+
+        Optional<MultiblockInstance> created = plugin.getManager().getInstanceAt(controllerLoc);
+        assertTrue(created.isPresent());
+        assertEquals("custom:lectern_controller", created.get().type().id());
+    }
+
+    @Test
+    void tileEntityTriggerDoesNotAssembleOnRightClickAir() throws Exception {
+        MultiBlockEngine plugin = MockBukkit.load(MultiBlockEngine.class);
+        MultiblockType type = singleBlockType("custom:air_no_assemble", Material.LECTERN, AssemblyTriggerType.TILE_ENTITY_INTERACT.id());
+        plugin.getManager().registerType(type);
+        Location controllerLoc = new Location(world, 27, 64, 27);
+        world.getBlockAt(controllerLoc).setType(Material.LECTERN);
+
+        PlayerInteractEvent interactEvent = newPlayerInteractEvent(player, org.bukkit.event.block.Action.RIGHT_CLICK_AIR, null, null, EquipmentSlot.HAND);
+        server.getPluginManager().callEvent(interactEvent);
+
+        assertFalse(plugin.getManager().getInstanceAt(controllerLoc).isPresent());
+    }
+
+    @Test
     void interactIsCancelledWhenMenuActionConsumesVanilla() throws Exception {
         Location loc = new Location(world, 10, 64, 10);
 
@@ -514,6 +565,26 @@ public class MultiblockListenerInteractCancelTest {
                 new DisplayNameConfig("", false, "hologram"),
                 20,
                 List.of()
+        );
+    }
+
+    private static MultiblockType singleBlockType(String id, Material material, String trigger) {
+        return new MultiblockType(
+                id,
+                "1.0",
+                trigger,
+                new Vector(0, 0, 0),
+                b -> b != null && b.getType() == material,
+                List.of(new PatternEntry(new Vector(0, 0, 0), b -> b != null && b.getType() == material, false)),
+                false,
+                Map.of(),
+                Map.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                new DisplayNameConfig("", false, "hologram"),
+                20
         );
     }
 

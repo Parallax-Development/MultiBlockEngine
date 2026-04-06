@@ -689,14 +689,15 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
         }
 
         dev.darkblade.mbe.api.assembly.AssemblyContext ctx = new dev.darkblade.mbe.api.assembly.AssemblyContext(
-                dev.darkblade.mbe.api.assembly.AssemblyContext.Cause.MANUAL,
                 player,
                 target,
-                null,
-                null,
-                null,
-                player.isSneaking(),
-                java.util.Map.of("command", true)
+                new dev.darkblade.mbe.api.service.interaction.InteractionIntent(
+                        player,
+                        dev.darkblade.mbe.api.service.interaction.InteractionType.PROGRAMMATIC,
+                        target,
+                        null,
+                        dev.darkblade.mbe.api.service.interaction.InteractionSource.PROGRAMMATIC
+                )
         );
 
         AssemblyReport report = plugin.getAssemblyCoordinator().tryAssembleAt(target, ctx);

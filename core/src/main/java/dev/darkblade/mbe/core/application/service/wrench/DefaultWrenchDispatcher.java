@@ -290,14 +290,15 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
         }
         if (assembly != null) {
             AssemblyContext ctx = new AssemblyContext(
-                    AssemblyContext.Cause.PLAYER_INTERACT,
                     context.player(),
                     controller,
-                    context.action(),
-                    context.item(),
-                    context.hand(),
-                    context.player() != null && context.player().isSneaking(),
-                    Map.of("wrench", true)
+                    new dev.darkblade.mbe.api.service.interaction.InteractionIntent(
+                            context.player(),
+                            dev.darkblade.mbe.api.service.interaction.InteractionType.WRENCH_USE,
+                            controller,
+                            context.item(),
+                            dev.darkblade.mbe.api.service.interaction.InteractionSource.WRENCH
+                    )
             );
             return assembly.tryAssembleAt(controller, ctx);
         }

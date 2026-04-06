@@ -1,22 +1,18 @@
 package dev.darkblade.mbe.core.application.service.ui;
 
+import dev.darkblade.mbe.api.service.interaction.InteractionIntent;
+import dev.darkblade.mbe.api.service.interaction.InteractionType;
 import dev.darkblade.mbe.api.ui.PanelViewService;
 import dev.darkblade.mbe.api.ui.binding.PanelBinding;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.EventPriority;
-import org.bukkit.event.Listener;
-import org.bukkit.event.block.Action;
-import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.inventory.EquipmentSlot;
 
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
-public final class InteractionRouter implements Listener {
+public final class InteractionRouter {
     private final Map<BlockPosition, PanelBinding> clickBindings = new ConcurrentHashMap<>();
 
     public void registerClickBinding(PanelBinding binding) {
@@ -37,27 +33,29 @@ public final class InteractionRouter implements Listener {
         return BlockPosition.fromBlock(block).map(clickBindings::get).filter(Objects::nonNull);
     }
 
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onPlayerInteract(PlayerInteractEvent event) {
-        if (event == null || event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getHand() != EquipmentSlot.HAND) {
-            return;
+    public boolean route(InteractionIntent intent) {
+        if (intent == null) {
+            return false;
         }
-        Block clicked = event.getClickedBlock();
-        Player player = event.getPlayer();
+        if (intent.type() != InteractionType.RIGHT_CLICK_BLOCK && intent.type() != InteractionType.SHIFT_RIGHT_CLICK) {
+            return false;
+        }
+        Block clicked = intent.targetBlock();
+        Player player = intent.player();
         if (clicked == null || player == null) {
-            return;
+            return false;
         }
         Optional<PanelBinding> bindingOpt = getClickBinding(clicked);
         if (bindingOpt.isEmpty()) {
-            return;
+            return false;
         }
         PanelViewService panelService = resolvePanelService();
         if (panelService == null) {
-            return;
+            return false;
         }
         PanelBinding binding = bindingOpt.get();
         panelService.openPanel(player, binding.panelId());
-        event.setCancelled(true);
+        return true;
     }
 
     private PanelViewService resolvePanelService() {
