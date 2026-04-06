@@ -10,6 +10,9 @@ import dev.darkblade.mbe.api.logging.LogKv;
 import dev.darkblade.mbe.api.logging.LogLevel;
 import dev.darkblade.mbe.api.logging.LogPhase;
 import dev.darkblade.mbe.api.logging.LogScope;
+import dev.darkblade.mbe.api.service.interaction.InteractionIntent;
+import dev.darkblade.mbe.api.service.interaction.InteractionSource;
+import dev.darkblade.mbe.api.service.interaction.InteractionType;
 import dev.darkblade.mbe.core.application.service.MultiblockRuntimeService;
 import dev.darkblade.mbe.core.domain.MultiblockInstance;
 import dev.darkblade.mbe.core.domain.MultiblockType;
@@ -53,6 +56,14 @@ public final class AssemblyCoordinator {
         return Optional.ofNullable(lastReportByPlayer.get(playerId));
     }
 
+    public AssemblyReport tryAssemble(InteractionIntent intent) {
+        if (intent == null || intent.targetBlock() == null) {
+            return report(null, "", false, false, AssemblyReport.MatcherResult.SKIPPED, AssemblyReport.Result.FAILED, "", "No interaction target");
+        }
+        AssemblyContext context = new AssemblyContext(intent.player(), intent.targetBlock(), intent);
+        return tryAssembleAt(intent.targetBlock(), context);
+    }
+
     public AssemblyReport tryAssembleAt(Block controller, AssemblyContext context) {
         if (controller == null) {
             return report(context, "", false, false, AssemblyReport.MatcherResult.SKIPPED, AssemblyReport.Result.FAILED, "", "No controller block");
@@ -63,16 +74,12 @@ public final class AssemblyCoordinator {
             return report(context, "", true, true, AssemblyReport.MatcherResult.SKIPPED, AssemblyReport.Result.ABORTED, existing.get().type().id(), "Instance already exists");
         }
 
-        AssemblyContext safeContext = ensureAttributes(context);
+        AssemblyContext safeContext = ensureContext(context);
 
         for (MultiblockType type : manager.getTypesDeterministic()) {
             if (type == null) {
                 continue;
             }
-            if (!type.controllerMatcher().matches(controller)) {
-                continue;
-            }
-
             AssemblyAttempt attempt = tryAssembleTypeAtInternal(type, controller, safeContext);
             if (attempt.report().result() == AssemblyReport.Result.SUCCESS) {
                 remember(safeContext, attempt.report());
@@ -92,7 +99,7 @@ public final class AssemblyCoordinator {
         if (controller == null) {
             return report(context, type.assemblyTrigger(), false, false, AssemblyReport.MatcherResult.SKIPPED, AssemblyReport.Result.FAILED, type.id(), "No controller block");
         }
-        AssemblyContext safeContext = ensureAttributes(context);
+        AssemblyContext safeContext = ensureContext(context);
         AssemblyAttempt attempt = tryAssembleTypeAtInternal(type, controller, safeContext);
         remember(safeContext, attempt.report());
         logDebug(attempt.report(), controller.getLocation());
@@ -104,7 +111,7 @@ public final class AssemblyCoordinator {
             return report(context, "", false, false, AssemblyReport.MatcherResult.SKIPPED, AssemblyReport.Result.FAILED, "", "No placed block");
         }
 
-        AssemblyContext safeContext = ensureAttributes(context);
+        AssemblyContext safeContext = ensureContext(context);
         String requiredTrigger = AssemblyTriggerType.ON_FINAL_BLOCK_PLACED.id();
 
         for (MultiblockType type : manager.getTypesDeterministic()) {
@@ -117,7 +124,7 @@ public final class AssemblyCoordinator {
             }
 
             AssemblyTrigger trigger = triggers.get(triggerId).orElse(null);
-            if (trigger == null || !trigger.shouldTrigger(safeContext)) {
+            if (trigger == null || !trigger.supports(safeContext.intent()) || !trigger.shouldTrigger(safeContext)) {
                 continue;
             }
 
@@ -153,6 +160,10 @@ public final class AssemblyCoordinator {
             return new AssemblyAttempt(Optional.empty(), report(context, triggerId, false, true, AssemblyReport.MatcherResult.SKIPPED, AssemblyReport.Result.ABORTED, type.id(), "Unknown trigger"));
         }
 
+        if (!trigger.supports(context == null ? null : context.intent())) {
+            return new AssemblyAttempt(Optional.empty(), report(context, triggerId, false, true, AssemblyReport.MatcherResult.SKIPPED, AssemblyReport.Result.ABORTED, type.id(), "Trigger not supported"));
+        }
+
         boolean should = trigger.shouldTrigger(context);
         if (!should) {
             return new AssemblyAttempt(Optional.empty(), report(context, triggerId, false, true, AssemblyReport.MatcherResult.SKIPPED, AssemblyReport.Result.ABORTED, type.id(), "Trigger not matched"));
@@ -170,7 +181,7 @@ public final class AssemblyCoordinator {
             }
             if (patternMatches(controller, type, facing)) {
                 matched = true;
-                Optional<MultiblockInstance> created = manager.tryCreate(controller, type, context.player());
+                Optional<MultiblockInstance> created = manager.tryCreate(controller, type, context == null ? null : context.player());
                 if (created.isPresent()) {
                     return new AssemblyAttempt(created, report(context, triggerId, true, true, AssemblyReport.MatcherResult.MATCH, AssemblyReport.Result.SUCCESS, type.id(), ""));
                 }
@@ -257,21 +268,18 @@ public final class AssemblyCoordinator {
         );
     }
 
-    private AssemblyContext ensureAttributes(AssemblyContext context) {
+    private AssemblyContext ensureContext(AssemblyContext context) {
         if (context == null) {
-            return new AssemblyContext(AssemblyContext.Cause.MANUAL, null, null, null, null, null, false, Map.of());
+            InteractionIntent manualIntent = new InteractionIntent(
+                    null,
+                    InteractionType.PROGRAMMATIC,
+                    null,
+                    null,
+                    InteractionSource.PROGRAMMATIC
+            );
+            return new AssemblyContext(null, null, manualIntent);
         }
-        Map<String, Object> map = context.attributes() == null ? Map.of() : context.attributes();
-        return new AssemblyContext(
-                context.cause(),
-                context.player(),
-                context.block(),
-                context.action(),
-                context.item(),
-                context.hand(),
-                context.sneaking(),
-                map
-        );
+        return context;
     }
 
     private void remember(AssemblyContext context, AssemblyReport report) {

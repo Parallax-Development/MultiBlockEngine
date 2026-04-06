@@ -4,6 +4,9 @@ import dev.darkblade.mbe.api.assembly.AssemblyContext;
 import dev.darkblade.mbe.api.assembly.AssemblyTrigger;
 import dev.darkblade.mbe.api.assembly.AssemblyTriggerRegistry;
 import dev.darkblade.mbe.api.assembly.AssemblyTriggerType;
+import dev.darkblade.mbe.api.service.interaction.InteractionIntent;
+import dev.darkblade.mbe.api.service.interaction.InteractionType;
+import dev.darkblade.mbe.core.domain.assembly.trigger.TileEntityInteractTrigger;
 
 import java.util.Objects;
 
@@ -22,13 +25,13 @@ public final class BuiltinAssemblyTriggers {
             }
 
             @Override
+            public boolean supports(InteractionIntent intent) {
+                return intent != null && intent.type() == InteractionType.WRENCH_USE;
+            }
+
+            @Override
             public boolean shouldTrigger(AssemblyContext context) {
-                if (context == null) {
-                    return false;
-                }
-                return context.cause() == AssemblyContext.Cause.PLAYER_INTERACT
-                        && context.action() == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK
-                        && context.attributeBoolean("wrench");
+                return context != null && context.intent() != null && context.intent().type() == InteractionType.WRENCH_USE;
             }
         });
 
@@ -39,15 +42,17 @@ public final class BuiltinAssemblyTriggers {
             }
 
             @Override
+            public boolean supports(InteractionIntent intent) {
+                return intent != null && intent.type() == InteractionType.SHIFT_RIGHT_CLICK;
+            }
+
+            @Override
             public boolean shouldTrigger(AssemblyContext context) {
-                if (context == null) {
-                    return false;
-                }
-                return context.cause() == AssemblyContext.Cause.PLAYER_INTERACT
-                        && context.action() == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK
-                        && context.sneaking();
+                return context != null && context.intent() != null && context.intent().type() == InteractionType.SHIFT_RIGHT_CLICK;
             }
         });
+
+        registry.register(new TileEntityInteractTrigger());
 
         registry.register(new AssemblyTrigger() {
             @Override
@@ -56,8 +61,13 @@ public final class BuiltinAssemblyTriggers {
             }
 
             @Override
+            public boolean supports(InteractionIntent intent) {
+                return intent == null;
+            }
+
+            @Override
             public boolean shouldTrigger(AssemblyContext context) {
-                return context != null && context.cause() == AssemblyContext.Cause.BLOCK_PLACE;
+                return context != null && context.intent() == null;
             }
         });
 
@@ -68,10 +78,14 @@ public final class BuiltinAssemblyTriggers {
             }
 
             @Override
+            public boolean supports(InteractionIntent intent) {
+                return intent != null && intent.type() == InteractionType.PROGRAMMATIC;
+            }
+
+            @Override
             public boolean shouldTrigger(AssemblyContext context) {
-                return context != null && context.cause() == AssemblyContext.Cause.MANUAL;
+                return context != null && context.intent() != null && context.intent().type() == InteractionType.PROGRAMMATIC;
             }
         });
     }
 }
-

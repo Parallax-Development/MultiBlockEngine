@@ -8,14 +8,18 @@ import dev.darkblade.mbe.api.logging.LogKv;
 import dev.darkblade.mbe.api.logging.LogLevel;
 import dev.darkblade.mbe.api.logging.LogPhase;
 import dev.darkblade.mbe.api.logging.LogScope;
-import dev.darkblade.mbe.api.command.WrenchContext;
 import dev.darkblade.mbe.api.command.WrenchDispatcher;
-import dev.darkblade.mbe.api.command.WrenchResult;
 import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.MessageKey;
-import dev.darkblade.mbe.core.domain.assembly.AssemblyCoordinator;
 import dev.darkblade.mbe.api.assembly.AssemblyContext;
+import dev.darkblade.mbe.api.service.interaction.InteractionIntent;
+import dev.darkblade.mbe.api.service.interaction.InteractionPipelineService;
+import dev.darkblade.mbe.core.application.service.interaction.DefaultInteractionPipelineService;
 import dev.darkblade.mbe.core.application.service.MultiblockRuntimeService;
+import dev.darkblade.mbe.core.application.service.ui.InteractionRouter;
+import dev.darkblade.mbe.core.domain.assembly.AssemblyCoordinator;
+import dev.darkblade.mbe.core.infrastructure.bridge.item.ItemStackBridge;
+import dev.darkblade.mbe.core.platform.interaction.BukkitInteractionIntentFactory;
 import dev.darkblade.mbe.core.domain.MultiblockInstance;
 
 import net.kyori.adventure.text.Component;
@@ -24,6 +28,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
@@ -43,9 +48,10 @@ public class MultiblockListener implements Listener {
 
     private final MultiblockRuntimeService manager;
     private final Consumer<Event> eventCaller;
-    private final WrenchDispatcher wrenchDispatcher;
     private final AssemblyCoordinator assembly;
     private final I18nService i18n;
+    private final InteractionPipelineService interactionPipeline;
+    private final BukkitInteractionIntentFactory intentFactory;
 
     public MultiblockListener(MultiblockRuntimeService manager) {
         this(manager, Bukkit.getPluginManager()::callEvent, null, null, null);
@@ -76,11 +82,30 @@ public class MultiblockListener implements Listener {
     }
 
     public MultiblockListener(MultiblockRuntimeService manager, Consumer<Event> eventCaller, WrenchDispatcher wrenchDispatcher, AssemblyCoordinator assembly, I18nService i18n) {
+        this(
+                manager,
+                eventCaller,
+                assembly,
+                i18n,
+                new DefaultInteractionPipelineService(assembly, wrenchDispatcher, new InteractionRouter(), null),
+                new BukkitInteractionIntentFactory()
+        );
+    }
+
+    public MultiblockListener(
+            MultiblockRuntimeService manager,
+            Consumer<Event> eventCaller,
+            AssemblyCoordinator assembly,
+            I18nService i18n,
+            InteractionPipelineService interactionPipeline,
+            BukkitInteractionIntentFactory intentFactory
+    ) {
         this.manager = manager;
         this.eventCaller = eventCaller;
-        this.wrenchDispatcher = wrenchDispatcher;
         this.assembly = assembly;
         this.i18n = i18n;
+        this.interactionPipeline = interactionPipeline;
+        this.intentFactory = intentFactory == null ? new BukkitInteractionIntentFactory() : intentFactory;
     }
 
     @EventHandler
@@ -92,71 +117,29 @@ public class MultiblockListener implements Listener {
             return;
         }
         AssemblyContext ctx = new AssemblyContext(
-                AssemblyContext.Cause.BLOCK_PLACE,
                 event.getPlayer(),
                 event.getBlockPlaced(),
-                null,
-                event.getItemInHand(),
-                null,
-                event.getPlayer() != null && event.getPlayer().isSneaking(),
-                Map.of()
+                null
         );
         assembly.tryAssembleFromPlacedBlock(event.getBlockPlaced(), ctx);
     }
     
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onInteract(PlayerInteractEvent event) {
-        if (event.isCancelled()) {
-            return;
-        }
-        if (event.getClickedBlock() == null) {
-            return;
-        }
         if (event.getHand() != EquipmentSlot.HAND) {
             return;
         }
-
-        if (wrenchDispatcher != null) {
-            WrenchContext ctx = new WrenchContext(
-                    event.getPlayer(),
-                    event.getClickedBlock(),
-                    event.getAction(),
-                    event.getItem(),
-                    event.getHand()
-            );
-
-            WrenchResult result = wrenchDispatcher.dispatch(ctx);
-            if (result != null && result.cancelEvent()) {
-                event.setCancelled(true);
-                return;
-            }
-        }
-
-        if (assembly == null) {
+        event.setUseInteractedBlock(Event.Result.ALLOW);
+        if (interactionPipeline == null) {
             return;
         }
-        if (event.isCancelled()) {
+        InteractionIntent intent = intentFactory.from(event);
+        if (intent == null) {
             return;
         }
-        if (event.getAction() != org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) {
-            return;
+        if (interactionPipeline.handle(intent)) {
+            event.setCancelled(true);
         }
-
-        if (event.getPlayer() == null || !event.getPlayer().isSneaking()) {
-            return;
-        }
-
-        AssemblyContext ctx = new AssemblyContext(
-                AssemblyContext.Cause.PLAYER_INTERACT,
-                event.getPlayer(),
-                event.getClickedBlock(),
-                event.getAction(),
-                event.getItem(),
-                event.getHand(),
-                event.getPlayer() != null && event.getPlayer().isSneaking(),
-                Map.of("wrench", false)
-        );
-        assembly.tryAssembleAt(event.getClickedBlock(), ctx);
     }
 
     @EventHandler

@@ -5,6 +5,7 @@ import java.util.Locale;
 public enum AssemblyTriggerType {
     WRENCH_USE,
     SNEAK_RIGHT_CLICK,
+    TILE_ENTITY_INTERACT,
     ON_FINAL_BLOCK_PLACED,
     MANUAL_ONLY;
 
