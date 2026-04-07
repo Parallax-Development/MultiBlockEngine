@@ -166,7 +166,7 @@ public class MultiblockListenerBreakEventTest {
 
         listener.onBlockBreak(breakEvent);
 
-        assertEquals("Structure destroyed: storage:disk", ChatColor.stripColor(player.nextMessage()));
+        assertEquals("mbe:core.wrench.disassembled", ChatColor.stripColor(player.nextMessage()));
         assertEquals(MessageKey.of("mbe", "core.wrench.disassembled").fullKey(), i18n.lastKey);
         assertEquals("storage:disk", i18n.lastParams.get("type"));
     }

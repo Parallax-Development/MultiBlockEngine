@@ -1,6 +1,8 @@
 package dev.darkblade.mbe.core.internal.debug;
 
 import dev.darkblade.mbe.core.MultiBlockEngine;
+import dev.darkblade.mbe.api.i18n.I18nService;
+import dev.darkblade.mbe.api.i18n.message.CoreMessageKeys;
 import dev.darkblade.mbe.core.domain.MultiblockType;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -37,7 +39,10 @@ public class DebugSessionService {
         
         sessions.put(player.getUniqueId(), session);
         renderer.start(session);
-        player.sendMessage("§aDebug session started for " + type.id());
+        I18nService i18n = plugin.getAddonLifecycleService().getCoreService(I18nService.class);
+        if (i18n != null) {
+            i18n.send(player, CoreMessageKeys.DEBUG_SESSION_STARTED, Map.of("type", type.id()));
+        }
     }
 
     public void stopSession(Player player) {

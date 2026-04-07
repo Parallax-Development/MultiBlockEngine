@@ -47,6 +47,12 @@ public final class AssemblyCoordinator {
         this.manager = Objects.requireNonNull(manager, "manager");
         this.triggers = Objects.requireNonNull(triggers, "triggers");
         this.log = Objects.requireNonNull(log, "log");
+        int triggerCount = triggers.all().size();
+        if (triggerCount <= 0) {
+            log.error("Assembly coordinator initialized without triggers");
+        } else {
+            log.debug("Assembly coordinator ready", LogKv.kv("triggers", triggerCount));
+        }
     }
 
     public Optional<AssemblyReport> lastReport(UUID playerId) {
@@ -62,6 +68,36 @@ public final class AssemblyCoordinator {
         }
         AssemblyContext context = new AssemblyContext(intent.player(), intent.targetBlock(), intent);
         return tryAssembleAt(intent.targetBlock(), context);
+    }
+
+    public AssemblyReport attemptAssembly(AssemblyContext context) {
+        AssemblyContext safeContext = ensureContext(context);
+        Block controller = safeContext.origin();
+        if (controller == null) {
+            return report(safeContext, AssemblyTriggerType.MANUAL_ONLY.id(), false, false, AssemblyReport.MatcherResult.SKIPPED, AssemblyReport.Result.FAILED, "", "No controller block");
+        }
+        Optional<MultiblockInstance> existing = manager.getInstanceAt(controller.getLocation());
+        if (existing.isPresent()) {
+            AssemblyReport out = report(safeContext, AssemblyTriggerType.MANUAL_ONLY.id(), true, true, AssemblyReport.MatcherResult.SKIPPED, AssemblyReport.Result.ABORTED, existing.get().type().id(), "Instance already exists");
+            remember(safeContext, out);
+            logDebug(out, controller.getLocation());
+            return out;
+        }
+        for (MultiblockType type : manager.getTypesDeterministic()) {
+            if (type == null) {
+                continue;
+            }
+            AssemblyAttempt attempt = tryAssembleTypeAtInternal(type, controller, safeContext, true);
+            if (attempt.report().result() == AssemblyReport.Result.SUCCESS) {
+                remember(safeContext, attempt.report());
+                logDebug(attempt.report(), controller.getLocation());
+                return attempt.report();
+            }
+        }
+        AssemblyReport out = report(safeContext, AssemblyTriggerType.MANUAL_ONLY.id(), true, true, AssemblyReport.MatcherResult.MISMATCH, AssemblyReport.Result.FAILED, "", "No multiblock matched");
+        remember(safeContext, out);
+        logDebug(out, controller.getLocation());
+        return out;
     }
 
     public AssemblyReport tryAssembleAt(Block controller, AssemblyContext context) {
@@ -80,7 +116,7 @@ public final class AssemblyCoordinator {
             if (type == null) {
                 continue;
             }
-            AssemblyAttempt attempt = tryAssembleTypeAtInternal(type, controller, safeContext);
+            AssemblyAttempt attempt = tryAssembleTypeAtInternal(type, controller, safeContext, false);
             if (attempt.report().result() == AssemblyReport.Result.SUCCESS) {
                 remember(safeContext, attempt.report());
                 logDebug(attempt.report(), controller.getLocation());
@@ -100,7 +136,7 @@ public final class AssemblyCoordinator {
             return report(context, type.assemblyTrigger(), false, false, AssemblyReport.MatcherResult.SKIPPED, AssemblyReport.Result.FAILED, type.id(), "No controller block");
         }
         AssemblyContext safeContext = ensureContext(context);
-        AssemblyAttempt attempt = tryAssembleTypeAtInternal(type, controller, safeContext);
+        AssemblyAttempt attempt = tryAssembleTypeAtInternal(type, controller, safeContext, false);
         remember(safeContext, attempt.report());
         logDebug(attempt.report(), controller.getLocation());
         return attempt.report();
@@ -134,7 +170,7 @@ public final class AssemblyCoordinator {
                     continue;
                 }
                 Block controller = loc.getBlock();
-                AssemblyAttempt attempt = tryAssembleTypeAtInternal(type, controller, safeContext);
+                AssemblyAttempt attempt = tryAssembleTypeAtInternal(type, controller, safeContext, false);
                 if (attempt.report().result() == AssemblyReport.Result.SUCCESS) {
                     remember(safeContext, attempt.report());
                     logDebug(attempt.report(), controller.getLocation());
@@ -149,22 +185,22 @@ public final class AssemblyCoordinator {
         return out;
     }
 
-    private AssemblyAttempt tryAssembleTypeAtInternal(MultiblockType type, Block controller, AssemblyContext context) {
+    private AssemblyAttempt tryAssembleTypeAtInternal(MultiblockType type, Block controller, AssemblyContext context, boolean forceTrigger) {
         String triggerId = normalize(type.assemblyTrigger());
         if (triggerId.isBlank()) {
             triggerId = normalize(AssemblyTriggerType.WRENCH_USE.id());
         }
 
         AssemblyTrigger trigger = triggers.get(triggerId).orElse(null);
-        if (trigger == null) {
+        if (!forceTrigger && trigger == null) {
             return new AssemblyAttempt(Optional.empty(), report(context, triggerId, false, true, AssemblyReport.MatcherResult.SKIPPED, AssemblyReport.Result.ABORTED, type.id(), "Unknown trigger"));
         }
 
-        if (!trigger.supports(context == null ? null : context.intent())) {
+        if (!forceTrigger && !trigger.supports(context == null ? null : context.intent())) {
             return new AssemblyAttempt(Optional.empty(), report(context, triggerId, false, true, AssemblyReport.MatcherResult.SKIPPED, AssemblyReport.Result.ABORTED, type.id(), "Trigger not supported"));
         }
 
-        boolean should = trigger.shouldTrigger(context);
+        boolean should = forceTrigger || trigger.shouldTrigger(context);
         if (!should) {
             return new AssemblyAttempt(Optional.empty(), report(context, triggerId, false, true, AssemblyReport.MatcherResult.SKIPPED, AssemblyReport.Result.ABORTED, type.id(), "Trigger not matched"));
         }

@@ -7,6 +7,7 @@ import dev.darkblade.mbe.api.logging.LogLevel;
 import dev.darkblade.mbe.api.logging.LogPhase;
 import dev.darkblade.mbe.api.logging.LogScope;
 import dev.darkblade.mbe.api.assembly.AssemblyTriggerType;
+import dev.darkblade.mbe.api.i18n.MessageKey;
 import dev.darkblade.mbe.api.wiring.PortBlockRef;
 import dev.darkblade.mbe.api.wiring.PortDefinition;
 import dev.darkblade.mbe.api.wiring.PortDirection;
@@ -57,7 +58,24 @@ public class MultiblockParser {
     @SuppressWarnings("unchecked")
     private void registerDefaults() {
         // Actions
-        api.registerAction("message", map -> new SendMessageAction((String) map.get("value"), map.get("target")));
+        api.registerAction("message", map -> {
+            String keyPath = (String) map.get("key");
+            if ((keyPath == null || keyPath.isBlank()) && map.get("value") instanceof String legacyValue) {
+                keyPath = legacyValue;
+            }
+            MessageKey key = MessageKey.of("mbe", keyPath == null ? "" : keyPath);
+            Map<String, Object> params = new HashMap<>();
+            Object paramsObj = map.get("params");
+            if (paramsObj instanceof Map<?, ?> raw) {
+                for (Map.Entry<?, ?> entry : raw.entrySet()) {
+                    if (entry == null || entry.getKey() == null) {
+                        continue;
+                    }
+                    params.put(String.valueOf(entry.getKey()), entry.getValue());
+                }
+            }
+            return new SendMessageAction(key, Map.copyOf(params), map.get("target"));
+        });
         api.registerAction("command", map -> new ConsoleCommandAction((String) map.get("value")));
         api.registerAction("set_state", map -> new SetStateAction(MultiblockState.valueOf((String) map.get("value"))));
         api.registerAction("set_variable", map -> new SetVariableAction((String) map.get("key"), map.get("value")));

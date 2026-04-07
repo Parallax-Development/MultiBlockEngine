@@ -4,6 +4,7 @@ import dev.darkblade.mbe.core.MultiBlockEngine;
 import dev.darkblade.mbe.api.addon.AddonException;
 import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.MessageKey;
+import dev.darkblade.mbe.api.i18n.message.CoreMessageKeys;
 import dev.darkblade.mbe.api.item.ItemInstance;
 import dev.darkblade.mbe.api.item.ItemKey;
 import dev.darkblade.mbe.api.item.ItemKeys;
@@ -42,8 +43,6 @@ import dev.darkblade.mbe.core.domain.rule.AnyOfMatcher;
 import dev.darkblade.mbe.core.domain.rule.BlockDataMatcher;
 import dev.darkblade.mbe.core.domain.rule.ExactMaterialMatcher;
 import dev.darkblade.mbe.core.domain.rule.TagMatcher;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -362,7 +361,7 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
             if (!components.isEmpty()) {
                 send(player, MSG_INSPECT_COMPONENTS, Map.of());
                 for (String line : components) {
-                    player.sendMessage(Component.text("- " + line, NamedTextColor.GRAY));
+                    send(player, CoreMessageKeys.WRENCH_INSPECT_COMPONENT_LINE, Map.of("line", line));
                 }
             }
             return;
@@ -415,7 +414,7 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
                 send(p, MSG_INSPECT_COMPONENTS, Map.of());
                 for (Object line : list) {
                     if (line == null) continue;
-                    p.sendMessage(Component.text("- " + line, NamedTextColor.GRAY));
+                    send(p, CoreMessageKeys.WRENCH_INSPECT_COMPONENT_LINE, Map.of("line", String.valueOf(line)));
                 }
             }
         };
@@ -715,11 +714,7 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
             return;
         }
         try {
-            String msg = params == null || params.isEmpty() ? i18n.tr(player, key) : i18n.tr(player, key, params);
-            if (msg == null || msg.isBlank()) {
-                return;
-            }
-            player.sendMessage(Component.text(msg, NamedTextColor.YELLOW));
+            i18n.send(player, key, params);
         } catch (Throwable ignored) {
         }
     }

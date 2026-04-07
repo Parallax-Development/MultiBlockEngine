@@ -235,10 +235,19 @@ public class MultiBlockEngine extends JavaPlugin {
 
         DefaultAssemblyTriggerRegistry triggerRegistry = new DefaultAssemblyTriggerRegistry();
         BuiltinAssemblyTriggers.registerAll(triggerRegistry);
+        int registeredTriggers = triggerRegistry.all().size();
+        if (registeredTriggers <= 0) {
+            log.error("Assembly triggers registry is empty");
+        } else {
+            log.info("Assembly triggers registered", dev.darkblade.mbe.api.logging.LogKv.kv("count", registeredTriggers));
+        }
         addonManager.registerCoreService(AssemblyTriggerRegistry.class, triggerRegistry);
         assemblyTriggers = triggerRegistry;
 
         assemblyCoordinator = new AssemblyCoordinator(manager, triggerRegistry, log);
+        if (assemblyCoordinator == null) {
+            log.fatal("Assembly coordinator initialization failed");
+        }
 
         WrenchDispatcher wrenchDispatcher = new DefaultWrenchDispatcher(manager, itemStackBridge, i18n, assemblyCoordinator);
         addonManager.registerCoreService(WrenchDispatcher.class, wrenchDispatcher);

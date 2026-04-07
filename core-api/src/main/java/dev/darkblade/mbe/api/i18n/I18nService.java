@@ -1,5 +1,6 @@
 package dev.darkblade.mbe.api.i18n;
 
+import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 
 import java.util.Locale;
@@ -24,6 +25,27 @@ public interface I18nService extends MessageResolver {
         return resolve(key, locale, MessageUtils.params(params));
     }
 
+    default void send(CommandSender sender, MessageKey key) {
+        if (sender == null || key == null) {
+            return;
+        }
+        String message = tr(sender, key);
+        if (message == null || message.isBlank()) {
+            return;
+        }
+        sender.sendMessage(ChatColor.translateAlternateColorCodes('&', message));
+    }
+
+    default void send(CommandSender sender, MessageKey key, Map<String, ?> params) {
+        if (sender == null || key == null) {
+            return;
+        }
+        String message = params == null || params.isEmpty() ? tr(sender, key) : tr(sender, key, params);
+        if (message == null || message.isBlank()) {
+            return;
+        }
+        sender.sendMessage(ChatColor.translateAlternateColorCodes('&', message));
+    }
+
     void reload();
 }
-
