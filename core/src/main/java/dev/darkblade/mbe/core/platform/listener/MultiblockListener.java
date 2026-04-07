@@ -15,11 +15,11 @@ import dev.darkblade.mbe.api.assembly.AssemblyContext;
 import dev.darkblade.mbe.api.assembly.AssemblyReport;
 import dev.darkblade.mbe.api.service.interaction.InteractionIntent;
 import dev.darkblade.mbe.api.service.interaction.InteractionPipelineService;
+import dev.darkblade.mbe.core.application.service.limit.MultiblockLimitService;
 import dev.darkblade.mbe.core.application.service.interaction.DefaultInteractionPipelineService;
 import dev.darkblade.mbe.core.application.service.MultiblockRuntimeService;
 import dev.darkblade.mbe.core.application.service.ui.InteractionRouter;
 import dev.darkblade.mbe.core.domain.assembly.AssemblyCoordinator;
-import dev.darkblade.mbe.core.infrastructure.bridge.item.ItemStackBridge;
 import dev.darkblade.mbe.core.platform.interaction.BukkitInteractionIntentFactory;
 import dev.darkblade.mbe.core.domain.MultiblockInstance;
 import org.bukkit.Bukkit;
@@ -33,6 +33,7 @@ import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 
 import java.util.Optional;
+import java.util.UUID;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -137,8 +138,12 @@ public class MultiblockListener implements Listener {
                 return;
             }
             AssemblyReport report = assembly.tryAssemble(intent);
-            if (report != null && report.result() == AssemblyReport.Result.SUCCESS) {
+            if (report != null && report.success()) {
                 event.setCancelled(true);
+                return;
+            }
+            if (report != null) {
+                sendAssemblyFailureMessage(intent.player(), report);
             }
             return;
         }
@@ -165,7 +170,7 @@ public class MultiblockListener implements Listener {
             for (dev.darkblade.mbe.core.domain.action.Action action : instance.type().onBreakActions()) {
                 executeActionSafely("BREAK", action, instance, null);
             }
-            
+            unregisterLimit(instance, event.getPlayer());
             manager.destroyInstance(instance);
             sendDisassembledMessage(event.getPlayer(), instance);
         }
@@ -192,6 +197,60 @@ public class MultiblockListener implements Listener {
             return null;
         }
         return plugin.getAddonLifecycleService().getCoreService(I18nService.class);
+    }
+
+    private void sendAssemblyFailureMessage(Player player, AssemblyReport report) {
+        if (player == null || report == null || report.reasonKey() == null || report.reasonKey().isBlank()) {
+            return;
+        }
+        I18nService service = resolveI18n();
+        if (service == null) {
+            return;
+        }
+        MessageKey key = MessageKey.of("mbe", "commands.error." + report.reasonKey());
+        String translated = service.tr(player, key);
+        if (translated == null || translated.isBlank() || translated.equals(key.path())) {
+            return;
+        }
+        service.send(player, key);
+    }
+
+    private void unregisterLimit(MultiblockInstance instance, Player player) {
+        if (instance == null || instance.type() == null) {
+            return;
+        }
+        MultiblockLimitService limitService = resolveLimitService();
+        if (limitService == null) {
+            return;
+        }
+        UUID ownerId = resolveOwnerId(instance, player);
+        if (ownerId == null) {
+            return;
+        }
+        limitService.unregisterAssembly(ownerId, instance.type().id());
+    }
+
+    private MultiblockLimitService resolveLimitService() {
+        MultiBlockEngine plugin = MultiBlockEngine.getInstance();
+        if (plugin == null || plugin.getAddonLifecycleService() == null) {
+            return null;
+        }
+        return plugin.getAddonLifecycleService().getCoreService(MultiblockLimitService.class);
+    }
+
+    private UUID resolveOwnerId(MultiblockInstance instance, Player player) {
+        if (player != null) {
+            return player.getUniqueId();
+        }
+        Object owner = instance.getVariable("owner_uuid");
+        if (owner == null) {
+            return null;
+        }
+        try {
+            return UUID.fromString(String.valueOf(owner));
+        } catch (Throwable ignored) {
+            return null;
+        }
     }
 
     private void executeActionSafely(String runtimePhase, dev.darkblade.mbe.core.domain.action.Action action, MultiblockInstance instance, Player player) {

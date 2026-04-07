@@ -55,6 +55,7 @@ public enum CoreMessageKeys implements MessageKey {
     ASSEMBLE_TRY_FAILED("commands.assemble.try_failed"),
     ASSEMBLE_OK("commands.assemble.ok"),
     ASSEMBLE_FAILED("commands.assemble.failed"),
+    LIMIT_REACHED("commands.error.limit_reached"),
     DISASSEMBLE_MUST_LOOK("commands.disassemble.must_look"),
     DISASSEMBLE_NONE_HERE("commands.disassemble.none_here"),
     ACTION_CANCELLED("commands.disassemble.action_cancelled"),

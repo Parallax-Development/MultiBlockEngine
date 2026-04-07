@@ -58,3 +58,6 @@ permissions:
   mbe.inspect.internal:
     description: Allows requesting INTERNAL inspection level
     default: false
+  mbe.debug.report.console:
+    description: Allows using --console flag in /mbe report
+    default: op

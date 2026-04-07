@@ -46,6 +46,8 @@ import dev.darkblade.mbe.core.platform.interaction.BukkitInteractionIntentFactor
 import dev.darkblade.mbe.core.application.service.MultiblockRuntimeService;
 import dev.darkblade.mbe.core.application.service.editor.EditorSessionManager;
 import dev.darkblade.mbe.core.application.service.interaction.DefaultInteractionPipelineService;
+import dev.darkblade.mbe.core.application.service.assembly.AssemblyReportService;
+import dev.darkblade.mbe.core.application.service.assembly.InMemoryAssemblyReportService;
 import dev.darkblade.mbe.api.metadata.MetadataAccess;
 import dev.darkblade.mbe.api.metadata.MetadataKeyBuilder;
 import dev.darkblade.mbe.api.metadata.MetadataService;
@@ -53,6 +55,10 @@ import dev.darkblade.mbe.core.application.service.metadata.MetadataServiceImpl;
 import dev.darkblade.mbe.core.application.service.metadata.PlayerMultiblockContextResolver;
 import dev.darkblade.mbe.core.application.service.query.PlayerMultiblockQueryService;
 import dev.darkblade.mbe.core.application.service.query.PlayerMultiblockQueryServiceImpl;
+import dev.darkblade.mbe.core.application.service.limit.MultiblockLimitResolver;
+import dev.darkblade.mbe.core.application.service.limit.MultiblockLimitService;
+import dev.darkblade.mbe.core.application.service.limit.MultiblockLimitServiceImpl;
+import dev.darkblade.mbe.core.application.service.limit.PermissionBasedLimitResolver;
 import dev.darkblade.mbe.api.ui.binding.PanelBindingRegistry;
 import dev.darkblade.mbe.api.ui.binding.PanelBindingMutationService;
 import dev.darkblade.mbe.api.ui.binding.PanelBindingLinkService;
@@ -161,6 +167,7 @@ public class MultiBlockEngine extends JavaPlugin {
         saveDefaultConfig();
         saveResource("inventories.yml", false);
         saveResource("items.yml", false);
+        saveResource("limits.yml", false);
 
         loggingManager = new LoggingService(this);
         CoreLogger log = loggingManager.core();
@@ -229,6 +236,12 @@ public class MultiBlockEngine extends JavaPlugin {
         addonManager.registerCoreService(LocaleProvider.class, localeProvider);
         addonManager.registerCoreService(I18nService.class, i18n);
 
+        PermissionBasedLimitResolver limitResolver = new PermissionBasedLimitResolver(new File(getDataFolder(), "limits.yml"), log);
+        MultiblockLimitServiceImpl limitService = new MultiblockLimitServiceImpl(persistence, limitResolver);
+        addonManager.registerCoreService(MultiblockLimitResolver.class, limitResolver);
+        addonManager.registerCoreService(MultiblockLimitService.class, limitService);
+        addonManager.registerCoreMbeService(limitService);
+
         addonManager.registerCoreService(InspectionPipelineService.class, new DefaultInspectionPipelineService());
 
         addonManager.registerCoreService(PortResolutionService.class, new DefaultPortResolutionService());
@@ -244,7 +257,12 @@ public class MultiBlockEngine extends JavaPlugin {
         addonManager.registerCoreService(AssemblyTriggerRegistry.class, triggerRegistry);
         assemblyTriggers = triggerRegistry;
 
-        assemblyCoordinator = new AssemblyCoordinator(manager, triggerRegistry, log);
+        AssemblyReportService assemblyReportService = new InMemoryAssemblyReportService();
+        addonManager.registerCoreService(AssemblyReportService.class, assemblyReportService);
+        addonManager.registerCoreMbeService(assemblyReportService);
+        boolean assemblyDebugEnabled = getConfig().getBoolean("debug.assembly", getConfig().getBoolean("debug", false));
+        assemblyCoordinator = new AssemblyCoordinator(manager, triggerRegistry, assemblyReportService, log, assemblyDebugEnabled);
+        assemblyCoordinator.setLimitService(limitService);
         if (assemblyCoordinator == null) {
             log.fatal("Assembly coordinator initialization failed");
         }
