@@ -15,3 +15,15 @@ core:
       facing: "Dirección: {facing}"
       anchor: "Controlador: {anchor}"
       components: "Componentes requeridos:"
+      component_line: "&7- {line}"
+  debug:
+    session_started: "&aSesión debug iniciada para {type}"
+  ui:
+    link:
+      invalid_block: "&cEse bloque no es un controller_block válido."
+      already_exists: "&cYa existe un binding en ese bloque."
+      created: "&aBinding creado para panel '{panel}'."
+      finished: "&7Sesión de link finalizada."
+      cancelled: "&eSesión de link cancelada."
+  export:
+    marked: "&aMarcado: {role} en {x},{y},{z}"

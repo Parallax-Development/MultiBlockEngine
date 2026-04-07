@@ -12,6 +12,7 @@ import dev.darkblade.mbe.api.command.WrenchDispatcher;
 import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.MessageKey;
 import dev.darkblade.mbe.api.assembly.AssemblyContext;
+import dev.darkblade.mbe.api.assembly.AssemblyReport;
 import dev.darkblade.mbe.api.service.interaction.InteractionIntent;
 import dev.darkblade.mbe.api.service.interaction.InteractionPipelineService;
 import dev.darkblade.mbe.core.application.service.interaction.DefaultInteractionPipelineService;
@@ -21,9 +22,6 @@ import dev.darkblade.mbe.core.domain.assembly.AssemblyCoordinator;
 import dev.darkblade.mbe.core.infrastructure.bridge.item.ItemStackBridge;
 import dev.darkblade.mbe.core.platform.interaction.BukkitInteractionIntentFactory;
 import dev.darkblade.mbe.core.domain.MultiblockInstance;
-
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -130,11 +128,18 @@ public class MultiblockListener implements Listener {
             return;
         }
         event.setUseInteractedBlock(Event.Result.ALLOW);
-        if (interactionPipeline == null) {
-            return;
-        }
         InteractionIntent intent = intentFactory.from(event);
         if (intent == null) {
+            return;
+        }
+        if (interactionPipeline == null) {
+            if (assembly == null) {
+                return;
+            }
+            AssemblyReport report = assembly.tryAssemble(intent);
+            if (report != null && report.result() == AssemblyReport.Result.SUCCESS) {
+                event.setCancelled(true);
+            }
             return;
         }
         if (interactionPipeline.handle(intent)) {
@@ -171,22 +176,11 @@ public class MultiblockListener implements Listener {
             return;
         }
         String typeId = instance.type().id() == null ? "" : instance.type().id();
-        String translated = null;
         I18nService service = resolveI18n();
-        if (service != null) {
-            try {
-                translated = service.tr(player, MSG_DISASSEMBLED, Map.of("type", typeId));
-            } catch (Throwable ignored) {
-            }
-        }
-        if (!isValidTranslation(translated)) {
-            player.sendMessage(Component.textOfChildren(
-                    Component.text("Structure destroyed: ", NamedTextColor.RED),
-                    Component.text(typeId, NamedTextColor.WHITE)
-            ));
+        if (service == null) {
             return;
         }
-        player.sendMessage(Component.text(translated, NamedTextColor.RED));
+        service.send(player, MSG_DISASSEMBLED, Map.of("type", typeId));
     }
 
     private I18nService resolveI18n() {
@@ -198,16 +192,6 @@ public class MultiblockListener implements Listener {
             return null;
         }
         return plugin.getAddonLifecycleService().getCoreService(I18nService.class);
-    }
-
-    private boolean isValidTranslation(String translated) {
-        if (translated == null || translated.isBlank()) {
-            return false;
-        }
-        if (translated.equals(MSG_DISASSEMBLED.fullKey())) {
-            return false;
-        }
-        return !translated.equals("??" + MSG_DISASSEMBLED.fullKey() + "??");
     }
 
     private void executeActionSafely(String runtimePhase, dev.darkblade.mbe.core.domain.action.Action action, MultiblockInstance instance, Player player) {

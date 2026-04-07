@@ -7,11 +7,14 @@ import dev.darkblade.mbe.core.application.service.MetricsService;
 import dev.darkblade.mbe.core.application.service.MultiblockRuntimeService;
 import dev.darkblade.mbe.core.application.command.service.ServicesCommandRouter;
 import dev.darkblade.mbe.core.application.command.service.impl.BlueprintCommandService;
+import dev.darkblade.mbe.core.application.command.service.impl.AssemblyCommandService;
 import dev.darkblade.mbe.core.application.command.service.impl.ItemsCommandService;
 import dev.darkblade.mbe.core.application.command.service.impl.UiCommandService;
 import dev.darkblade.mbe.catalog.StructureCatalogService;
 import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.MessageKey;
+import dev.darkblade.mbe.api.i18n.MessageUtils;
+import dev.darkblade.mbe.api.i18n.message.CoreMessageKeys;
 import dev.darkblade.mbe.core.infrastructure.bridge.item.ItemStackBridge;
 import dev.darkblade.mbe.core.internal.tooling.export.ExportSession;
 import dev.darkblade.mbe.core.internal.tooling.export.SelectionService;
@@ -100,16 +103,19 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
     private final SelectionService exportSelections;
     private final StructureExporter structureExporter;
     private final BlueprintCommandService blueprintCommands;
+    private final AssemblyCommandService assemblyCommands;
 
     public MultiblockCommand(MultiBlockEngine plugin, SelectionService exportSelections, StructureExporter structureExporter) {
         this.plugin = plugin;
         this.exportSelections = exportSelections;
         this.structureExporter = structureExporter;
         this.blueprintCommands = new BlueprintCommandService(plugin);
+        this.assemblyCommands = new AssemblyCommandService(plugin);
         this.services = new ServicesCommandRouter(plugin);
         this.services.registerInternal(new ItemsCommandService(plugin));
         this.services.registerInternal(new UiCommandService(plugin));
         this.services.registerInternal(this.blueprintCommands);
+        this.services.registerInternal(this.assemblyCommands);
     }
 
     @Override
@@ -117,7 +123,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
         String[] safeArgs = args == null ? new String[0] : args;
 
         if (!sender.hasPermission(PERM_USE) && !(sender instanceof org.bukkit.command.ConsoleCommandSender)) {
-            sender.sendMessage(Component.text("No tienes permiso.", NamedTextColor.RED));
+            send(sender, CoreMessageKeys.COMMAND_NO_PERMISSION);
             return true;
         }
 
@@ -130,7 +136,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
 
         if (root.equals("services")) {
             if (!sender.hasPermission(PERM_ADMIN_SERVICES) && !sender.hasPermission(PERM_ADMIN)) {
-                sender.sendMessage(Component.text("No tienes permiso.", NamedTextColor.RED));
+                send(sender, CoreMessageKeys.COMMAND_NO_PERMISSION);
                 return true;
             }
             return services.handle(sender, label, safeArgs);
@@ -138,7 +144,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
 
         if (root.equals("admin")) {
             if (!sender.hasPermission(PERM_ADMIN)) {
-                sender.sendMessage(Component.text("No tienes permiso.", NamedTextColor.RED));
+                send(sender, CoreMessageKeys.COMMAND_NO_PERMISSION);
                 return true;
             }
             return handleAdmin(sender, label, safeArgs);
@@ -146,7 +152,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
 
         if (root.equals("debug")) {
             if (!sender.hasPermission(PERM_DEBUG)) {
-                sender.sendMessage(Component.text("No tienes permiso.", NamedTextColor.RED));
+                send(sender, CoreMessageKeys.COMMAND_NO_PERMISSION);
                 return true;
             }
             return handleDebugLayer(sender, label, safeArgs);
@@ -154,7 +160,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
 
         if (root.equals("inspect")) {
             if (!(sender instanceof Player player)) {
-                sender.sendMessage(Component.text("Este comando solo puede usarlo un jugador.", NamedTextColor.RED));
+                send(sender, CoreMessageKeys.COMMAND_PLAYER_ONLY);
                 return true;
             }
             handleInspect(player, safeArgs);
@@ -173,25 +179,25 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
 
         if (root.equals("assemble") || root.equals("form")) {
             if (!(sender instanceof Player player)) {
-                sender.sendMessage(Component.text("Este comando solo puede usarlo un jugador.", NamedTextColor.RED));
+                send(sender, CoreMessageKeys.COMMAND_PLAYER_ONLY);
                 return true;
             }
-            handleAssemble(player);
+            assemblyCommands.executeAssemble(player);
             return true;
         }
 
         if (root.equals("disassemble") || root.equals("break")) {
             if (!(sender instanceof Player player)) {
-                sender.sendMessage(Component.text("Este comando solo puede usarlo un jugador.", NamedTextColor.RED));
+                send(sender, CoreMessageKeys.COMMAND_PLAYER_ONLY);
                 return true;
             }
-            handleDisassemble(player);
+            assemblyCommands.executeDisassemble(player);
             return true;
         }
 
         if (root.equals("reload")) {
             if (!sender.hasPermission(PERM_ADMIN_RELOAD) && !sender.hasPermission(PERM_ADMIN)) {
-                sender.sendMessage(Component.text("No tienes permiso.", NamedTextColor.RED));
+                send(sender, CoreMessageKeys.COMMAND_NO_PERMISSION);
                 return true;
             }
             handleReload(sender);
@@ -200,11 +206,11 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
 
         if (root.equals("export")) {
             if (!sender.hasPermission(PERM_ADMIN_EXPORT) && !sender.hasPermission(PERM_ADMIN)) {
-                sender.sendMessage(Component.text("No tienes permiso.", NamedTextColor.RED));
+                send(sender, CoreMessageKeys.COMMAND_NO_PERMISSION);
                 return true;
             }
             if (!(sender instanceof Player player)) {
-                sender.sendMessage(Component.text("Este comando solo puede usarlo un jugador.", NamedTextColor.RED));
+                send(sender, CoreMessageKeys.COMMAND_PLAYER_ONLY);
                 return true;
             }
             handleExport(player, label, safeArgs);
@@ -213,7 +219,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
 
         if (root.equals("blueprint")) {
             if (!sender.hasPermission(PERM_ADMIN_BLUEPRINT) && !sender.hasPermission(PERM_ADMIN)) {
-                sender.sendMessage(Component.text("No tienes permiso.", NamedTextColor.RED));
+                send(sender, CoreMessageKeys.COMMAND_NO_PERMISSION);
                 return true;
             }
             handleBlueprint(sender, label, safeArgs);
@@ -227,14 +233,14 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
 
     private boolean handleAdmin(CommandSender sender, String label, String[] args) {
         if (args.length < 2) {
-            sender.sendMessage(Component.text("Uso: /" + label + " admin <reload|export|services|<servicio>>", NamedTextColor.YELLOW));
+            send(sender, CoreMessageKeys.COMMAND_ADMIN_USAGE, "label", label);
             return true;
         }
 
         String op = args[1] == null ? "" : args[1].toLowerCase(Locale.ROOT);
         if (op.equals("reload")) {
             if (!sender.hasPermission(PERM_ADMIN_RELOAD) && !sender.hasPermission(PERM_ADMIN)) {
-                sender.sendMessage(Component.text("No tienes permiso.", NamedTextColor.RED));
+                send(sender, CoreMessageKeys.COMMAND_NO_PERMISSION);
                 return true;
             }
             handleReload(sender);
@@ -243,11 +249,11 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
 
         if (op.equals("export")) {
             if (!sender.hasPermission(PERM_ADMIN_EXPORT) && !sender.hasPermission(PERM_ADMIN)) {
-                sender.sendMessage(Component.text("No tienes permiso.", NamedTextColor.RED));
+                send(sender, CoreMessageKeys.COMMAND_NO_PERMISSION);
                 return true;
             }
             if (!(sender instanceof Player player)) {
-                sender.sendMessage(Component.text("Este comando solo puede usarlo un jugador.", NamedTextColor.RED));
+                send(sender, CoreMessageKeys.COMMAND_PLAYER_ONLY);
                 return true;
             }
             String[] forwarded = new String[Math.max(1, args.length - 1)];
@@ -261,7 +267,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
 
         if (op.equals("services") || op.equals("service") || op.equals("list")) {
             if (!sender.hasPermission(PERM_ADMIN_SERVICES) && !sender.hasPermission(PERM_ADMIN)) {
-                sender.sendMessage(Component.text("No tienes permiso.", NamedTextColor.RED));
+                send(sender, CoreMessageKeys.COMMAND_NO_PERMISSION);
                 return true;
             }
             services.sendServicesListPublic(sender);
@@ -269,7 +275,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
         }
 
         if (!sender.hasPermission(PERM_ADMIN_SERVICES) && !sender.hasPermission(PERM_ADMIN)) {
-            sender.sendMessage(Component.text("No tienes permiso.", NamedTextColor.RED));
+            send(sender, CoreMessageKeys.COMMAND_NO_PERMISSION);
             return true;
         }
 
@@ -284,14 +290,14 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
 
     private boolean handleDebugLayer(CommandSender sender, String label, String[] args) {
         if (args.length < 2) {
-            sender.sendMessage(Component.text("Uso: /" + label + " debug <type|list|<servicio>>", NamedTextColor.YELLOW));
+            send(sender, CoreMessageKeys.COMMAND_DEBUG_USAGE_LAYER, "label", label);
             return true;
         }
 
         String op = args[1] == null ? "" : args[1].toLowerCase(Locale.ROOT);
         if (op.equals("list") || op.equals("services") || op.equals("service")) {
             if (!sender.hasPermission(PERM_DEBUG_SERVICES) && !sender.hasPermission(PERM_DEBUG)) {
-                sender.sendMessage(Component.text("No tienes permiso.", NamedTextColor.RED));
+                send(sender, CoreMessageKeys.COMMAND_NO_PERMISSION);
                 return true;
             }
             services.sendServicesListPublic(sender);
@@ -300,11 +306,11 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
 
         if (op.equals("type")) {
             if (!sender.hasPermission(PERM_DEBUG_SESSION) && !sender.hasPermission(PERM_DEBUG)) {
-                sender.sendMessage(Component.text("No tienes permiso.", NamedTextColor.RED));
+                send(sender, CoreMessageKeys.COMMAND_NO_PERMISSION);
                 return true;
             }
             if (!(sender instanceof Player player)) {
-                sender.sendMessage(Component.text("Este comando solo puede usarlo un jugador.", NamedTextColor.RED));
+                send(sender, CoreMessageKeys.COMMAND_PLAYER_ONLY);
                 return true;
             }
             String[] forwarded = new String[Math.max(1, args.length - 1)];
@@ -324,7 +330,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
         }
 
         if (!sender.hasPermission(PERM_DEBUG_SERVICES) && !sender.hasPermission(PERM_DEBUG)) {
-            sender.sendMessage(Component.text("No tienes permiso.", NamedTextColor.RED));
+            send(sender, CoreMessageKeys.COMMAND_NO_PERMISSION);
             return true;
         }
 
@@ -338,27 +344,27 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
     }
 
     private void sendHelp(CommandSender sender, String label) {
-        sender.sendMessage(Component.text("/" + label + " inspect", NamedTextColor.YELLOW));
-        sender.sendMessage(Component.text("/" + label + " assemble", NamedTextColor.YELLOW));
-        sender.sendMessage(Component.text("/" + label + " disassemble", NamedTextColor.YELLOW));
-        sender.sendMessage(Component.text("/" + label + " status", NamedTextColor.YELLOW));
-        sender.sendMessage(Component.text("/" + label + " report [jugador]", NamedTextColor.YELLOW));
+        send(sender, CoreMessageKeys.COMMAND_HELP_INSPECT, "label", label);
+        send(sender, CoreMessageKeys.COMMAND_HELP_ASSEMBLE, "label", label);
+        send(sender, CoreMessageKeys.COMMAND_HELP_DISASSEMBLE, "label", label);
+        send(sender, CoreMessageKeys.COMMAND_HELP_STATUS, "label", label);
+        send(sender, CoreMessageKeys.COMMAND_HELP_REPORT, "label", label);
         if (sender.hasPermission(PERM_ADMIN_BLUEPRINT) || sender.hasPermission(PERM_ADMIN)) {
-            sender.sendMessage(Component.text("/" + label + " blueprint catalog", NamedTextColor.YELLOW));
-            sender.sendMessage(Component.text("/" + label + " blueprint list", NamedTextColor.YELLOW));
-            sender.sendMessage(Component.text("/" + label + " blueprint give <id> [jugador]", NamedTextColor.YELLOW));
+            send(sender, CoreMessageKeys.COMMAND_HELP_BLUEPRINT_CATALOG, "label", label);
+            send(sender, CoreMessageKeys.COMMAND_HELP_BLUEPRINT_LIST, "label", label);
+            send(sender, CoreMessageKeys.COMMAND_HELP_BLUEPRINT_GIVE, "label", label);
         }
 
         if (sender.hasPermission(PERM_ADMIN)) {
-            sender.sendMessage(Component.text("/" + label + " admin reload", NamedTextColor.GRAY));
-            sender.sendMessage(Component.text("/" + label + " admin export <start|pos1|pos2|mark|save|cancel>", NamedTextColor.GRAY));
-            sender.sendMessage(Component.text("/" + label + " admin services", NamedTextColor.GRAY));
-            sender.sendMessage(Component.text("/" + label + " admin <servicio> [info] <args>", NamedTextColor.GRAY));
+            send(sender, CoreMessageKeys.COMMAND_HELP_ADMIN_RELOAD, "label", label);
+            send(sender, CoreMessageKeys.COMMAND_HELP_ADMIN_EXPORT, "label", label);
+            send(sender, CoreMessageKeys.COMMAND_HELP_ADMIN_SERVICES, "label", label);
+            send(sender, CoreMessageKeys.COMMAND_HELP_ADMIN_SERVICE, "label", label);
         }
         if (sender.hasPermission(PERM_DEBUG)) {
-            sender.sendMessage(Component.text("/" + label + " debug type <typeId> [jugador]", NamedTextColor.DARK_GRAY));
-            sender.sendMessage(Component.text("/" + label + " debug <servicio> [info] <args>", NamedTextColor.DARK_GRAY));
-            sender.sendMessage(Component.text("/" + label + " debug list", NamedTextColor.DARK_GRAY));
+            send(sender, CoreMessageKeys.COMMAND_HELP_DEBUG_TYPE, "label", label);
+            send(sender, CoreMessageKeys.COMMAND_HELP_DEBUG_SERVICE, "label", label);
+            send(sender, CoreMessageKeys.COMMAND_HELP_DEBUG_LIST, "label", label);
         }
     }
 
@@ -366,7 +372,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
 
     private void handleExport(Player player, String label, String[] args) {
         if (args.length < 2) {
-            player.sendMessage(Component.text("Uso: /" + label + " export <start|pos1|pos2|mark|save|cancel>", NamedTextColor.YELLOW));
+            send(player, CoreMessageKeys.EXPORT_USAGE, "label", label);
             return;
         }
 
@@ -374,76 +380,76 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
         switch (op) {
             case "start" -> {
                 exportSelections.start(player);
-                player.sendMessage(Component.text("Export session iniciada.", NamedTextColor.GREEN));
+                send(player, CoreMessageKeys.EXPORT_STARTED);
             }
             case "cancel" -> {
                 boolean cancelled = exportSelections.cancel(player);
-                player.sendMessage(Component.text(cancelled ? "Export session cancelada." : "No hay sesión activa.", cancelled ? NamedTextColor.YELLOW : NamedTextColor.RED));
+                send(player, cancelled ? CoreMessageKeys.EXPORT_CANCELLED : CoreMessageKeys.EXPORT_NO_ACTIVE);
             }
             case "pos1" -> {
                 ExportSession s = ensureSession(player);
                 if (s == null) return;
                 Block b = player.getTargetBlockExact(10);
                 if (b == null) {
-                    player.sendMessage(Component.text("Debes mirar un bloque (rango 10).", NamedTextColor.RED));
+                    send(player, CoreMessageKeys.EXPORT_MUST_LOOK);
                     return;
                 }
                 s.setPos1(b.getLocation());
-                player.sendMessage(Component.text("pos1 = " + b.getX() + "," + b.getY() + "," + b.getZ(), NamedTextColor.GREEN));
+                send(player, CoreMessageKeys.EXPORT_POS1_SET, "x", b.getX(), "y", b.getY(), "z", b.getZ());
             }
             case "pos2" -> {
                 ExportSession s = ensureSession(player);
                 if (s == null) return;
                 Block b = player.getTargetBlockExact(10);
                 if (b == null) {
-                    player.sendMessage(Component.text("Debes mirar un bloque (rango 10).", NamedTextColor.RED));
+                    send(player, CoreMessageKeys.EXPORT_MUST_LOOK);
                     return;
                 }
                 s.setPos2(b.getLocation());
-                player.sendMessage(Component.text("pos2 = " + b.getX() + "," + b.getY() + "," + b.getZ(), NamedTextColor.GREEN));
+                send(player, CoreMessageKeys.EXPORT_POS2_SET, "x", b.getX(), "y", b.getY(), "z", b.getZ());
             }
             case "mark" -> {
                 ExportSession s = ensureSession(player);
                 if (s == null) return;
                 if (args.length < 3) {
-                    player.sendMessage(Component.text("Uso: /" + label + " export mark <controller|input|output|decorative>", NamedTextColor.YELLOW));
+                    send(player, CoreMessageKeys.EXPORT_MARK_USAGE, "label", label);
                     return;
                 }
                 String role = args[2];
                 s.setPendingRole(role);
-                player.sendMessage(Component.text("Ahora haz click derecho en el bloque para marcar: " + role, NamedTextColor.AQUA));
+                send(player, CoreMessageKeys.EXPORT_MARK_PROMPT, "role", role);
             }
             case "save" -> {
                 ExportSession s = ensureSession(player);
                 if (s == null) return;
                 if (args.length < 3) {
-                    player.sendMessage(Component.text("Uso: /" + label + " export save <id>", NamedTextColor.YELLOW));
+                    send(player, CoreMessageKeys.EXPORT_SAVE_USAGE, "label", label);
                     return;
                 }
                 String id = args[2];
                 try {
                     var res = structureExporter.exportToFile(id, s, plugin.getDataFolder().toPath().resolve("exports"));
-                    player.sendMessage(Component.text("Export OK: " + res.id() + " (blocks=" + res.blocks() + ")", NamedTextColor.GREEN));
+                    send(player, CoreMessageKeys.EXPORT_SAVE_OK, "id", res.id(), "blocks", res.blocks());
                     if (!res.warnings().isEmpty()) {
-                        player.sendMessage(Component.text("Warnings: " + res.warnings().size(), NamedTextColor.YELLOW));
+                        send(player, CoreMessageKeys.EXPORT_SAVE_WARNINGS, "count", res.warnings().size());
                     }
                 } catch (StructureExporter.ExportException e) {
-                    player.sendMessage(Component.text("Export error: " + e.getMessage(), NamedTextColor.RED));
+                    send(player, CoreMessageKeys.EXPORT_SAVE_ERROR, "error", e.getMessage());
                 }
             }
-            default -> player.sendMessage(Component.text("Subcomando inválido. Uso: /" + label + " export <start|pos1|pos2|mark|save|cancel>", NamedTextColor.RED));
+            default -> send(player, CoreMessageKeys.EXPORT_SUBCOMMAND_INVALID, "label", label);
         }
     }
 
     private void handleBlueprint(CommandSender sender, String label, String[] args) {
         if (args.length < 2) {
-            sender.sendMessage(Component.text("Uso: /" + label + " blueprint <catalog|list|give>", NamedTextColor.YELLOW));
+            send(sender, CoreMessageKeys.BLUEPRINT_USAGE, "label", label);
             return;
         }
         String op = args[1] == null ? "" : args[1].trim().toLowerCase(Locale.ROOT);
         if ("catalog".equalsIgnoreCase(op)) {
             if (!(sender instanceof Player player)) {
-                sender.sendMessage(Component.text("Solo jugadores pueden abrir el catálogo.", NamedTextColor.RED));
+                send(sender, CoreMessageKeys.BLUEPRINT_PLAYER_ONLY_CATALOG);
                 return;
             }
             blueprintCommands.openCatalog(player);
@@ -453,7 +459,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
         ItemService itemService = plugin.getAddonLifecycleService().getCoreService(ItemService.class);
         ItemStackBridge itemStackBridge = plugin.getAddonLifecycleService().getCoreService(ItemStackBridge.class);
         if (catalogService == null || itemService == null || itemStackBridge == null) {
-            sender.sendMessage(Component.text("Servicios de blueprint no disponibles.", NamedTextColor.RED));
+            send(sender, CoreMessageKeys.BLUEPRINT_SERVICES_UNAVAILABLE);
             return;
         }
 
@@ -466,26 +472,26 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
                 ids.add(definition.id());
             }
             if (ids.isEmpty()) {
-                sender.sendMessage(Component.text("No hay multibloques cargados.", NamedTextColor.YELLOW));
+                send(sender, CoreMessageKeys.BLUEPRINT_NONE_LOADED);
                 return;
             }
             java.util.Collections.sort(ids);
-            sender.sendMessage(Component.text("Multibloques disponibles (" + ids.size() + "):", NamedTextColor.AQUA));
+            send(sender, CoreMessageKeys.BLUEPRINT_AVAILABLE_TITLE, "count", ids.size());
             sender.sendMessage(Component.text(String.join(", ", ids), NamedTextColor.GRAY));
             return;
         }
 
         if (!"give".equalsIgnoreCase(op)) {
-            sender.sendMessage(Component.text("Uso: /" + label + " blueprint <catalog|list|give>", NamedTextColor.YELLOW));
+            send(sender, CoreMessageKeys.BLUEPRINT_USAGE, "label", label);
             return;
         }
         if (args.length < 3) {
-            sender.sendMessage(Component.text("Uso: /" + label + " blueprint give <id> [jugador]", NamedTextColor.YELLOW));
+            send(sender, CoreMessageKeys.COMMAND_HELP_BLUEPRINT_GIVE, "label", label);
             return;
         }
         String id = args[2] == null ? "" : args[2].trim();
         if (id.isBlank()) {
-            sender.sendMessage(Component.text("Debes indicar un id de multibloque.", NamedTextColor.RED));
+            send(sender, CoreMessageKeys.BLUEPRINT_ID_REQUIRED);
             return;
         }
 
@@ -493,13 +499,13 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
         if (args.length >= 4 && args[3] != null && !args[3].isBlank()) {
             receiver = org.bukkit.Bukkit.getPlayer(args[3]);
             if (receiver == null) {
-                sender.sendMessage(Component.text("Jugador no encontrado: " + args[3], NamedTextColor.RED));
+                send(sender, CoreMessageKeys.BLUEPRINT_PLAYER_NOT_FOUND, "player", args[3]);
                 return;
             }
         } else if (sender instanceof Player playerSender) {
             receiver = playerSender;
         } else {
-            sender.sendMessage(Component.text("Desde consola debes indicar un jugador: /" + label + " blueprint give <id> <jugador>", NamedTextColor.RED));
+            send(sender, CoreMessageKeys.BLUEPRINT_CONSOLE_NEEDS_PLAYER, "label", label);
             return;
         }
 
@@ -514,25 +520,25 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
             }
         }
         if (definition == null) {
-            sender.sendMessage(Component.text("No existe multibloque con id: " + id, NamedTextColor.RED));
+            send(sender, CoreMessageKeys.BLUEPRINT_NOT_FOUND, "id", id);
             return;
         }
         org.bukkit.inventory.ItemStack blueprint = BlueprintItem.create(itemService, itemStackBridge, definition);
         if (blueprint == null) {
-            sender.sendMessage(Component.text("No se pudo crear el blueprint para: " + definition.id(), NamedTextColor.RED));
+            send(sender, CoreMessageKeys.BLUEPRINT_CREATE_FAILED, "id", definition.id());
             return;
         }
         receiver.getInventory().addItem(blueprint);
-        receiver.sendMessage(Component.text("Blueprint recibido: " + definition.id(), NamedTextColor.GREEN));
+        send(receiver, CoreMessageKeys.BLUEPRINT_RECEIVED, "id", definition.id());
         if (sender != receiver) {
-            sender.sendMessage(Component.text("Blueprint entregado a " + receiver.getName() + ": " + definition.id(), NamedTextColor.GREEN));
+            send(sender, CoreMessageKeys.BLUEPRINT_GIVEN, "player", receiver.getName(), "id", definition.id());
         }
     }
 
     private ExportSession ensureSession(Player player) {
         ExportSession s = exportSelections.session(player);
         if (s == null) {
-            player.sendMessage(Component.text("No hay sesión activa. Usa: /mbe export start", NamedTextColor.RED));
+            send(player, CoreMessageKeys.EXPORT_NO_ACTIVE);
         }
         return s;
     }
@@ -553,9 +559,9 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
         MultiblockType type = typeOpt.get();
 
         plugin.getManager().getSource(type.id()).ifPresent(src -> {
-            player.sendMessage(Component.text("sourceType=" + src.type().name() + " path=" + src.path(), NamedTextColor.GRAY));
+            send(player, CoreMessageKeys.DEBUG_SOURCE, "sourceType", src.type().name(), "path", src.path());
         });
-        player.sendMessage(Component.text("signature=" + plugin.getManager().signatureOf(type), NamedTextColor.GRAY));
+        send(player, CoreMessageKeys.DEBUG_SIGNATURE, "signature", plugin.getManager().signatureOf(type));
         
         // Target player
         Player targetPlayer = player;
@@ -678,13 +684,13 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
 
     private void handleAssemble(Player player) {
         if (plugin.getAssemblyCoordinator() == null) {
-            player.sendMessage(Component.text("AssemblyCoordinator no disponible.", NamedTextColor.RED));
+            send(player, CoreMessageKeys.ASSEMBLY_COORDINATOR_UNAVAILABLE);
             return;
         }
 
         Block target = player.getTargetBlockExact(5);
         if (target == null) {
-            player.sendMessage(Component.text("Debes mirar un bloque.", NamedTextColor.RED));
+            send(player, CoreMessageKeys.ASSEMBLE_MUST_LOOK);
             return;
         }
 
@@ -702,28 +708,28 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
 
         AssemblyReport report = plugin.getAssemblyCoordinator().tryAssembleAt(target, ctx);
         if (report == null) {
-            player.sendMessage(Component.text("No se pudo intentar el ensamblado.", NamedTextColor.RED));
+            send(player, CoreMessageKeys.ASSEMBLE_TRY_FAILED);
             return;
         }
 
         if (report.result() == AssemblyReport.Result.SUCCESS) {
-            player.sendMessage(Component.text("Ensamblado OK: " + report.multiblockId(), NamedTextColor.GREEN));
+            send(player, CoreMessageKeys.ASSEMBLE_OK, "id", report.multiblockId());
         } else {
             String reason = report.failureReason() == null || report.failureReason().isBlank() ? report.result().name() : report.failureReason();
-            player.sendMessage(Component.text("Ensamblado falló: " + reason, NamedTextColor.RED));
+            send(player, CoreMessageKeys.ASSEMBLE_FAILED, "reason", reason);
         }
     }
 
     private void handleDisassemble(Player player) {
         Block target = player.getTargetBlockExact(5);
         if (target == null) {
-            player.sendMessage(Component.text("Debes mirar un bloque.", NamedTextColor.RED));
+            send(player, CoreMessageKeys.DISASSEMBLE_MUST_LOOK);
             return;
         }
 
         Optional<MultiblockInstance> instanceOpt = plugin.getManager().getInstanceAt(target.getLocation());
         if (instanceOpt.isEmpty()) {
-            player.sendMessage(Component.text("No hay ninguna estructura aquí.", NamedTextColor.YELLOW));
+            send(player, CoreMessageKeys.DISASSEMBLE_NONE_HERE);
             return;
         }
 
@@ -731,7 +737,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
         dev.darkblade.mbe.api.event.MultiblockBreakEvent mbEvent = new dev.darkblade.mbe.api.event.MultiblockBreakEvent(instance, player);
         org.bukkit.Bukkit.getPluginManager().callEvent(mbEvent);
         if (mbEvent.isCancelled()) {
-            player.sendMessage(Component.text("Acción cancelada.", NamedTextColor.RED));
+            send(player, CoreMessageKeys.ACTION_CANCELLED);
             return;
         }
 
@@ -745,7 +751,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
             }
         }
         plugin.getManager().destroyInstance(instance);
-        player.sendMessage(Component.text("Estructura desensamblada.", NamedTextColor.GREEN));
+        send(player, CoreMessageKeys.DISASSEMBLED);
     }
 
     private void handleInspect(Player player, String[] args) {
@@ -892,6 +898,22 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
             return key == null ? "" : key.fullKey();
         }
         return i18n.tr(sender, key, params);
+    }
+
+    private void send(CommandSender sender, MessageKey key) {
+        I18nService i18n = plugin.getAddonLifecycleService().getCoreService(I18nService.class);
+        if (i18n == null) {
+            return;
+        }
+        i18n.send(sender, key);
+    }
+
+    private void send(CommandSender sender, MessageKey key, Object... params) {
+        I18nService i18n = plugin.getAddonLifecycleService().getCoreService(I18nService.class);
+        if (i18n == null) {
+            return;
+        }
+        i18n.send(sender, key, MessageUtils.params(params));
     }
 
     private String formatLoc(Location loc) {

@@ -2,8 +2,6 @@ package dev.darkblade.mbe.preview;
 
 import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.MessageKey;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
@@ -367,11 +365,7 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
             return;
         }
         try {
-            String msg = i18n.tr(player, key);
-            if (msg == null || msg.isBlank()) {
-                return;
-            }
-            player.sendMessage(Component.text(msg, NamedTextColor.YELLOW));
+            i18n.send(player, key);
         } catch (Throwable ignored) {
         }
     }

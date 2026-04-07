@@ -1,7 +1,8 @@
 package dev.darkblade.mbe.core.internal.tooling.export;
 
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
+import dev.darkblade.mbe.api.i18n.I18nService;
+import dev.darkblade.mbe.api.i18n.message.CoreMessageKeys;
+import dev.darkblade.mbe.core.MultiBlockEngine;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -44,8 +45,23 @@ public final class ExportInteractListener implements Listener {
 
         session.markRole(clicked.getLocation(), role);
         session.clearPendingRole();
-        player.sendMessage(Component.text("Marcado: " + role + " en " + clicked.getX() + "," + clicked.getY() + "," + clicked.getZ(), NamedTextColor.GREEN));
+        I18nService i18n = resolveI18n();
+        if (i18n != null) {
+            i18n.send(player, CoreMessageKeys.EXPORT_MARKED, java.util.Map.of(
+                    "role", role,
+                    "x", clicked.getX(),
+                    "y", clicked.getY(),
+                    "z", clicked.getZ()
+            ));
+        }
         event.setCancelled(true);
     }
-}
 
+    private I18nService resolveI18n() {
+        MultiBlockEngine plugin = MultiBlockEngine.getInstance();
+        if (plugin == null || plugin.getAddonLifecycleService() == null) {
+            return null;
+        }
+        return plugin.getAddonLifecycleService().getCoreService(I18nService.class);
+    }
+}

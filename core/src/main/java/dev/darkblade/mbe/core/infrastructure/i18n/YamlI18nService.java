@@ -7,6 +7,10 @@ import dev.darkblade.mbe.api.logging.CoreLogger;
 import dev.darkblade.mbe.api.logging.LogKv;
 import dev.darkblade.mbe.api.logging.LogLevel;
 import dev.darkblade.mbe.api.logging.LogPhase;
+import dev.darkblade.mbe.core.internal.tooling.StringUtil;
+import org.bukkit.ChatColor;
+import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
@@ -97,6 +101,59 @@ public final class YamlI18nService implements I18nService {
         } catch (Throwable t) {
             return safeFallback;
         }
+    }
+
+    @Override
+    public void send(CommandSender sender, MessageKey key) {
+        send(sender, key, Map.of());
+    }
+
+    @Override
+    public void send(CommandSender sender, MessageKey key, Map<String, ?> params) {
+        if (sender == null || key == null) {
+            return;
+        }
+        try {
+            String msg = params == null || params.isEmpty() ? tr(sender, key) : tr(sender, key, params);
+            if (isMissingTranslation(msg, key)) {
+                String literalFallback = literalFallback(key);
+                if (literalFallback.isBlank()) {
+                    return;
+                }
+                msg = literalFallback;
+            }
+            if (msg == null || msg.isBlank()) {
+                return;
+            }
+            if (sender instanceof Player player) {
+                player.sendMessage(StringUtil.legacyText(msg));
+                return;
+            }
+            sender.sendMessage(ChatColor.translateAlternateColorCodes('&', msg));
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private boolean isMissingTranslation(String msg, MessageKey key) {
+        if (msg == null || msg.isBlank() || key == null) {
+            return true;
+        }
+        String full = key.fullKey();
+        return msg.equals(full) || msg.equals("??" + full + "??");
+    }
+
+    private String literalFallback(MessageKey key) {
+        if (key == null || key.path() == null) {
+            return "";
+        }
+        String path = key.path().trim();
+        if (path.isBlank()) {
+            return "";
+        }
+        if (path.matches("[a-z0-9_.-]+")) {
+            return "";
+        }
+        return path;
     }
 
     @Override
