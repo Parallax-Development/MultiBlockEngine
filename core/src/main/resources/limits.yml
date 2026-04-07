@@ -1,0 +1,9 @@
+limits:
+  - permission: mbe.limit.default
+    max: 5
+    scope: GLOBAL
+
+  - permission: mbe.limit.furnace
+    max: 2
+    scope: PER_MULTIBLOCK
+    multiblock: furnace_generator

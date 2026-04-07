@@ -28,6 +28,7 @@ import dev.darkblade.mbe.api.command.WrenchResult;
 import dev.darkblade.mbe.core.domain.assembly.AssemblyCoordinator;
 import dev.darkblade.mbe.api.assembly.AssemblyContext;
 import dev.darkblade.mbe.api.assembly.AssemblyReport;
+import dev.darkblade.mbe.api.assembly.AssemblyStepTrace;
 import dev.darkblade.mbe.api.assembly.AssemblyTriggerType;
 import dev.darkblade.mbe.core.infrastructure.bridge.item.ItemStackBridge;
 import dev.darkblade.mbe.core.application.service.MultiblockRuntimeService;
@@ -319,7 +320,12 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
             }
             Optional<MultiblockInstance> instance = manager.tryCreate(controller, type, player);
             if (instance.isPresent()) {
-                return new AssemblyReport(AssemblyTriggerType.WRENCH_USE.id(), true, true, AssemblyReport.MatcherResult.MATCH, List.of(), AssemblyReport.Result.SUCCESS, type.id(), "");
+                return AssemblyReport.success(List.of(new AssemblyStepTrace(
+                        "instance_create",
+                        true,
+                        "Instance created",
+                        java.util.Map.of("multiblockId", type.id(), "trigger", AssemblyTriggerType.WRENCH_USE.id())
+                )));
             }
         }
         return null;

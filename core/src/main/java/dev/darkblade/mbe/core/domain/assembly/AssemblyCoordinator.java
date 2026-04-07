@@ -2,7 +2,7 @@ package dev.darkblade.mbe.core.domain.assembly;
 
 import dev.darkblade.mbe.api.assembly.AssemblyContext;
 import dev.darkblade.mbe.api.assembly.AssemblyReport;
-import dev.darkblade.mbe.api.assembly.AssemblyTrigger;
+import dev.darkblade.mbe.api.assembly.AssemblyStepTrace;
 import dev.darkblade.mbe.api.assembly.AssemblyTriggerRegistry;
 import dev.darkblade.mbe.api.assembly.AssemblyTriggerType;
 import dev.darkblade.mbe.api.logging.CoreLogger;
@@ -14,6 +14,19 @@ import dev.darkblade.mbe.api.service.interaction.InteractionIntent;
 import dev.darkblade.mbe.api.service.interaction.InteractionSource;
 import dev.darkblade.mbe.api.service.interaction.InteractionType;
 import dev.darkblade.mbe.core.application.service.MultiblockRuntimeService;
+import dev.darkblade.mbe.core.application.service.assembly.AssemblyReportService;
+import dev.darkblade.mbe.core.application.service.limit.MultiblockLimitService;
+import dev.darkblade.mbe.core.domain.assembly.pipeline.AssemblyPipelineContext;
+import dev.darkblade.mbe.core.domain.assembly.pipeline.AssemblyStep;
+import dev.darkblade.mbe.core.domain.assembly.pipeline.AssemblyStepResult;
+import dev.darkblade.mbe.core.domain.assembly.pipeline.AssemblyStepResultType;
+import dev.darkblade.mbe.core.domain.assembly.pipeline.AssemblyTraceCollector;
+import dev.darkblade.mbe.core.domain.assembly.pipeline.ControllerMatchStep;
+import dev.darkblade.mbe.core.domain.assembly.pipeline.InstanceCreateStep;
+import dev.darkblade.mbe.core.domain.assembly.pipeline.LimitCheckStep;
+import dev.darkblade.mbe.core.domain.assembly.pipeline.MultiblockCandidate;
+import dev.darkblade.mbe.core.domain.assembly.pipeline.PatternMatchStep;
+import dev.darkblade.mbe.core.domain.assembly.pipeline.TriggerCheckStep;
 import dev.darkblade.mbe.core.domain.MultiblockInstance;
 import dev.darkblade.mbe.core.domain.MultiblockType;
 import dev.darkblade.mbe.core.domain.PatternEntry;
@@ -24,7 +37,7 @@ import org.bukkit.block.data.Directional;
 import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -32,7 +45,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 public final class AssemblyCoordinator {
 
@@ -41,12 +53,30 @@ public final class AssemblyCoordinator {
     private final MultiblockRuntimeService manager;
     private final AssemblyTriggerRegistry triggers;
     private final CoreLogger log;
-    private final Map<UUID, AssemblyReport> lastReportByPlayer = new ConcurrentHashMap<>();
+    private final AssemblyReportService reportService;
+    private final boolean assemblyDebugEnabled;
+    private final List<AssemblyStep> pipelineSteps;
+    private MultiblockLimitService limitService;
 
-    public AssemblyCoordinator(MultiblockRuntimeService manager, AssemblyTriggerRegistry triggers, CoreLogger log) {
+    public AssemblyCoordinator(
+            MultiblockRuntimeService manager,
+            AssemblyTriggerRegistry triggers,
+            AssemblyReportService reportService,
+            CoreLogger log,
+            boolean assemblyDebugEnabled
+    ) {
         this.manager = Objects.requireNonNull(manager, "manager");
         this.triggers = Objects.requireNonNull(triggers, "triggers");
+        this.reportService = Objects.requireNonNull(reportService, "reportService");
         this.log = Objects.requireNonNull(log, "log");
+        this.assemblyDebugEnabled = assemblyDebugEnabled;
+        this.pipelineSteps = List.of(
+                new TriggerCheckStep(this.triggers),
+                new ControllerMatchStep(),
+                new PatternMatchStep(this::facingCandidates, this::patternMatches),
+                new LimitCheckStep(() -> this.limitService),
+                new InstanceCreateStep(this.manager, () -> this.limitService)
+        );
         int triggerCount = triggers.all().size();
         if (triggerCount <= 0) {
             log.error("Assembly coordinator initialized without triggers");
@@ -59,173 +89,172 @@ public final class AssemblyCoordinator {
         if (playerId == null) {
             return Optional.empty();
         }
-        return Optional.ofNullable(lastReportByPlayer.get(playerId));
+        return reportService.get(playerId);
+    }
+
+    public void setLimitService(MultiblockLimitService limitService) {
+        this.limitService = limitService;
     }
 
     public AssemblyReport tryAssemble(InteractionIntent intent) {
+        AssemblyTraceCollector trace = new AssemblyTraceCollector();
         if (intent == null || intent.targetBlock() == null) {
-            return report(null, "", false, false, AssemblyReport.MatcherResult.SKIPPED, AssemblyReport.Result.FAILED, "", "No interaction target");
+            trace.add("interaction_target", false, "No interaction target", Map.of());
+            return finalizeReport(null, AssemblyReport.fail("no_interaction_target", Map.of(), trace.getTrace()), null);
         }
+        trace.add("interaction_target", true, "Interaction target resolved", Map.of(
+                "x", intent.targetBlock().getX(),
+                "y", intent.targetBlock().getY(),
+                "z", intent.targetBlock().getZ()
+        ));
         AssemblyContext context = new AssemblyContext(intent.player(), intent.targetBlock(), intent);
-        return tryAssembleAt(intent.targetBlock(), context);
+        return tryAssembleAtInternal(intent.targetBlock(), context, trace);
     }
 
     public AssemblyReport attemptAssembly(AssemblyContext context) {
+        AssemblyTraceCollector trace = new AssemblyTraceCollector();
         AssemblyContext safeContext = ensureContext(context);
         Block controller = safeContext.origin();
         if (controller == null) {
-            return report(safeContext, AssemblyTriggerType.MANUAL_ONLY.id(), false, false, AssemblyReport.MatcherResult.SKIPPED, AssemblyReport.Result.FAILED, "", "No controller block");
+            trace.add("controller_check", false, "No controller block", Map.of());
+            return finalizeReport(safeContext, AssemblyReport.fail("no_controller_block", Map.of(), trace.getTrace()), null);
         }
+        trace.add("controller_check", true, "Controller block resolved", Map.of(
+                "x", controller.getX(),
+                "y", controller.getY(),
+                "z", controller.getZ()
+        ));
         Optional<MultiblockInstance> existing = manager.getInstanceAt(controller.getLocation());
         if (existing.isPresent()) {
-            AssemblyReport out = report(safeContext, AssemblyTriggerType.MANUAL_ONLY.id(), true, true, AssemblyReport.MatcherResult.SKIPPED, AssemblyReport.Result.ABORTED, existing.get().type().id(), "Instance already exists");
-            remember(safeContext, out);
-            logDebug(out, controller.getLocation());
-            return out;
+            String multiblockId = existing.get().type().id();
+            trace.add("existing_instance", false, "Instance already exists", Map.of("multiblockId", multiblockId));
+            return finalizeReport(
+                    safeContext,
+                    AssemblyReport.fail("instance_exists", Map.of("multiblockId", multiblockId), trace.getTrace()),
+                    controller.getLocation()
+            );
         }
+        List<MultiblockCandidate> candidates = new ArrayList<>();
         for (MultiblockType type : manager.getTypesDeterministic()) {
-            if (type == null) {
-                continue;
-            }
-            AssemblyAttempt attempt = tryAssembleTypeAtInternal(type, controller, safeContext, true);
-            if (attempt.report().result() == AssemblyReport.Result.SUCCESS) {
-                remember(safeContext, attempt.report());
-                logDebug(attempt.report(), controller.getLocation());
-                return attempt.report();
+            if (type != null) {
+                candidates.add(new MultiblockCandidate(type, controller, resolveTriggerId(type), true));
             }
         }
-        AssemblyReport out = report(safeContext, AssemblyTriggerType.MANUAL_ONLY.id(), true, true, AssemblyReport.MatcherResult.MISMATCH, AssemblyReport.Result.FAILED, "", "No multiblock matched");
-        remember(safeContext, out);
-        logDebug(out, controller.getLocation());
-        return out;
+        return executePipeline(safeContext, candidates, trace, controller.getLocation());
     }
 
     public AssemblyReport tryAssembleAt(Block controller, AssemblyContext context) {
+        return tryAssembleAtInternal(controller, context, new AssemblyTraceCollector());
+    }
+
+    private AssemblyReport tryAssembleAtInternal(Block controller, AssemblyContext context, AssemblyTraceCollector trace) {
         if (controller == null) {
-            return report(context, "", false, false, AssemblyReport.MatcherResult.SKIPPED, AssemblyReport.Result.FAILED, "", "No controller block");
+            trace.add("controller_check", false, "No controller block", Map.of());
+            return finalizeReport(context, AssemblyReport.fail("no_controller_block", Map.of(), trace.getTrace()), null);
         }
+        trace.add("controller_check", true, "Controller block resolved", Map.of(
+                "x", controller.getX(),
+                "y", controller.getY(),
+                "z", controller.getZ()
+        ));
 
         Optional<MultiblockInstance> existing = manager.getInstanceAt(controller.getLocation());
         if (existing.isPresent()) {
-            return report(context, "", true, true, AssemblyReport.MatcherResult.SKIPPED, AssemblyReport.Result.ABORTED, existing.get().type().id(), "Instance already exists");
+            String multiblockId = existing.get().type().id();
+            trace.add("existing_instance", false, "Instance already exists", Map.of("multiblockId", multiblockId));
+            return finalizeReport(
+                    context,
+                    AssemblyReport.fail("instance_exists", Map.of("multiblockId", multiblockId), trace.getTrace()),
+                    controller.getLocation()
+            );
         }
 
         AssemblyContext safeContext = ensureContext(context);
-
+        List<MultiblockCandidate> candidates = new ArrayList<>();
         for (MultiblockType type : manager.getTypesDeterministic()) {
-            if (type == null) {
-                continue;
-            }
-            AssemblyAttempt attempt = tryAssembleTypeAtInternal(type, controller, safeContext, false);
-            if (attempt.report().result() == AssemblyReport.Result.SUCCESS) {
-                remember(safeContext, attempt.report());
-                logDebug(attempt.report(), controller.getLocation());
-                return attempt.report();
+            if (type != null) {
+                candidates.add(new MultiblockCandidate(type, controller, resolveTriggerId(type), false));
             }
         }
-
-        AssemblyReport out = report(safeContext, "", true, true, AssemblyReport.MatcherResult.MISMATCH, AssemblyReport.Result.FAILED, "", "No multiblock matched");
-        remember(safeContext, out);
-        logDebug(out, controller.getLocation());
-        return out;
+        return executePipeline(safeContext, candidates, trace, controller.getLocation());
     }
 
     public AssemblyReport tryAssembleTypeAt(MultiblockType type, Block controller, AssemblyContext context) {
+        AssemblyTraceCollector trace = new AssemblyTraceCollector();
         Objects.requireNonNull(type, "type");
         if (controller == null) {
-            return report(context, type.assemblyTrigger(), false, false, AssemblyReport.MatcherResult.SKIPPED, AssemblyReport.Result.FAILED, type.id(), "No controller block");
+            trace.add("controller_check", false, "No controller block", Map.of("multiblockId", type.id()));
+            return finalizeReport(context, AssemblyReport.fail("no_controller_block", Map.of("multiblockId", type.id()), trace.getTrace()), null);
         }
         AssemblyContext safeContext = ensureContext(context);
-        AssemblyAttempt attempt = tryAssembleTypeAtInternal(type, controller, safeContext, false);
-        remember(safeContext, attempt.report());
-        logDebug(attempt.report(), controller.getLocation());
-        return attempt.report();
+        List<MultiblockCandidate> candidates = List.of(new MultiblockCandidate(type, controller, resolveTriggerId(type), false));
+        return executePipeline(safeContext, candidates, trace, controller.getLocation());
     }
 
     public AssemblyReport tryAssembleFromPlacedBlock(Block placedBlock, AssemblyContext context) {
+        AssemblyTraceCollector trace = new AssemblyTraceCollector();
         if (placedBlock == null) {
-            return report(context, "", false, false, AssemblyReport.MatcherResult.SKIPPED, AssemblyReport.Result.FAILED, "", "No placed block");
+            trace.add("placed_block_check", false, "No placed block", Map.of());
+            return finalizeReport(context, AssemblyReport.fail("no_placed_block", Map.of(), trace.getTrace()), null);
         }
 
         AssemblyContext safeContext = ensureContext(context);
         String requiredTrigger = AssemblyTriggerType.ON_FINAL_BLOCK_PLACED.id();
-
+        trace.add("trigger_requirement", true, "Required trigger selected", Map.of("trigger", requiredTrigger));
+        List<MultiblockCandidate> candidates = new ArrayList<>();
         for (MultiblockType type : manager.getTypesDeterministic()) {
             if (type == null) {
                 continue;
             }
-            String triggerId = normalize(type.assemblyTrigger());
+            String triggerId = resolveTriggerId(type);
             if (!normalize(requiredTrigger).equals(triggerId)) {
                 continue;
             }
-
-            AssemblyTrigger trigger = triggers.get(triggerId).orElse(null);
-            if (trigger == null || !trigger.supports(safeContext.intent()) || !trigger.shouldTrigger(safeContext)) {
-                continue;
-            }
-
             Set<Location> controllers = candidateControllersForPlacedBlock(placedBlock, type);
             for (Location loc : controllers) {
-                if (loc == null) {
-                    continue;
-                }
-                Block controller = loc.getBlock();
-                AssemblyAttempt attempt = tryAssembleTypeAtInternal(type, controller, safeContext, false);
-                if (attempt.report().result() == AssemblyReport.Result.SUCCESS) {
-                    remember(safeContext, attempt.report());
-                    logDebug(attempt.report(), controller.getLocation());
-                    return attempt.report();
+                if (loc != null) {
+                    candidates.add(new MultiblockCandidate(type, loc.getBlock(), triggerId, false));
                 }
             }
         }
-
-        AssemblyReport out = report(safeContext, requiredTrigger, true, true, AssemblyReport.MatcherResult.MISMATCH, AssemblyReport.Result.FAILED, "", "No multiblock matched");
-        remember(safeContext, out);
-        logDebug(out, placedBlock.getLocation());
-        return out;
+        return executePipeline(safeContext, candidates, trace, placedBlock.getLocation());
     }
 
-    private AssemblyAttempt tryAssembleTypeAtInternal(MultiblockType type, Block controller, AssemblyContext context, boolean forceTrigger) {
-        String triggerId = normalize(type.assemblyTrigger());
-        if (triggerId.isBlank()) {
-            triggerId = normalize(AssemblyTriggerType.WRENCH_USE.id());
-        }
-
-        AssemblyTrigger trigger = triggers.get(triggerId).orElse(null);
-        if (!forceTrigger && trigger == null) {
-            return new AssemblyAttempt(Optional.empty(), report(context, triggerId, false, true, AssemblyReport.MatcherResult.SKIPPED, AssemblyReport.Result.ABORTED, type.id(), "Unknown trigger"));
-        }
-
-        if (!forceTrigger && !trigger.supports(context == null ? null : context.intent())) {
-            return new AssemblyAttempt(Optional.empty(), report(context, triggerId, false, true, AssemblyReport.MatcherResult.SKIPPED, AssemblyReport.Result.ABORTED, type.id(), "Trigger not supported"));
-        }
-
-        boolean should = forceTrigger || trigger.shouldTrigger(context);
-        if (!should) {
-            return new AssemblyAttempt(Optional.empty(), report(context, triggerId, false, true, AssemblyReport.MatcherResult.SKIPPED, AssemblyReport.Result.ABORTED, type.id(), "Trigger not matched"));
-        }
-
-        if (!type.controllerMatcher().matches(controller)) {
-            return new AssemblyAttempt(Optional.empty(), report(context, triggerId, true, true, AssemblyReport.MatcherResult.MISMATCH, AssemblyReport.Result.FAILED, type.id(), "Controller mismatch"));
-        }
-
-        List<BlockFace> facings = facingCandidates(controller);
-        boolean matched = false;
-        for (BlockFace facing : facings) {
-            if (facing == null) {
+    private AssemblyReport executePipeline(
+            AssemblyContext context,
+            List<MultiblockCandidate> candidates,
+            AssemblyTraceCollector trace,
+            Location fallbackLocation
+    ) {
+        AssemblyPipelineContext pipelineContext = new AssemblyPipelineContext(context);
+        for (MultiblockCandidate candidate : candidates) {
+            if (candidate == null || candidate.type() == null || candidate.controller() == null) {
                 continue;
             }
-            if (patternMatches(controller, type, facing)) {
-                matched = true;
-                Optional<MultiblockInstance> created = manager.tryCreate(controller, type, context == null ? null : context.player());
-                if (created.isPresent()) {
-                    return new AssemblyAttempt(created, report(context, triggerId, true, true, AssemblyReport.MatcherResult.MATCH, AssemblyReport.Result.SUCCESS, type.id(), ""));
+            pipelineContext.resetForCandidate(candidate);
+            trace.add("candidate_select", true, "Evaluating candidate", Map.of(
+                    "multiblockId", candidate.type().id(),
+                    "trigger", candidate.triggerId()
+            ));
+            for (AssemblyStep step : pipelineSteps) {
+                AssemblyStepResult result = step.execute(pipelineContext, trace);
+                if (result.type() == AssemblyStepResultType.CONTINUE) {
+                    continue;
                 }
-                return new AssemblyAttempt(Optional.empty(), report(context, triggerId, true, true, AssemblyReport.MatcherResult.MATCH, AssemblyReport.Result.ABORTED, type.id(), "Creation cancelled"));
+                if (result.type() == AssemblyStepResultType.FAIL) {
+                    String reason = result.reasonKey() == null ? "assembly_failed" : result.reasonKey();
+                    AssemblyReport report = AssemblyReport.fail(reason, result.data(), trace.getTrace());
+                    return finalizeReport(context, report, candidate.controller().getLocation());
+                }
+                if (result.type() == AssemblyStepResultType.SUCCESS) {
+                    AssemblyReport report = AssemblyReport.success(trace.getTrace());
+                    return finalizeReport(context, report, candidate.controller().getLocation());
+                }
             }
         }
-
-        return new AssemblyAttempt(Optional.empty(), report(context, triggerId, true, true, matched ? AssemblyReport.MatcherResult.MATCH : AssemblyReport.MatcherResult.MISMATCH, AssemblyReport.Result.FAILED, type.id(), "Pattern mismatch"));
+        trace.add("pipeline_end", false, "No multiblock matched", Map.of());
+        AssemblyReport report = AssemblyReport.fail("no_multiblock_matched", Map.of(), trace.getTrace());
+        return finalizeReport(context, report, fallbackLocation);
     }
 
     private List<BlockFace> facingCandidates(Block controller) {
@@ -273,7 +302,7 @@ public final class AssemblyCoordinator {
     }
 
     private Set<Location> candidateControllersForPlacedBlock(Block placedBlock, MultiblockType type) {
-        Set<Location> out = new HashSet<>();
+        Set<Location> out = new LinkedHashSet<>();
         Location placed = placedBlock.getLocation();
 
         if (type.controllerMatcher().matches(placedBlock)) {
@@ -291,19 +320,6 @@ public final class AssemblyCoordinator {
         return out;
     }
 
-    private AssemblyReport report(AssemblyContext context, String trigger, boolean triggerMatched, boolean controllerFound, AssemblyReport.MatcherResult matcher, AssemblyReport.Result result, String multiblockId, String reason) {
-        return new AssemblyReport(
-                trigger == null ? "" : trigger,
-                triggerMatched,
-                controllerFound,
-                matcher == null ? AssemblyReport.MatcherResult.SKIPPED : matcher,
-                List.of(),
-                result == null ? AssemblyReport.Result.FAILED : result,
-                multiblockId == null ? "" : multiblockId,
-                reason == null ? "" : reason
-        );
-    }
-
     private AssemblyContext ensureContext(AssemblyContext context) {
         if (context == null) {
             InteractionIntent manualIntent = new InteractionIntent(
@@ -318,36 +334,63 @@ public final class AssemblyCoordinator {
         return context;
     }
 
-    private void remember(AssemblyContext context, AssemblyReport report) {
-        if (context == null || context.player() == null) {
-            return;
+    private AssemblyReport finalizeReport(AssemblyContext context, AssemblyReport report, Location controller) {
+        if (context != null && context.player() != null && report != null) {
+            reportService.store(context.player().getUniqueId(), report);
         }
-        lastReportByPlayer.put(context.player().getUniqueId(), report);
+        logDebug(report, controller, context);
+        return report;
     }
 
-    private void logDebug(AssemblyReport report, Location controller) {
+    private void logDebug(AssemblyReport report, Location controller, AssemblyContext context) {
         if (report == null) {
             return;
         }
         log.logInternal(new LogScope.Core(), LogPhase.RUNTIME, LogLevel.DEBUG, "Assembly attempt", null, new LogKv[] {
-                LogKv.kv("result", report.result().name()),
+                LogKv.kv("success", report.success()),
                 LogKv.kv("trigger", report.trigger()),
                 LogKv.kv("multiblock", report.multiblockId()),
-                LogKv.kv("reason", report.failureReason()),
+                LogKv.kv("reason", report.reasonKey()),
                 LogKv.kv("x", controller != null ? controller.getBlockX() : 0),
                 LogKv.kv("y", controller != null ? controller.getBlockY() : 0),
                 LogKv.kv("z", controller != null ? controller.getBlockZ() : 0)
         }, Set.of("assembly"));
+        if (!report.success()) {
+            log.warn(
+                    "assembly.failed",
+                    LogKv.kv("reason", report.reasonKey() == null ? "" : report.reasonKey()),
+                    LogKv.kv("player", context != null && context.player() != null ? context.player().getName() : "console")
+            );
+        }
+        if (assemblyDebugEnabled) {
+            int index = 1;
+            for (AssemblyStepTrace step : report.trace()) {
+                if (step == null) {
+                    continue;
+                }
+                log.logInternal(new LogScope.Core(), LogPhase.RUNTIME, LogLevel.DEBUG, "Assembly trace step", null, new LogKv[] {
+                        LogKv.kv("index", index++),
+                        LogKv.kv("step", step.step()),
+                        LogKv.kv("success", step.success()),
+                        LogKv.kv("detail", step.detail()),
+                        LogKv.kv("data", step.data())
+                }, Set.of("assembly", "trace"));
+            }
+        }
     }
 
     private String normalize(String id) {
         return (id == null ? "" : id.trim()).toLowerCase(Locale.ROOT);
     }
 
-    private record AssemblyAttempt(Optional<MultiblockInstance> instance, AssemblyReport report) {
-        private AssemblyAttempt {
-            instance = instance == null ? Optional.empty() : instance;
-            report = Objects.requireNonNull(report, "report");
+    private String resolveTriggerId(MultiblockType type) {
+        if (type == null) {
+            return "";
         }
+        String triggerId = normalize(type.assemblyTrigger());
+        if (triggerId.isBlank()) {
+            return normalize(AssemblyTriggerType.WRENCH_USE.id());
+        }
+        return triggerId;
     }
 }

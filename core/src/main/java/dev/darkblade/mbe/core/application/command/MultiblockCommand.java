@@ -20,6 +20,7 @@ import dev.darkblade.mbe.core.internal.tooling.export.ExportSession;
 import dev.darkblade.mbe.core.internal.tooling.export.SelectionService;
 import dev.darkblade.mbe.core.internal.tooling.export.StructureExporter;
 import dev.darkblade.mbe.api.assembly.AssemblyReport;
+import dev.darkblade.mbe.api.assembly.AssemblyStepTrace;
 import dev.darkblade.mbe.api.service.EntryType;
 import dev.darkblade.mbe.api.service.Inspectable;
 import dev.darkblade.mbe.api.service.InspectionData;
@@ -50,6 +51,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 public class MultiblockCommand implements CommandExecutor, TabCompleter {
@@ -65,6 +67,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
     private static final String PERM_ADMIN_BLUEPRINT = "multiblockengine.admin.blueprint";
     private static final String PERM_DEBUG_SESSION = "multiblockengine.debug.session";
     private static final String PERM_DEBUG_SERVICES = "multiblockengine.debug.services";
+    private static final String PERM_REPORT_CONSOLE = "mbe.debug.report.console";
 
     private static final MessageKey MSG_USAGE_CONSOLE = MessageKey.of(ORIGIN, "commands.usage.console");
     private static final MessageKey MSG_USAGE_PLAYER = MessageKey.of(ORIGIN, "commands.usage.player");
@@ -79,6 +82,10 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
     private static final MessageKey MSG_REPORT_TRIGGER = MessageKey.of(ORIGIN, "commands.report.trigger");
     private static final MessageKey MSG_REPORT_MULTIBLOCK = MessageKey.of(ORIGIN, "commands.report.multiblock");
     private static final MessageKey MSG_REPORT_REASON = MessageKey.of(ORIGIN, "commands.report.reason");
+    private static final MessageKey MSG_REPORT_DEBUG_TITLE = MessageKey.of(ORIGIN, "commands.report.debug_title");
+    private static final MessageKey MSG_REPORT_TRACE_TITLE = MessageKey.of(ORIGIN, "commands.report.trace_title");
+    private static final MessageKey MSG_REPORT_TRACE_LINE = MessageKey.of(ORIGIN, "commands.report.trace_line");
+    private static final MessageKey MSG_REPORT_DEBUG_LINE = MessageKey.of(ORIGIN, "commands.report.debug_line");
     private static final MessageKey MSG_REPORT_PLAYER_NOT_FOUND = MessageKey.of(ORIGIN, "commands.report.player_not_found");
     private static final MessageKey MSG_RELOAD_START = MessageKey.of(ORIGIN, "commands.reload.start");
     private static final MessageKey MSG_RELOAD_DONE_TYPES = MessageKey.of(ORIGIN, "commands.reload.done_types");
@@ -585,11 +592,34 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
     }
 
     private void handleReport(CommandSender sender, String[] args) {
+        boolean printInConsole = false;
+        String targetName = null;
+        if (args != null) {
+            for (int i = 1; i < args.length; i++) {
+                String raw = args[i];
+                if (raw == null || raw.isBlank()) {
+                    continue;
+                }
+                if ("--console".equalsIgnoreCase(raw)) {
+                    printInConsole = true;
+                    continue;
+                }
+                if (targetName == null) {
+                    targetName = raw;
+                }
+            }
+        }
+
+        if (printInConsole && sender instanceof Player && !sender.hasPermission(PERM_REPORT_CONSOLE)) {
+            send(sender, CoreMessageKeys.COMMAND_NO_PERMISSION);
+            return;
+        }
+
         Player target;
-        if (args.length >= 2 && args[1] != null && !args[1].isBlank()) {
-            target = org.bukkit.Bukkit.getPlayer(args[1]);
+        if (targetName != null && !targetName.isBlank()) {
+            target = org.bukkit.Bukkit.getPlayer(targetName);
             if (target == null) {
-                sender.sendMessage(Component.text(tr(sender, MSG_REPORT_PLAYER_NOT_FOUND, "player", args[1]), NamedTextColor.RED));
+                sender.sendMessage(Component.text(tr(sender, MSG_REPORT_PLAYER_NOT_FOUND, "player", targetName), NamedTextColor.RED));
                 return;
             }
         } else if (sender instanceof Player p) {
@@ -610,11 +640,43 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
+        sendReport(sender, report);
+        if (printInConsole) {
+            sendReport(org.bukkit.Bukkit.getConsoleSender(), report);
+        }
+    }
+
+    private void sendReport(CommandSender sender, AssemblyReport report) {
         sender.sendMessage(Component.text(tr(sender, MSG_REPORT_TITLE), NamedTextColor.AQUA));
-        sender.sendMessage(Component.text(tr(sender, MSG_REPORT_RESULT, "result", report.result().name()), NamedTextColor.GRAY));
-        sender.sendMessage(Component.text(tr(sender, MSG_REPORT_TRIGGER, "trigger", report.trigger()), NamedTextColor.GRAY));
-        sender.sendMessage(Component.text(tr(sender, MSG_REPORT_MULTIBLOCK, "multiblock", report.multiblockId()), NamedTextColor.GRAY));
-        sender.sendMessage(Component.text(tr(sender, MSG_REPORT_REASON, "reason", report.failureReason()), NamedTextColor.GRAY));
+        sender.sendMessage(Component.text(tr(sender, MSG_REPORT_RESULT, "result", report.success() ? "SUCCESS" : "FAILED"), NamedTextColor.GRAY));
+        if (report.reasonKey() != null && !report.reasonKey().isBlank()) {
+            sender.sendMessage(Component.text(tr(sender, MSG_REPORT_REASON, "reason", report.reasonKey()), NamedTextColor.GRAY));
+        }
+        sender.sendMessage(Component.text(tr(sender, MSG_REPORT_TRIGGER, "trigger", report.trigger()), NamedTextColor.DARK_GRAY));
+        sender.sendMessage(Component.text(tr(sender, MSG_REPORT_MULTIBLOCK, "multiblock", report.multiblockId()), NamedTextColor.DARK_GRAY));
+        sender.sendMessage(Component.text(tr(sender, MSG_REPORT_DEBUG_TITLE), NamedTextColor.GOLD));
+        if (report.debugData().isEmpty()) {
+            sender.sendMessage(Component.text(tr(sender, MSG_REPORT_DEBUG_LINE, "key", "-", "value", "-"), NamedTextColor.GRAY));
+        } else {
+            for (Map.Entry<String, Object> entry : report.debugData().entrySet()) {
+                sender.sendMessage(Component.text(tr(sender, MSG_REPORT_DEBUG_LINE, "key", entry.getKey(), "value", String.valueOf(entry.getValue())), NamedTextColor.GRAY));
+            }
+        }
+        sender.sendMessage(Component.text(tr(sender, MSG_REPORT_TRACE_TITLE), NamedTextColor.GOLD));
+        int i = 1;
+        for (AssemblyStepTrace step : report.trace()) {
+            if (step == null) {
+                continue;
+            }
+            sender.sendMessage(Component.text(tr(
+                    sender,
+                    MSG_REPORT_TRACE_LINE,
+                    "index", i++,
+                    "step", step.step(),
+                    "status", step.success() ? "OK" : "FAIL",
+                    "detail", step.detail()
+            ), step.success() ? NamedTextColor.GREEN : NamedTextColor.RED));
+        }
     }
 
     private void handleReload(CommandSender sender) {
@@ -980,6 +1042,39 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
 
         if (safeArgs.length == 2 && root.equals("inspect")) {
             return filter(List.of("player", "operator", "debug", "internal"), safeArgs[1]);
+        }
+
+        if (root.equals("report")) {
+            if (safeArgs.length == 2) {
+                List<String> out = new ArrayList<>();
+                for (Player player : org.bukkit.Bukkit.getOnlinePlayers()) {
+                    if (player == null || player.getName() == null || player.getName().isBlank()) {
+                        continue;
+                    }
+                    out.add(player.getName());
+                }
+                if (sender instanceof Player && sender.hasPermission(PERM_REPORT_CONSOLE)) {
+                    out.add("--console");
+                }
+                return filter(out, safeArgs[1]);
+            }
+            if (safeArgs.length == 3) {
+                if (!(sender instanceof Player) || !sender.hasPermission(PERM_REPORT_CONSOLE)) {
+                    return Collections.emptyList();
+                }
+                if ("--console".equalsIgnoreCase(safeArgs[1])) {
+                    List<String> out = new ArrayList<>();
+                    for (Player player : org.bukkit.Bukkit.getOnlinePlayers()) {
+                        if (player == null || player.getName() == null || player.getName().isBlank()) {
+                            continue;
+                        }
+                        out.add(player.getName());
+                    }
+                    return filter(out, safeArgs[2]);
+                }
+                return filter(List.of("--console"), safeArgs[2]);
+            }
+            return Collections.emptyList();
         }
 
         if (root.equals("export")) {

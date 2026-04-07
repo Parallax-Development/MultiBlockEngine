@@ -10,6 +10,7 @@ import dev.darkblade.mbe.api.i18n.message.CoreMessageKeys;
 import dev.darkblade.mbe.api.logging.CoreLogger;
 import dev.darkblade.mbe.api.logging.LogKv;
 import dev.darkblade.mbe.core.MultiBlockEngine;
+import dev.darkblade.mbe.core.application.service.limit.MultiblockLimitService;
 import dev.darkblade.mbe.core.application.service.MultiblockRuntimeService;
 import dev.darkblade.mbe.core.domain.MultiblockInstance;
 import dev.darkblade.mbe.core.domain.assembly.AssemblyCoordinator;
@@ -20,6 +21,7 @@ import org.bukkit.entity.Player;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 public final class AssemblyCommandService implements MbeCommandService {
@@ -29,8 +31,10 @@ public final class AssemblyCommandService implements MbeCommandService {
     private final MultiblockRuntimeService manager;
     private final I18nService i18n;
     private final CoreLogger log;
+    private final MultiBlockEngine plugin;
 
     public AssemblyCommandService(MultiBlockEngine plugin) {
+        this.plugin = plugin;
         this.assembly = plugin.getAssemblyCoordinator();
         this.manager = plugin.getManager();
         this.i18n = plugin.getAddonLifecycleService().getCoreService(I18nService.class);
@@ -133,17 +137,28 @@ public final class AssemblyCommandService implements MbeCommandService {
         log.info(
                 "Assembly command attempted",
                 LogKv.kv("player", player.getName()),
-                LogKv.kv("result", report.result().name()),
+                LogKv.kv("success", report.success()),
                 LogKv.kv("trigger", report.trigger()),
                 LogKv.kv("multiblock", report.multiblockId()),
-                LogKv.kv("reason", report.failureReason())
+                LogKv.kv("reason", report.reasonKey())
         );
-        if (report.result() == AssemblyReport.Result.SUCCESS) {
+        if (report.success()) {
             send(player, CoreMessageKeys.ASSEMBLE_OK, java.util.Map.of("id", report.multiblockId()));
             return;
         }
-        String reason = report.failureReason() == null || report.failureReason().isBlank() ? report.result().name() : report.failureReason();
-        send(player, CoreMessageKeys.ASSEMBLE_FAILED, java.util.Map.of("reason", reason));
+        if ("limit_reached".equalsIgnoreCase(report.reasonKey())) {
+            if (report.debugData().containsKey("current") && report.debugData().containsKey("max")) {
+                send(player, CoreMessageKeys.LIMIT_REACHED);
+            } else {
+                sendReasonFeedback(player, report.reasonKey());
+            }
+            return;
+        }
+        if (sendReasonFeedback(player, report.reasonKey())) {
+            return;
+        }
+        String reason = report.reasonKey() == null || report.reasonKey().isBlank() ? "unknown" : report.reasonKey();
+        send(player, CoreMessageKeys.ASSEMBLE_FAILED, Map.of("reason", reason));
     }
 
     public void executeDisassemble(Player player) {
@@ -185,6 +200,10 @@ public final class AssemblyCommandService implements MbeCommandService {
                 );
             }
         }
+        MultiblockLimitService limitService = resolveLimitService();
+        if (limitService != null) {
+            limitService.unregisterAssembly(player.getUniqueId(), instance.type().id());
+        }
         manager.destroyInstance(instance);
         log.info("Disassemble command succeeded", LogKv.kv("player", player.getName()), LogKv.kv("multiblock", instance.type().id()));
         send(player, CoreMessageKeys.DISASSEMBLED);
@@ -200,5 +219,25 @@ public final class AssemblyCommandService implements MbeCommandService {
         if (i18n != null) {
             i18n.send(sender, key, params);
         }
+    }
+
+    private MultiblockLimitService resolveLimitService() {
+        if (plugin.getAddonLifecycleService() == null) {
+            return null;
+        }
+        return plugin.getAddonLifecycleService().getCoreService(MultiblockLimitService.class);
+    }
+
+    private boolean sendReasonFeedback(Player player, String reasonKey) {
+        if (i18n == null || player == null || reasonKey == null || reasonKey.isBlank()) {
+            return false;
+        }
+        MessageKey key = MessageKey.of("mbe", "commands.error." + reasonKey);
+        String translated = i18n.tr(player, key);
+        if (translated == null || translated.isBlank() || translated.equals(key.path())) {
+            return false;
+        }
+        i18n.send(player, key);
+        return true;
     }
 }
