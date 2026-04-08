@@ -40,9 +40,6 @@ import dev.darkblade.mbe.core.infrastructure.i18n.YamlI18nService;
 import dev.darkblade.mbe.core.infrastructure.integration.MetadataInvalidationListener;
 import dev.darkblade.mbe.core.infrastructure.integration.MultiblockExpansion;
 import dev.darkblade.mbe.core.infrastructure.integration.PlaceholderCacheInvalidationListener;
-import dev.darkblade.mbe.core.platform.listener.EditorInputListener;
-import dev.darkblade.mbe.core.platform.listener.MultiblockListener;
-import dev.darkblade.mbe.core.platform.interaction.BukkitInteractionIntentFactory;
 import dev.darkblade.mbe.core.application.service.MultiblockRuntimeService;
 import dev.darkblade.mbe.core.application.service.editor.EditorSessionManager;
 import dev.darkblade.mbe.core.application.service.interaction.DefaultInteractionPipelineService;
@@ -70,7 +67,6 @@ import dev.darkblade.mbe.core.infrastructure.config.parser.MultiblockParser;
 import dev.darkblade.mbe.core.infrastructure.config.item.ItemConfigLoader;
 import dev.darkblade.mbe.core.infrastructure.config.parser.item.ItemConfigParser;
 import dev.darkblade.mbe.core.infrastructure.logging.LoggingService;
-import dev.darkblade.mbe.core.infrastructure.bridge.item.PdcItemStackBridge;
 import dev.darkblade.mbe.core.infrastructure.bridge.item.ItemStackBridge;
 import dev.darkblade.mbe.core.application.service.item.DefaultItemService;
 import dev.darkblade.mbe.core.application.service.port.DefaultPortResolutionService;
@@ -88,11 +84,8 @@ import dev.darkblade.mbe.core.infrastructure.persistence.FileInstanceStorage;
 import dev.darkblade.mbe.core.infrastructure.persistence.DefaultStorageRegistry;
 import dev.darkblade.mbe.core.infrastructure.persistence.FilePersistentStorageService;
 import dev.darkblade.mbe.preview.DisplayEntityRenderer;
-import dev.darkblade.mbe.preview.EntityIdAllocator;
-import dev.darkblade.mbe.preview.NoOpDisplayRenderer;
 import dev.darkblade.mbe.preview.PreviewBlockPlaceListener;
 import dev.darkblade.mbe.preview.PreviewSettings;
-import dev.darkblade.mbe.preview.ProtocolLibDisplayRenderer;
 import dev.darkblade.mbe.preview.StructurePreviewRequestListener;
 import dev.darkblade.mbe.preview.StructurePreviewService;
 import dev.darkblade.mbe.preview.StructurePreviewServiceImpl;
@@ -107,10 +100,12 @@ import dev.darkblade.mbe.uiengine.InventoryUIService;
 import dev.darkblade.mbe.uiengine.InventoryUIServiceImpl;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.event.Listener;
 import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
+import java.lang.reflect.Constructor;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -211,7 +206,7 @@ public class MultiBlockEngine extends JavaPlugin {
         DefaultItemService itemService = new DefaultItemService();
         loadConfiguredItems(itemService, log);
         addonManager.registerCoreService(ItemService.class, itemService);
-        ItemStackBridge itemStackBridge = new PdcItemStackBridge(itemService);
+        ItemStackBridge itemStackBridge = createItemStackBridge(itemService);
         addonManager.registerCoreService(ItemStackBridge.class, itemStackBridge);
         addonManager.registerCoreService(StorageRegistry.class, new DefaultStorageRegistry(log, storageExceptionHandler));
         addonManager.registerCoreService(PersistentStorageService.class, persistence);
@@ -270,9 +265,7 @@ public class MultiBlockEngine extends JavaPlugin {
         WrenchDispatcher wrenchDispatcher = new DefaultWrenchDispatcher(manager, itemStackBridge, i18n, assemblyCoordinator);
         addonManager.registerCoreService(WrenchDispatcher.class, wrenchDispatcher);
 
-        DisplayEntityRenderer displayRenderer = getServer().getPluginManager().getPlugin("ProtocolLib") != null
-            ? new ProtocolLibDisplayRenderer(new EntityIdAllocator())
-            : new NoOpDisplayRenderer();
+        DisplayEntityRenderer displayRenderer = createDisplayRenderer();
         PreviewSettings previewSettings = new PreviewSettings(
             getConfig().getInt("preview.batchSize", 30),
             getConfig().getInt("preview.raycastDistance", 8),
@@ -281,6 +274,8 @@ public class MultiBlockEngine extends JavaPlugin {
         );
         structurePreviewService = new StructurePreviewServiceImpl(this, displayRenderer, i18n, new UnknownValidationStrategy(), previewSettings);
         structurePreviewService.start();
+        addonManager.registerCoreService(DisplayEntityRenderer.class, displayRenderer);
+        registerPlatformPreviewRendererService(displayRenderer);
         addonManager.registerCoreService(StructurePreviewService.class, structurePreviewService);
         structureCatalogService = new StructureCatalogServiceImpl(manager);
         addonManager.registerCoreService(StructureCatalogService.class, structureCatalogService);
@@ -399,17 +394,10 @@ public class MultiBlockEngine extends JavaPlugin {
         // Register Listeners
         InteractionPipelineService interactionPipeline = addonManager.getCoreService(InteractionPipelineService.class);
         getServer().getPluginManager().registerEvents(
-                new MultiblockListener(
-                        manager,
-                        Bukkit.getPluginManager()::callEvent,
-                        assemblyCoordinator,
-                        i18n,
-                        interactionPipeline,
-                        new BukkitInteractionIntentFactory()
-                ),
+                createMultiblockListener(interactionPipeline, i18n),
                 this
         );
-        getServer().getPluginManager().registerEvents(new EditorInputListener(this, editorSessions), this);
+        getServer().getPluginManager().registerEvents(createEditorInputListener(), this);
         getServer().getPluginManager().registerEvents(new ExportInteractListener(exportSelections), this);
         getServer().getPluginManager().registerEvents(blueprintInputListener, this);
         getServer().getPluginManager().registerEvents(new PreviewPlacementController(blueprintController), this);
@@ -655,6 +643,98 @@ public class MultiBlockEngine extends JavaPlugin {
             return true;
         } catch (Throwable ignored) {
             return false;
+        }
+    }
+
+    private DisplayEntityRenderer createDisplayRenderer() {
+        if (getServer().getPluginManager().getPlugin("ProtocolLib") == null) {
+            return new DisplayEntityRenderer() {
+                @Override
+                public int spawnBlockDisplay(org.bukkit.entity.Player player, org.bukkit.Location location, org.bukkit.block.data.BlockData blockData) {
+                    return -1;
+                }
+
+                @Override
+                public void updateBlockDisplay(int entityId, org.bukkit.block.data.BlockData blockData) {
+                }
+
+                @Override
+                public void destroyEntities(org.bukkit.entity.Player player, Collection<Integer> entityIds) {
+                }
+            };
+        }
+        try {
+            Class<?> bridgeClass = Class.forName("dev.darkblade.mbe.platform.bukkit.preview.bridge.ProtocolLibLegacyRendererBridge");
+            return (DisplayEntityRenderer) bridgeClass.getConstructor().newInstance();
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Failed to initialize versioned ProtocolLib renderer bridge", e);
+        }
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private void registerPlatformPreviewRendererService(DisplayEntityRenderer displayRenderer) {
+        if (displayRenderer == null || addonManager == null) {
+            return;
+        }
+        try {
+            Class<?> bridgeType = Class.forName("dev.darkblade.mbe.platform.bukkit.preview.bridge.ProtocolLibLegacyRendererBridge");
+            if (!bridgeType.isInstance(displayRenderer)) {
+                return;
+            }
+            Object versionedRenderer = bridgeType.getMethod("delegate").invoke(displayRenderer);
+            Class<?> apiType = Class.forName("dev.darkblade.mbe.platform.bukkit.preview.api.BlockDisplayRenderer");
+            if (!apiType.isInstance(versionedRenderer)) {
+                return;
+            }
+            addonManager.registerCoreService((Class) apiType, versionedRenderer);
+        } catch (ReflectiveOperationException ignored) {
+        }
+    }
+
+    private ItemStackBridge createItemStackBridge(ItemService itemService) {
+        try {
+            Class<?> bridgeClass = Class.forName("dev.darkblade.mbe.core.infrastructure.bridge.item.PdcItemStackBridge");
+            Constructor<?> constructor = bridgeClass.getConstructor(ItemService.class);
+            return (ItemStackBridge) constructor.newInstance(itemService);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Failed to initialize Bukkit ItemStack bridge", e);
+        }
+    }
+
+    private Listener createEditorInputListener() {
+        try {
+            Class<?> listenerClass = Class.forName("dev.darkblade.mbe.core.platform.listener.EditorInputListener");
+            Constructor<?> constructor = listenerClass.getConstructor(MultiBlockEngine.class, EditorSessionManager.class);
+            return (Listener) constructor.newInstance(this, editorSessions);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Failed to initialize editor platform listener", e);
+        }
+    }
+
+    private Listener createMultiblockListener(InteractionPipelineService interactionPipeline, I18nService i18n) {
+        try {
+            Class<?> listenerClass = Class.forName("dev.darkblade.mbe.core.platform.listener.MultiblockListener");
+            Class<?> intentFactoryClass = Class.forName("dev.darkblade.mbe.core.platform.interaction.BukkitInteractionIntentFactory");
+            Object intentFactory = intentFactoryClass.getConstructor().newInstance();
+            Constructor<?> constructor = listenerClass.getConstructor(
+                    MultiblockRuntimeService.class,
+                    java.util.function.Consumer.class,
+                    AssemblyCoordinator.class,
+                    I18nService.class,
+                    InteractionPipelineService.class,
+                    intentFactoryClass
+            );
+            java.util.function.Consumer<org.bukkit.event.Event> eventCaller = Bukkit.getPluginManager()::callEvent;
+            return (Listener) constructor.newInstance(
+                    manager,
+                    eventCaller,
+                    assemblyCoordinator,
+                    i18n,
+                    interactionPipeline,
+                    intentFactory
+            );
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Failed to initialize multiblock platform listener", e);
         }
     }
 }

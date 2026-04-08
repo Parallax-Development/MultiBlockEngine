@@ -166,7 +166,6 @@ public class MultiblockListener implements Listener {
                 return;
             }
             
-            // Execute Break Actions
             for (dev.darkblade.mbe.core.domain.action.Action action : instance.type().onBreakActions()) {
                 executeActionSafely("BREAK", action, instance, null);
             }

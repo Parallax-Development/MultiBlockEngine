@@ -8,6 +8,9 @@ core:
     assembled: "Estructura formada: {type}"
     disassembled: "Estructura destruida: {type}"
     missing: "Faltan bloques: {missing}"
+    not_found: "No se encontró un multibloque en esta ubicación."
+    interaction:
+      denied: "No puedes realizar esta interacción con la wrench."
     inspect:
       title: "Estructura encontrada:"
       type: "Tipo: {type}"

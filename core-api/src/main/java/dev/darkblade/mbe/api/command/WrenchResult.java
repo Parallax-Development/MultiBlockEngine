@@ -1,27 +1,53 @@
 package dev.darkblade.mbe.api.command;
 
-import dev.darkblade.mbe.api.i18n.MessageKey;
-import org.jetbrains.annotations.Nullable;
-
 import java.util.Map;
 
 public record WrenchResult(
-        boolean handled,
-        boolean cancelEvent,
-        @Nullable MessageKey message,
-        Map<String, ?> params
+        WrenchResultType type,
+        String messageKey,
+        Map<String, Object> context
 ) {
 
-    public static WrenchResult notHandled() {
-        return new WrenchResult(false, false, null, Map.of());
+    public WrenchResult {
+        if (type == null) {
+            throw new IllegalArgumentException("type");
+        }
+        if (context == null) {
+            context = Map.of();
+        } else {
+            context = Map.copyOf(context);
+        }
     }
 
-    public static WrenchResult handled(boolean cancelEvent) {
-        return new WrenchResult(true, cancelEvent, null, Map.of());
+    public static WrenchResult success(String key) {
+        return new WrenchResult(WrenchResultType.SUCCESS, key, Map.of());
     }
 
-    public static WrenchResult handled(MessageKey message, Map<String, ?> params, boolean cancelEvent) {
-        return new WrenchResult(true, cancelEvent, message, params == null ? Map.of() : params);
+    public static WrenchResult success(String key, Map<String, Object> context) {
+        return new WrenchResult(WrenchResultType.SUCCESS, key, context);
+    }
+
+    public static WrenchResult fail(String key) {
+        return new WrenchResult(WrenchResultType.FAIL, key, Map.of());
+    }
+
+    public static WrenchResult fail(String key, Map<String, Object> context) {
+        return new WrenchResult(WrenchResultType.FAIL, key, context);
+    }
+
+    public static WrenchResult pass() {
+        return new WrenchResult(WrenchResultType.PASS, null, Map.of());
+    }
+
+    public boolean isSuccess() {
+        return type == WrenchResultType.SUCCESS;
+    }
+
+    public boolean isFail() {
+        return type == WrenchResultType.FAIL;
+    }
+
+    public boolean isPass() {
+        return type == WrenchResultType.PASS;
     }
 }
-

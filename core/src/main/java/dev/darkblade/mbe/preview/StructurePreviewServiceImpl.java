@@ -2,6 +2,7 @@ package dev.darkblade.mbe.preview;
 
 import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.MessageKey;
+import dev.darkblade.mbe.api.service.InjectService;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
@@ -26,7 +27,9 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
     private static final MessageKey MSG_PREVIEW_COMPLETED = MessageKey.of(ORIGIN, "core.preview.completed");
 
     private final JavaPlugin plugin;
-    private final DisplayEntityRenderer renderer;
+    @InjectService
+    private DisplayEntityRenderer injectedRenderer;
+    private final DisplayEntityRenderer fallbackRenderer;
     private final I18nService i18n;
     private final PreviewSessionManager sessions;
     private final PreviewValidationStrategy validationStrategy;
@@ -45,7 +48,7 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
         PreviewSettings settings
     ) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
-        this.renderer = Objects.requireNonNull(renderer, "renderer");
+        this.fallbackRenderer = Objects.requireNonNull(renderer, "renderer");
         this.i18n = i18n;
         this.validationStrategy = Objects.requireNonNull(validationStrategy, "validationStrategy");
         this.sessions = new PreviewSessionManager();
@@ -150,7 +153,7 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
         }
         List<Integer> ids = collectEntityIds(session);
         if (!ids.isEmpty()) {
-            renderer.destroyEntities(player, ids);
+            renderer().destroyEntities(player, ids);
         }
         session.clearBlocks();
         if (notifyCancelled) {
@@ -211,7 +214,7 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
         if (!session.markCompleted(position)) {
             return;
         }
-        renderer.destroyEntities(player, List.of(previewBlock.entityId()));
+        renderer().destroyEntities(player, List.of(previewBlock.entityId()));
         session.touch();
         if (session.isCompleted()) {
             destroyPreview(player, false);
@@ -222,7 +225,7 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
     private void rerender(Player player, PreviewSession session) {
         List<Integer> ids = collectEntityIds(session);
         if (!ids.isEmpty()) {
-            renderer.destroyEntities(player, ids);
+            renderer().destroyEntities(player, ids);
         }
         session.clearBlocks();
         queueSpawn(player, session, session.nextRenderVersion());
@@ -275,14 +278,14 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
             if (active.currentRenderVersion() != task.renderVersion()) {
                 continue;
             }
-            int entityId = renderer.spawnBlockDisplay(player, task.worldLocation(), task.blockData());
+            int entityId = renderer().spawnBlockDisplay(player, task.worldLocation(), task.blockData());
             if (entityId > 0) {
                 SessionPreviewBlock previous = active.blocks().get(task.blockPosition());
                 if (previous != null && previous.completed()) {
-                    renderer.destroyEntities(player, List.of(entityId));
+                    renderer().destroyEntities(player, List.of(entityId));
                 } else {
                     if (previous != null && previous.entityId() > 0 && previous.entityId() != entityId) {
-                        renderer.destroyEntities(player, List.of(previous.entityId()));
+                        renderer().destroyEntities(player, List.of(previous.entityId()));
                     }
                     active.trackBlock(task.blockPosition(), new SessionPreviewBlock(task.blockData(), entityId, previous != null && previous.completed()));
                 }
@@ -368,5 +371,9 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
             i18n.send(player, key);
         } catch (Throwable ignored) {
         }
+    }
+
+    private DisplayEntityRenderer renderer() {
+        return injectedRenderer == null ? fallbackRenderer : injectedRenderer;
     }
 }
