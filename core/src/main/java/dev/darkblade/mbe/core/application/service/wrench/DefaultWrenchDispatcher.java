@@ -44,6 +44,7 @@ import dev.darkblade.mbe.core.domain.rule.AnyOfMatcher;
 import dev.darkblade.mbe.core.domain.rule.BlockDataMatcher;
 import dev.darkblade.mbe.core.domain.rule.ExactMaterialMatcher;
 import dev.darkblade.mbe.core.domain.rule.TagMatcher;
+import dev.darkblade.mbe.core.domain.interaction.pipeline.WrenchPipelineStage;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -75,11 +76,12 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
     public static final ItemKey WRENCH_KEY = ItemKeys.of("mbe:wrench", 0);
 
     private static final String ORIGIN = "mbe";
-    //private static final MessageKey MSG_WRENCH_REQUIRED = MessageKey.of(ORIGIN, "core.wrench.required");
-    private static final MessageKey MSG_ASSEMBLED = MessageKey.of(ORIGIN, "core.wrench.assembled");
-    private static final MessageKey MSG_DISASSEMBLED = MessageKey.of(ORIGIN, "core.wrench.disassembled");
-    private static final MessageKey MSG_COOLDOWN = MessageKey.of(ORIGIN, "core.wrench.cooldown");
-    private static final MessageKey MSG_MISSING = MessageKey.of(ORIGIN, "core.wrench.missing");
+    private static final String MSG_ASSEMBLED = "core.wrench.assembled";
+    private static final String MSG_DISASSEMBLED = "core.wrench.disassembled";
+    private static final String MSG_COOLDOWN = "core.wrench.cooldown";
+    private static final String MSG_MISSING = "core.wrench.missing";
+    private static final String MSG_NOT_FOUND = "core.wrench.not_found";
+    private static final String MSG_INTERACTION_DENIED = "core.wrench.interaction.denied";
     private static final MessageKey MSG_INSPECT_TITLE = MessageKey.of(ORIGIN, "core.wrench.inspect.title");
     private static final MessageKey MSG_INSPECT_TYPE = MessageKey.of(ORIGIN, "core.wrench.inspect.type");
     private static final MessageKey MSG_INSPECT_STATE = MessageKey.of(ORIGIN, "core.wrench.inspect.state");
@@ -100,8 +102,11 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
     private final AssemblyCoordinator assembly;
     private final Map<String, WrenchInteractable> actions = new ConcurrentHashMap<>();
     private final Map<java.util.UUID, Instant> cooldowns = new ConcurrentHashMap<>();
+    private final List<WrenchPipelineStage> pipeline = new ArrayList<>();
+    private final WrenchConditionService conditionService = new WrenchConditionService();
 
     private static final Duration COOLDOWN = Duration.ofMillis(500);
+    private WrenchInteractable resolvedInteractable;
 
     public DefaultWrenchDispatcher(MultiblockRuntimeService manager, ItemStackBridge itemStackBridge, I18nService i18n) {
         this(manager, itemStackBridge, i18n, null, Bukkit.getPluginManager()::callEvent);
@@ -121,6 +126,10 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
         this.i18n = i18n;
         this.assembly = assembly;
         this.eventCaller = Objects.requireNonNull(eventCaller, "eventCaller");
+        this.pipeline.add(new PreValidationStage());
+        this.pipeline.add(new ConditionEvaluationStage());
+        this.pipeline.add(new InteractionResolutionStage());
+        this.pipeline.add(new ExecutionStage());
     }
 
     @Override
@@ -134,87 +143,49 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
     @Override
     public WrenchResult dispatch(WrenchContext context) {
         Objects.requireNonNull(context, "context");
-
         Block block = context.clickedBlock();
-        Player player = context.player();
-        org.bukkit.event.block.Action action = context.action();
-
         Optional<MultiblockInstance> instanceOpt = manager.getInstanceAt(block.getLocation());
-        boolean isWrench = isWrench(context.item());
-
-        if (isWrench && player != null && (action == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK || action == org.bukkit.event.block.Action.LEFT_CLICK_BLOCK)) {
-            if (!tryAcquireCooldown(player)) {
-                send(player, MSG_COOLDOWN, Map.of("s", cooldownSecondsLabel(player)));
-                return WrenchResult.handled(true);
-            }
+        if (!isWrench(context.item())) {
+            return handleNonWrenchInteraction(context, instanceOpt.orElse(null));
         }
-
-        if (instanceOpt.isPresent()) {
-            if (isWrench) {
-                WrenchResult addonHandled = dispatchAddonActions(context);
-                if (addonHandled != null && addonHandled.handled()) {
-                    if (addonHandled.message() != null) {
-                        send(player, addonHandled.message(), addonHandled.params());
-                    }
-                    return addonHandled;
+        try {
+            for (WrenchPipelineStage stage : pipeline) {
+                debugStage(stage);
+                WrenchResult result = safeProcessStage(stage, context);
+                debugResult(result);
+                if (!result.isPass()) {
+                    handleResult(context.player(), result);
+                    incrementWrenchInteractionMetric();
+                    return result;
                 }
             }
-
-            return handleInstanceUse(player, block, action, instanceOpt.get(), isWrench);
+        } finally {
+            resolvedInteractable = null;
         }
+        return WrenchResult.pass();
+    }
 
-        if (action != org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) {
-            return WrenchResult.notHandled();
+    private WrenchResult safeProcessStage(WrenchPipelineStage stage, WrenchContext context) {
+        try {
+            WrenchResult result = stage.process(context);
+            return result == null ? WrenchResult.pass() : result;
+        } catch (Throwable t) {
+            safeLogAddonActionError(t);
+            return WrenchResult.fail(MSG_INTERACTION_DENIED);
         }
+    }
 
-        boolean controllerCandidate = isControllerBlock(block);
-
-        if (!isWrench) {
-            if (controllerCandidate) {
-                return WrenchResult.handled(false);
-            }
-            return WrenchResult.notHandled();
+    private WrenchResult handleNonWrenchInteraction(WrenchContext context, MultiblockInstance instance) {
+        if (instance == null || context.action() != org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) {
+            return WrenchResult.pass();
         }
-
-        WrenchResult addonHandled = dispatchAddonActions(context);
-        if (addonHandled != null && addonHandled.handled()) {
-            if (addonHandled.message() != null) {
-                send(player, addonHandled.message(), addonHandled.params());
-            }
-            if (controllerCandidate && !addonHandled.cancelEvent()) {
-                return new WrenchResult(true, true, addonHandled.message(), addonHandled.params());
-            }
-            return addonHandled;
-        }
-
-        AssemblyReport assembled = tryAssemble(block, context);
-        if (assembled != null && assembled.result() == AssemblyReport.Result.SUCCESS && assembled.multiblockId() != null && !assembled.multiblockId().isBlank()) {
-            send(player, MSG_ASSEMBLED, Map.of("type", assembled.multiblockId()));
-            playSuccess(player, block.getLocation());
-            return WrenchResult.handled(true);
-        }
-
-        String missing = formatMissingForBestMatch(block);
-        if (!missing.isBlank()) {
-            send(player, MSG_MISSING, Map.of("missing", missing));
-            playFailure(player, block.getLocation());
-            return WrenchResult.handled(true);
-        }
-
-        if (controllerCandidate) {
-            return WrenchResult.handled(true);
-        }
-
-        if (isTillableSoil(block)) {
-            return WrenchResult.handled(true);
-        }
-
-        return WrenchResult.notHandled();
+        boolean cancelled = runInteractActions(instance, context.player(), context.clickedBlock(), context.action());
+        return cancelled ? WrenchResult.success(null) : WrenchResult.pass();
     }
 
     private WrenchResult dispatchAddonActions(WrenchContext context) {
         if (actions.isEmpty()) {
-            return null;
+            return WrenchResult.pass();
         }
         Map<String, WrenchInteractable> snapshot = new LinkedHashMap<>(actions);
         for (WrenchInteractable interactable : snapshot.values()) {
@@ -228,60 +199,243 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
                 safeLogAddonActionError(t);
                 continue;
             }
-            if (r != null && r.handled()) {
+            if (r != null && !r.isPass()) {
                 return r;
             }
         }
-        return null;
+        return WrenchResult.pass();
     }
 
-    private WrenchResult handleInstanceUse(Player player, Block block, org.bukkit.event.block.Action action, MultiblockInstance instance, boolean isWrench) {
-        if (isWrench && player != null) {
-            if (action == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK && player.isSneaking()) {
-                inspect(player, instance);
-                playInspect(player, block.getLocation());
-                return WrenchResult.handled(true);
+    private WrenchInteractable resolveBuiltInInteractable(WrenchContext context) {
+        Block block = context.clickedBlock();
+        Player player = context.player();
+        org.bukkit.event.block.Action action = context.action();
+        Optional<MultiblockInstance> instanceOpt = manager.getInstanceAt(block.getLocation());
+        if (instanceOpt.isPresent()) {
+            MultiblockInstance instance = instanceOpt.get();
+            if (player != null && action == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK && player.isSneaking()) {
+                return ctx -> {
+                    inspect(player, instance);
+                    playInspect(player, block.getLocation());
+                    return WrenchResult.success(null);
+                };
             }
-            if (action == org.bukkit.event.block.Action.LEFT_CLICK_BLOCK && player.isSneaking() && isAnchorBlock(block, instance)) {
-                Optional<MultiblockInstance> switched = manager.switchVariant(instance, player);
-                if (switched.isPresent()) {
-                    playSuccess(player, block.getLocation());
-                } else {
+            if (player != null && action == org.bukkit.event.block.Action.LEFT_CLICK_BLOCK && player.isSneaking() && isAnchorBlock(block, instance)) {
+                return ctx -> {
+                    Optional<MultiblockInstance> switched = manager.switchVariant(instance, player);
+                    if (switched.isPresent()) {
+                        playSuccess(player, block.getLocation());
+                        return WrenchResult.success(null);
+                    }
                     playFailure(player, block.getLocation());
-                }
-                return WrenchResult.handled(true);
+                    return WrenchResult.fail(MSG_NOT_FOUND);
+                };
             }
             if (action == org.bukkit.event.block.Action.LEFT_CLICK_BLOCK && isAnchorBlock(block, instance)) {
-                boolean destroyed = disassemble(player, instance);
-                if (destroyed) {
-                    send(player, MSG_DISASSEMBLED, Map.of("type", instance.type().id()));
-                    playDisassemble(player, block.getLocation());
+                return ctx -> disassembleInteractable(ctx, instance);
+            }
+            if (action == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) {
+                return ctx -> runInteractActions(instance, player, block, action) ? WrenchResult.success(null) : WrenchResult.pass();
+            }
+            return null;
+        }
+        if (action == org.bukkit.event.block.Action.LEFT_CLICK_BLOCK) {
+            return ctx -> WrenchResult.fail(MSG_NOT_FOUND);
+        }
+        if (action != org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) {
+            return null;
+        }
+        return ctx -> assembleOrFeedback(ctx);
+    }
+
+    private WrenchResult assembleOrFeedback(WrenchContext context) {
+        Block block = context.clickedBlock();
+        Player player = context.player();
+        AssemblyReport assembled = tryAssemble(block, context);
+        if (assembled != null && assembled.result() == AssemblyReport.Result.SUCCESS && assembled.multiblockId() != null && !assembled.multiblockId().isBlank()) {
+            playSuccess(player, block.getLocation());
+            return WrenchResult.success(MSG_ASSEMBLED, Map.of("type", assembled.multiblockId()));
+        }
+        String missing = formatMissingForBestMatch(block);
+        if (!missing.isBlank()) {
+            playFailure(player, block.getLocation());
+            return WrenchResult.fail(MSG_MISSING, Map.of("missing", missing));
+        }
+        if (isControllerBlock(block) || isTillableSoil(block)) {
+            return WrenchResult.success(null);
+        }
+        return WrenchResult.pass();
+    }
+
+    private WrenchResult disassembleInteractable(WrenchContext context, MultiblockInstance instance) {
+        Player player = context.player();
+        if (instance == null) {
+            return WrenchResult.fail(MSG_NOT_FOUND);
+        }
+        boolean destroyed = disassemble(player, instance);
+        if (!destroyed) {
+            return WrenchResult.fail(MSG_NOT_FOUND);
+        }
+        playDisassemble(player, context.clickedBlock().getLocation());
+        return WrenchResult.success(MSG_DISASSEMBLED, Map.of("type", safe(instance.type().id())));
+    }
+
+    private boolean runInteractActions(MultiblockInstance instance, Player player, Block block, org.bukkit.event.block.Action action) {
+        MultiblockInteractEvent mbEvent = new MultiblockInteractEvent(instance, player, action, block);
+        eventCaller.accept(mbEvent);
+        if (mbEvent.isCancelled()) {
+            return true;
+        }
+        boolean cancelVanilla = false;
+        for (Action a : instance.type().onInteractActions()) {
+            if (a != null && a.shouldExecuteOnInteract(action)) {
+                if (a.cancelsVanillaOnInteract(action)) {
+                    cancelVanilla = true;
                 }
-                return WrenchResult.handled(true);
+                executeActionSafely("INTERACT", a, instance, player);
             }
         }
+        return cancelVanilla;
+    }
 
-        if (action == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) {
-            MultiblockInteractEvent mbEvent = new MultiblockInteractEvent(instance, player, action, block);
-            eventCaller.accept(mbEvent);
-            if (mbEvent.isCancelled()) {
-                return WrenchResult.handled(true);
+    private void handleResult(Player player, WrenchResult result) {
+        if (result == null || result.isPass()) {
+            return;
+        }
+        if (!result.isSuccess() && !result.isFail()) {
+            return;
+        }
+        if (result.messageKey() == null || result.messageKey().isBlank()) {
+            return;
+        }
+        send(player, result.messageKey(), result.context());
+    }
+
+    private void incrementWrenchInteractionMetric() {
+        try {
+            manager.getMetrics().increment("wrench.interactions");
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private void debugStage(WrenchPipelineStage stage) {
+        MultiBlockEngine plugin = MultiBlockEngine.getInstance();
+        CoreLogger core = plugin != null && plugin.getLoggingService() != null ? plugin.getLoggingService().core() : null;
+        if (core == null) {
+            return;
+        }
+        core.debug(
+                "Wrench stage",
+                LogKv.kv("stage", stage == null ? "unknown" : stage.getClass().getSimpleName())
+        );
+    }
+
+    private void debugResult(WrenchResult result) {
+        MultiBlockEngine plugin = MultiBlockEngine.getInstance();
+        CoreLogger core = plugin != null && plugin.getLoggingService() != null ? plugin.getLoggingService().core() : null;
+        if (core == null || result == null) {
+            return;
+        }
+        core.debug(
+                "Wrench result",
+                LogKv.kv("type", result.type().name()),
+                LogKv.kv("messageKey", result.messageKey() == null ? "" : result.messageKey())
+        );
+    }
+
+    private final class PreValidationStage implements WrenchPipelineStage {
+        @Override
+        public WrenchResult process(WrenchContext context) {
+            if (context == null || context.clickedBlock() == null || context.player() == null) {
+                return WrenchResult.pass();
             }
+            org.bukkit.event.block.Action action = context.action();
+            if (action != org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK && action != org.bukkit.event.block.Action.LEFT_CLICK_BLOCK) {
+                return WrenchResult.pass();
+            }
+            if (!tryAcquireCooldown(context.player())) {
+                return WrenchResult.fail(MSG_COOLDOWN, Map.of("s", cooldownSecondsLabel(context.player())));
+            }
+            return WrenchResult.pass();
+        }
+    }
 
-            boolean cancelVanilla = false;
-            for (Action a : instance.type().onInteractActions()) {
-                if (a != null && a.shouldExecuteOnInteract(action)) {
-                    if (a.cancelsVanillaOnInteract(action)) {
-                        cancelVanilla = true;
+    private final class ConditionEvaluationStage implements WrenchPipelineStage {
+        @Override
+        public WrenchResult process(WrenchContext context) {
+            if (context == null) {
+                return WrenchResult.pass();
+            }
+            Optional<MultiblockInstance> instance = manager.getInstanceAt(context.clickedBlock().getLocation());
+            if (conditionService.evaluate(context, instance.orElse(null))) {
+                return WrenchResult.pass();
+            }
+            return WrenchResult.fail(MSG_INTERACTION_DENIED);
+        }
+    }
+
+    private final class InteractionResolutionStage implements WrenchPipelineStage {
+        @Override
+        public WrenchResult process(WrenchContext context) {
+            WrenchResult addonResult = dispatchAddonActions(context);
+            if (!addonResult.isPass()) {
+                resolvedInteractable = null;
+                return addonResult;
+            }
+            resolvedInteractable = resolveBuiltInInteractable(context);
+            return WrenchResult.pass();
+        }
+    }
+
+    private final class ExecutionStage implements WrenchPipelineStage {
+        @Override
+        public WrenchResult process(WrenchContext context) {
+            if (resolvedInteractable == null) {
+                return WrenchResult.pass();
+            }
+            WrenchResult result = resolvedInteractable.onWrenchUse(context);
+            resolvedInteractable = null;
+            return result == null ? WrenchResult.pass() : result;
+        }
+    }
+
+    private static final class WrenchConditionService {
+        private final List<Map<String, String>> conditions;
+
+        private WrenchConditionService() {
+            this.conditions = List.of(Map.of("type", "player_permission", "permission", "mbe.disassemble"));
+        }
+
+        private boolean evaluate(WrenchContext context, MultiblockInstance instance) {
+            if (!isDisassembleIntent(context, instance)) {
+                return true;
+            }
+            for (Map<String, String> condition : conditions) {
+                String type = condition.get("type");
+                if ("player_permission".equalsIgnoreCase(type)) {
+                    String permission = condition.get("permission");
+                    if (permission == null || permission.isBlank()) {
+                        continue;
                     }
-                    executeActionSafely("INTERACT", a, instance, player);
+                    Player player = context.player();
+                    if (player == null || !player.hasPermission(permission)) {
+                        return false;
+                    }
                 }
             }
-
-            return WrenchResult.handled(cancelVanilla);
+            return true;
         }
 
-        return WrenchResult.notHandled();
+        private boolean isDisassembleIntent(WrenchContext context, MultiblockInstance instance) {
+            if (context == null || context.action() != org.bukkit.event.block.Action.LEFT_CLICK_BLOCK) {
+                return false;
+            }
+            Block block = context.clickedBlock();
+            if (block == null || instance == null || instance.anchorLocation() == null) {
+                return false;
+            }
+            return block.getLocation().equals(instance.anchorLocation());
+        }
     }
 
     private AssemblyReport tryAssemble(Block controller, WrenchContext context) {
@@ -710,6 +864,28 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
         }
         ItemKey key = instance.definition().key();
         return WRENCH_KEY.equals(key);
+    }
+
+    private void send(Player player, String messageKey, Map<String, Object> params) {
+        if (messageKey == null || messageKey.isBlank()) {
+            return;
+        }
+        MessageKey key = resolveMessageKey(messageKey);
+        if (key == null) {
+            return;
+        }
+        send(player, key, params);
+    }
+
+    private MessageKey resolveMessageKey(String messageKey) {
+        if (messageKey == null || messageKey.isBlank()) {
+            return null;
+        }
+        int idx = messageKey.indexOf(':');
+        if (idx > 0 && idx < messageKey.length() - 1) {
+            return MessageKey.of(messageKey.substring(0, idx), messageKey.substring(idx + 1));
+        }
+        return MessageKey.of(ORIGIN, messageKey);
     }
 
     private void send(Player player, MessageKey key, Map<String, ?> params) {

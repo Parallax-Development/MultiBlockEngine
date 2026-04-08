@@ -59,7 +59,7 @@ public final class DefaultInteractionPipelineService implements InteractionPipel
                         org.bukkit.inventory.EquipmentSlot.HAND
                 );
                 WrenchResult result = wrenchDispatcher.dispatch(ctx);
-                if (result != null && result.cancelEvent()) {
+                if (result != null && !result.isPass()) {
                     cancelVanilla = true;
                 }
             }

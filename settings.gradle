@@ -6,3 +6,4 @@ rootProject.name = 'MultiBlockEngine'
 
 include 'core'
 include 'core-api'
+include 'platform-bukkit'
