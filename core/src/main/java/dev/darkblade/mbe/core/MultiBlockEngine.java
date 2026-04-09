@@ -15,7 +15,11 @@ import dev.darkblade.mbe.api.i18n.LocaleProvider;
 import dev.darkblade.mbe.api.blueprint.BlueprintService;
 import dev.darkblade.mbe.api.service.InspectionPipelineService;
 import dev.darkblade.mbe.api.service.interaction.InteractionPipelineService;
+import dev.darkblade.mbe.api.io.IOService;
+import dev.darkblade.mbe.api.io.IOTickService;
+import dev.darkblade.mbe.api.tool.mode.ToolModeRegistry;
 import dev.darkblade.mbe.api.wiring.PortResolutionService;
+import dev.darkblade.mbe.api.wiring.NetworkService;
 import dev.darkblade.mbe.api.command.WrenchDispatcher;
 import dev.darkblade.mbe.api.persistence.PersistentStorageService;
 import dev.darkblade.mbe.api.persistence.StorageExceptionHandler;
@@ -40,6 +44,7 @@ import dev.darkblade.mbe.core.infrastructure.i18n.YamlI18nService;
 import dev.darkblade.mbe.core.infrastructure.integration.MetadataInvalidationListener;
 import dev.darkblade.mbe.core.infrastructure.integration.MultiblockExpansion;
 import dev.darkblade.mbe.core.infrastructure.integration.PlaceholderCacheInvalidationListener;
+import dev.darkblade.mbe.core.infrastructure.integration.IOPortLifecycleListener;
 import dev.darkblade.mbe.core.application.service.MultiblockRuntimeService;
 import dev.darkblade.mbe.core.application.service.editor.EditorSessionManager;
 import dev.darkblade.mbe.core.application.service.interaction.DefaultInteractionPipelineService;
@@ -70,7 +75,24 @@ import dev.darkblade.mbe.core.infrastructure.logging.LoggingService;
 import dev.darkblade.mbe.core.infrastructure.bridge.item.ItemStackBridge;
 import dev.darkblade.mbe.core.application.service.item.DefaultItemService;
 import dev.darkblade.mbe.core.application.service.port.DefaultPortResolutionService;
+import dev.darkblade.mbe.core.application.service.io.DefaultIOService;
+import dev.darkblade.mbe.core.application.service.io.DefaultIOTickService;
+import dev.darkblade.mbe.core.application.service.tool.DefaultToolModeRegistry;
+import dev.darkblade.mbe.core.application.service.tool.ToolModeContextResolver;
+import dev.darkblade.mbe.core.application.service.tool.ToolModeExecutionService;
+import dev.darkblade.mbe.core.application.service.tool.ToolModeMetricsService;
+import dev.darkblade.mbe.core.application.service.tool.ToolSessionService;
+import dev.darkblade.mbe.core.application.service.tool.WireCutterTool;
+import dev.darkblade.mbe.core.application.service.tool.WrenchTool;
+import dev.darkblade.mbe.core.application.service.tool.mode.ConfigureChannelMode;
+import dev.darkblade.mbe.core.application.service.tool.mode.ConfigureIOMode;
+import dev.darkblade.mbe.core.application.service.tool.mode.DebugIOMode;
+import dev.darkblade.mbe.core.application.service.tool.mode.DebugWiringMode;
+import dev.darkblade.mbe.core.application.service.tool.mode.DisconnectNodesMode;
+import dev.darkblade.mbe.core.application.service.tool.mode.LinkPortsMode;
+import dev.darkblade.mbe.core.application.service.tool.mode.SplitNetworkMode;
 import dev.darkblade.mbe.core.application.service.wrench.DefaultWrenchDispatcher;
+import dev.darkblade.mbe.core.application.service.wiring.DefaultNetworkService;
 import dev.darkblade.mbe.core.internal.inspection.DefaultInspectionPipelineService;
 import dev.darkblade.mbe.api.command.ExportHookRegistry;
 import dev.darkblade.mbe.core.internal.tooling.export.DefaultExportHookRegistry;
@@ -239,7 +261,43 @@ public class MultiBlockEngine extends JavaPlugin {
 
         addonManager.registerCoreService(InspectionPipelineService.class, new DefaultInspectionPipelineService());
 
-        addonManager.registerCoreService(PortResolutionService.class, new DefaultPortResolutionService());
+        PortResolutionService portResolutionService = new DefaultPortResolutionService();
+        addonManager.registerCoreService(PortResolutionService.class, portResolutionService);
+        IOService ioService = new DefaultIOService(persistence);
+        IOTickService ioTickService = new DefaultIOTickService(ioService);
+        NetworkService networkService = new DefaultNetworkService(Bukkit.getPluginManager()::callEvent);
+        ToolModeRegistry toolModeRegistry = new DefaultToolModeRegistry();
+        ToolSessionService toolSessionService = new ToolSessionService();
+        ToolModeMetricsService toolModeMetricsService = new ToolModeMetricsService();
+        ToolModeContextResolver toolModeContextResolver = new ToolModeContextResolver(manager, ioService, networkService);
+        ToolModeExecutionService toolModeExecutionService = new ToolModeExecutionService(
+                itemStackBridge,
+                toolModeRegistry,
+                toolSessionService,
+                toolModeMetricsService,
+                Bukkit.getPluginManager()::callEvent
+        );
+        addonManager.registerCoreService(IOService.class, ioService);
+        addonManager.registerCoreService(IOTickService.class, ioTickService);
+        addonManager.registerCoreService(NetworkService.class, networkService);
+        addonManager.registerCoreService(ToolModeRegistry.class, toolModeRegistry);
+        addonManager.registerCoreService(ToolSessionService.class, toolSessionService);
+        addonManager.registerCoreService(ToolModeMetricsService.class, toolModeMetricsService);
+        addonManager.registerCoreService(ToolModeExecutionService.class, toolModeExecutionService);
+        addonManager.registerCoreMbeService(ioService);
+        addonManager.registerCoreMbeService(ioTickService);
+        addonManager.registerCoreMbeService(toolModeRegistry);
+        addonManager.registerCoreMbeService(toolSessionService);
+        addonManager.registerCoreMbeService(toolModeMetricsService);
+        addonManager.registerCoreMbeService(toolModeExecutionService);
+
+        toolModeRegistry.register(new ConfigureIOMode(ioService, toolModeContextResolver));
+        toolModeRegistry.register(new ConfigureChannelMode(ioService, toolModeContextResolver));
+        toolModeRegistry.register(new LinkPortsMode(ioService, toolModeContextResolver, toolSessionService));
+        toolModeRegistry.register(new DebugIOMode(ioService, toolModeContextResolver));
+        toolModeRegistry.register(new DisconnectNodesMode(networkService, toolSessionService, toolModeContextResolver));
+        toolModeRegistry.register(new SplitNetworkMode(networkService, toolSessionService, toolModeContextResolver));
+        toolModeRegistry.register(new DebugWiringMode(networkService, toolModeContextResolver));
 
         DefaultAssemblyTriggerRegistry triggerRegistry = new DefaultAssemblyTriggerRegistry();
         BuiltinAssemblyTriggers.registerAll(triggerRegistry);
@@ -264,6 +322,11 @@ public class MultiBlockEngine extends JavaPlugin {
 
         WrenchDispatcher wrenchDispatcher = new DefaultWrenchDispatcher(manager, itemStackBridge, i18n, assemblyCoordinator);
         addonManager.registerCoreService(WrenchDispatcher.class, wrenchDispatcher);
+        if (wrenchDispatcher instanceof DefaultWrenchDispatcher defaultWrenchDispatcher) {
+            defaultWrenchDispatcher.setToolModeExecutionService(toolModeExecutionService);
+            defaultWrenchDispatcher.registerToolItem(new WrenchTool());
+            defaultWrenchDispatcher.registerToolItem(new WireCutterTool());
+        }
 
         DisplayEntityRenderer displayRenderer = createDisplayRenderer();
         PreviewSettings previewSettings = new PreviewSettings(
@@ -387,10 +450,6 @@ public class MultiBlockEngine extends JavaPlugin {
 
         manager.initializePendingCapabilities();
 
-        for (MultiblockInstance inst : instances) {
-            Bukkit.getPluginManager().callEvent(new MultiblockFormEvent(inst, null));
-        }
-        
         // Register Listeners
         InteractionPipelineService interactionPipeline = addonManager.getCoreService(InteractionPipelineService.class);
         getServer().getPluginManager().registerEvents(
@@ -410,6 +469,10 @@ public class MultiBlockEngine extends JavaPlugin {
         ), this);
         getServer().getPluginManager().registerEvents(new PlaceholderCacheInvalidationListener(playerMultiblockQueryService), this);
         getServer().getPluginManager().registerEvents(new MetadataInvalidationListener(metadataService), this);
+        getServer().getPluginManager().registerEvents(new IOPortLifecycleListener(ioService, portResolutionService), this);
+        for (MultiblockInstance inst : instances) {
+            Bukkit.getPluginManager().callEvent(new MultiblockFormEvent(inst, null));
+        }
 
         // Register Commands
         MultiblockCommand cmd = new MultiblockCommand(this, exportSelections, structureExporter);
@@ -427,6 +490,11 @@ public class MultiBlockEngine extends JavaPlugin {
             } catch (Exception ignored) {
             }
         }, 20L * 60L, 20L * 60L);
+        Bukkit.getScheduler().runTaskTimer(this, () -> {
+            for (MultiblockInstance active : manager.getActiveInstancesSnapshot()) {
+                ioTickService.tick(active);
+            }
+        }, 1L, 1L);
         
         // Register PlaceholderExpansion
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
