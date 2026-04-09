@@ -25,6 +25,9 @@ import dev.darkblade.mbe.api.command.WrenchContext;
 import dev.darkblade.mbe.api.command.WrenchDispatcher;
 import dev.darkblade.mbe.api.command.WrenchInteractable;
 import dev.darkblade.mbe.api.command.WrenchResult;
+import dev.darkblade.mbe.api.tool.ToolItem;
+import dev.darkblade.mbe.api.tool.mode.ToolModeRegistry;
+import dev.darkblade.mbe.core.application.service.tool.ToolModeExecutionService;
 import dev.darkblade.mbe.core.domain.assembly.AssemblyCoordinator;
 import dev.darkblade.mbe.api.assembly.AssemblyContext;
 import dev.darkblade.mbe.api.assembly.AssemblyReport;
@@ -74,7 +77,6 @@ import java.util.function.Consumer;
 public final class DefaultWrenchDispatcher implements WrenchDispatcher {
 
     public static final ItemKey WRENCH_KEY = ItemKeys.of("mbe:wrench", 0);
-
     private static final String ORIGIN = "mbe";
     private static final String MSG_ASSEMBLED = "core.wrench.assembled";
     private static final String MSG_DISASSEMBLED = "core.wrench.disassembled";
@@ -107,6 +109,7 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
 
     private static final Duration COOLDOWN = Duration.ofMillis(500);
     private WrenchInteractable resolvedInteractable;
+    private ToolModeExecutionService toolModeExecutionService;
 
     public DefaultWrenchDispatcher(MultiblockRuntimeService manager, ItemStackBridge itemStackBridge, I18nService i18n) {
         this(manager, itemStackBridge, i18n, null, Bukkit.getPluginManager()::callEvent);
@@ -140,13 +143,61 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
         actions.put(normalized, interactable);
     }
 
+    public void setToolModeRegistry(ToolModeRegistry toolModeRegistry) {
+        if (toolModeExecutionService != null && toolModeRegistry != null) {
+            return;
+        }
+    }
+
+    public void registerToolItem(ToolItem toolItem) {
+        if (toolModeExecutionService != null) {
+            toolModeExecutionService.registerToolItem(toolItem);
+        }
+    }
+
+    public void setToolModeExecutionService(ToolModeExecutionService toolModeExecutionService) {
+        this.toolModeExecutionService = toolModeExecutionService;
+    }
+
     @Override
     public WrenchResult dispatch(WrenchContext context) {
         Objects.requireNonNull(context, "context");
         Block block = context.clickedBlock();
         Optional<MultiblockInstance> instanceOpt = manager.getInstanceAt(block.getLocation());
-        if (!isWrench(context.item())) {
+        ToolModeExecutionService toolExecutor = toolModeExecutionService;
+        if (toolExecutor == null) {
+            if (!isWrench(context.item())) {
+                return handleNonWrenchInteraction(context, instanceOpt.orElse(null));
+            }
+            try {
+                for (WrenchPipelineStage stage : pipeline) {
+                    debugStage(stage);
+                    WrenchResult result = safeProcessStage(stage, context);
+                    debugResult(result);
+                    if (!result.isPass()) {
+                        handleResult(context.player(), result);
+                        incrementWrenchInteractionMetric();
+                        return result;
+                    }
+                }
+            } finally {
+                resolvedInteractable = null;
+            }
+            return WrenchResult.pass();
+        }
+        Optional<String> toolIdOpt = toolExecutor.resolveToolId(context.item());
+        if (toolIdOpt.isEmpty()) {
             return handleNonWrenchInteraction(context, instanceOpt.orElse(null));
+        }
+        String toolId = toolIdOpt.get();
+        WrenchResult toolResult = toolExecutor == null ? WrenchResult.pass() : toolExecutor.dispatch(context);
+        if (!toolResult.isPass()) {
+            handleResult(context.player(), toolResult);
+            incrementWrenchInteractionMetric();
+            return toolResult;
+        }
+        if (!ToolModeExecutionService.isWrenchToolId(toolId)) {
+            return WrenchResult.pass();
         }
         try {
             for (WrenchPipelineStage stage : pipeline) {
