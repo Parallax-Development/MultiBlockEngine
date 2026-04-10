@@ -8,6 +8,14 @@ items:
       - "mbe:core.items.wrench.lore.disassemble"
       - "mbe:core.items.wrench.lore.inspect"
       - "mbe:core.items.wrench.lore.variant"
+  wire_cutter:
+    key: mbe:wire_cutter
+    material: SHEARS
+    display-name: "mbe:core.items.wire_cutter.display_name"
+    lore:
+      - "mbe:core.items.wire_cutter.lore.disconnect"
+      - "mbe:core.items.wire_cutter.lore.split"
+      - "mbe:core.items.wire_cutter.lore.debug"
   blueprint:
     key: mbe:blueprint
     material: PAPER

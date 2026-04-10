@@ -355,7 +355,7 @@ public final class AssemblyCoordinator {
                 LogKv.kv("y", controller != null ? controller.getBlockY() : 0),
                 LogKv.kv("z", controller != null ? controller.getBlockZ() : 0)
         }, Set.of("assembly"));
-        if (!report.success()) {
+        if (!report.success() && assemblyDebugEnabled) {
             log.warn(
                     "assembly.failed",
                     LogKv.kv("reason", report.reasonKey() == null ? "" : report.reasonKey()),

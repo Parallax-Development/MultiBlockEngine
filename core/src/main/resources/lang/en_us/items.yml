@@ -7,6 +7,12 @@ core:
         disassemble: "&eLeft-click: &cDisassemble multiblock"
         inspect: "&eShift + Right-click: &bShow information"
         variant: "&eShift + Left-click: &dSwitch variant"
+    wire_cutter:
+      display_name: "Wire Cutter"
+      lore:
+        disconnect: "&eDisconnect mode: &cDetach two connected nodes"
+        split: "&eSplit mode: &6Force network split"
+        debug: "&eDebug mode: &bInspect active network"
     blueprint:
       display_name: "Blueprint"
       lore:
