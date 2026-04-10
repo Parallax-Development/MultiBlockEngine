@@ -1,0 +1,82 @@
+MultiBlockEngine License (MBE-L) v1.0
+
+  Copyright (c) 2026 DarkBladeDev
+
+
+1. Definitions
+
+"Software" refers to the MultiBlockEngine core repository and its source code.
+"Author" refers to DarkBladeDev.
+"User" refers to any individual or entity using the Software.
+"Addon" refers to any extension, plugin, or module built on top of the Software using its public API.
+"Commercial Use" refers to any use intended for direct or indirect monetary gain.
+
+
+2. Grant of Permission
+Permission is hereby granted, free of charge, to any User to:
+
+Use the Software for personal, educational, or commercial purposes.
+Modify the Software.
+Distribute copies of the Software, with or without modifications.
+
+Subject to the limitations defined in this license.
+
+3. Required Conditions
+All distributions of the Software must:
+
+Include this license.
+Provide attribution to the original Author.
+Clearly indicate if modifications were made.
+
+
+4. Addons and Extensions
+Users are explicitly allowed to:
+
+Develop, distribute, and sell Addons built on top of the Software.
+Use the public API (core-api) without restriction.
+
+However:
+
+Addons must not replicate the core functionality of the Software with the intent of replacing it commercially.
+Addons must not bundle modified versions of the core to bypass this license.
+
+
+5. Commercial Restrictions
+The following actions are strictly prohibited:
+
+Selling, sublicensing, or redistributing the Software as a standalone commercial product.
+Offering the Software as a competing product or service (including SaaS, hosting platforms, or plugin reselling platforms) that directly replicates MultiBlockEngine.
+Creating a fork intended to replace the original project commercially.
+
+
+6. Branding and Trademark
+The name "MultiBlockEngine", associated logos, and branding are NOT included under this license.
+
+You may not use the name, logo, or branding in any redistributed or modified version without explicit written permission.
+Forks must use clearly distinct names and branding.
+
+
+7. Source Availability
+This license grants access to the source code, but does NOT grant the right to:
+
+Repackage the Software as a competing proprietary product.
+Remove or alter licensing terms.
+
+
+8. Termination
+Any violation of this license automatically terminates the rights granted herein.
+
+9. Disclaimer
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+
+10. Limitation of Liability
+IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM THE USE OF THE SOFTWARE.
+
+11. Final Notes
+This license is designed to:
+
+Encourage open collaboration
+Enable a healthy addon ecosystem
+Protect the long-term sustainability of the project
+
+For commercial licensing inquiries or permissions beyond this license, contact the Author.
