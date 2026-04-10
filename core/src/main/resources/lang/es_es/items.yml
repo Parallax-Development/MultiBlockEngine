@@ -7,6 +7,12 @@ core:
         disassemble: "&eClick izquierdo: &cDesensamblar multibloque"
         inspect: "&eShift + Click derecho: &bMostrar información"
         variant: "&eShift + Click izquierdo: &dCambiar variante"
+    wire_cutter:
+      display_name: "Corta-cables"
+      lore:
+        disconnect: "&eModo desconectar: &cSeparar dos nodos conectados"
+        split: "&eModo split: &6Forzar división de red"
+        debug: "&eModo debug: &bInspeccionar red activa"
     blueprint:
       display_name: "Blueprint"
       lore:
