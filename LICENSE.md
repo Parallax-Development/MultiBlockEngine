@@ -40,7 +40,7 @@ All distributions of the Software must:
 Users are explicitly allowed to:
 
 * Develop, distribute, and sell Addons built on top of the Software.
-* Use the public API (`core-api`) without restriction.
+* Use the public API (`api`) without restriction.
 
 However:
 

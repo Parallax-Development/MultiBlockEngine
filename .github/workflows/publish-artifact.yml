@@ -44,4 +44,4 @@ jobs:
         with:
           files: |
             core/build/libs/*.jar
-            core-api/build/libs/*.jar
+            api/build/libs/*.jar

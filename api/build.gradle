@@ -39,8 +39,8 @@ tasks.withType(JavaCompile).configureEach {
 
 publishing {
     publications {
-        mbeCoreApi(MavenPublication) {
-            artifactId = 'mbe-core-api'
+        mbeApi(MavenPublication) {
+            artifactId = 'mbe-api'
             from components.java
         }
     }

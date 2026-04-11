@@ -132,7 +132,7 @@ public class AddonLifecycleService {
     private List<String> resolvedOrder = List.of();
     private final Map<String, List<PendingExposure>> pendingExposures = new ConcurrentHashMap<>();
     private final Map<String, List<ExposedService>> exposedServices = new ConcurrentHashMap<>();
-    private final ClassLoader coreApiClassLoader = MultiblockAPI.class.getClassLoader();
+    private final ClassLoader apiClassLoader = MultiblockAPI.class.getClassLoader();
 
     public AddonLifecycleService(MultiBlockEngine plugin, MultiblockAPI api, CoreLogger log) {
         this.plugin = plugin;
@@ -405,7 +405,7 @@ public class AddonLifecycleService {
         Objects.requireNonNull(implementation, "implementation");
         Objects.requireNonNull(priority, "priority");
 
-        validateCoreApiType(addonId, api);
+        validateApiType(addonId, api);
 
         Object provider;
         try {
@@ -439,26 +439,26 @@ public class AddonLifecycleService {
         );
     }
 
-    private void validateCoreApiType(String addonId, Class<?> apiType) {
+    private void validateApiType(String addonId, Class<?> apiType) {
         ClassLoader cl = apiType.getClassLoader();
-        if (cl == coreApiClassLoader) {
+        if (cl == apiClassLoader) {
             return;
         }
 
         log.logInternal(new LogScope.Addon(addonId, addonVersion(addonId)), LogPhase.LOAD, LogLevel.FATAL,
-            "Invalid service exposure: service type is not part of core-api",
+            "Invalid service exposure: service type is not part of api",
             null,
             new LogKv[] {
                 LogKv.kv("service", apiType.getName()),
                 LogKv.kv("serviceCl", cl == null ? "bootstrap" : cl.toString()),
-                LogKv.kv("coreApiCl", coreApiClassLoader == null ? "bootstrap" : coreApiClassLoader.toString())
+                LogKv.kv("apiCl", apiClassLoader == null ? "bootstrap" : apiClassLoader.toString())
             },
             Set.of()
         );
 
         throw new IllegalArgumentException(
-            "Invalid service exposure: Service type " + apiType.getName() + " is not part of core-api. " +
-                "Move the service interface/DTOs to core-api and depend on it as compileOnly."
+            "Invalid service exposure: Service type " + apiType.getName() + " is not part of api. " +
+                "Move the service interface/DTOs to api and depend on it as compileOnly."
         );
     }
 
@@ -510,7 +510,7 @@ public class AddonLifecycleService {
         try {
             Class<?> clazz = loader.loadClass(metadata.mainClass());
             if (!MultiblockAddon.class.isAssignableFrom(clazz)) {
-                failAddon(addonId, AddonException.Phase.LOAD, "Main class does not implement MultiblockAddon (possible shaded core-api / classloader conflict): " + metadata.mainClass(), null, true);
+                failAddon(addonId, AddonException.Phase.LOAD, "Main class does not implement MultiblockAddon (possible shaded api / classloader conflict): " + metadata.mainClass(), null, true);
                 close(loader);
                 return;
             }
@@ -887,7 +887,7 @@ public class AddonLifecycleService {
             boolean fatal = false;
 
             if (!idx.embeddedCoreApiClasses().isEmpty()) {
-                violations.add("embeds core-api classes (shaded/relocated core-api)");
+                violations.add("embeds api classes (shaded/relocated api)");
                 fatal = true;
             }
 

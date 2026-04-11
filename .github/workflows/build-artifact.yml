@@ -29,4 +29,4 @@ jobs:
           name: mbe-core-jars
           path: |
             core/build/libs/*.jar
-            core-api/build/libs/*.jar
+            api/build/libs/*.jar

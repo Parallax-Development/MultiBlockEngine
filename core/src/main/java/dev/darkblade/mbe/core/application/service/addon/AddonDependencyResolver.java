@@ -19,15 +19,15 @@ public final class AddonDependencyResolver {
     ) {
     }
 
-    public Resolution resolve(int coreApiVersion, Map<String, AddonMetadata> metadataById) {
+    public Resolution resolve(int apiVersion, Map<String, AddonMetadata> metadataById) {
         Map<String, String> failures = new HashMap<>();
         List<String> warnings = new ArrayList<>();
 
         Map<String, AddonMetadata> eligible = new HashMap<>(metadataById);
 
         for (AddonMetadata meta : metadataById.values()) {
-            if (meta.api() != coreApiVersion) {
-                failures.put(meta.id(), "Core API " + coreApiVersion + " is not compatible (addon requires API " + meta.api() + ")");
+            if (meta.api() != apiVersion) {
+                failures.put(meta.id(), "API " + apiVersion + " is not compatible (addon requires API " + meta.api() + ")");
                 eligible.remove(meta.id());
             }
         }
