@@ -5,5 +5,5 @@ plugins {
 rootProject.name = 'MultiBlockEngine'
 
 include 'core'
-include 'core-api'
+include 'api'
 include 'platform-bukkit'

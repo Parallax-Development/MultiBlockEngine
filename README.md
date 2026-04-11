@@ -98,7 +98,7 @@ The engine compiles YAML patterns into efficient `BlockMatcher` instances:
 
 The addon runtime now includes a dedicated cross-reference graph with dynamic resolution, lazy edges, and cycle validation before addon enable.
 
-### Core API
+### API
 
 - `CrossReferenceDeclaration<T>`: Declarative node definition (`referenceId`, `contractType`, factory, dependencies).
 - `CrossReferenceDependency`: Dependency edge with `required` + `mode` (`EAGER` or `LAZY`).

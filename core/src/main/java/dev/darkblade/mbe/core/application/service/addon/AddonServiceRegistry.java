@@ -19,11 +19,11 @@ public final class AddonServiceRegistry {
 
     private final Map<Class<?>, ServiceEntry> services = new HashMap<>();
     private final CoreLogger log;
-    private final ClassLoader coreApiClassLoader;
+    private final ClassLoader apiClassLoader;
 
     public AddonServiceRegistry(CoreLogger log) {
         this.log = Objects.requireNonNull(log, "log");
-        this.coreApiClassLoader = dev.darkblade.mbe.api.MultiblockAPI.class.getClassLoader();
+        this.apiClassLoader = dev.darkblade.mbe.api.MultiblockAPI.class.getClassLoader();
     }
 
     public synchronized <T> void register(String addonId, Class<T> serviceType, T service) {
@@ -31,7 +31,7 @@ public final class AddonServiceRegistry {
         Objects.requireNonNull(serviceType, "serviceType");
         Objects.requireNonNull(service, "service");
 
-        validateCoreApiType(addonId, LogPhase.SERVICE_REGISTER, "register", serviceType);
+        validateApiType(addonId, LogPhase.SERVICE_REGISTER, "register", serviceType);
 
         ServiceEntry existing = services.get(serviceType);
         if (existing != null && !existing.providerAddonId().equals(addonId)) {
@@ -56,7 +56,7 @@ public final class AddonServiceRegistry {
         Objects.requireNonNull(serviceType, "serviceType");
         Objects.requireNonNull(stateProvider, "stateProvider");
 
-        validateCoreApiType(addonId, LogPhase.SERVICE_RESOLVE, "resolve", serviceType);
+        validateApiType(addonId, LogPhase.SERVICE_RESOLVE, "resolve", serviceType);
 
         ServiceEntry entry = services.get(serviceType);
         if (entry == null) {
@@ -90,28 +90,28 @@ public final class AddonServiceRegistry {
         return Optional.of(serviceType.cast(svc));
     }
 
-    private void validateCoreApiType(String addonId, LogPhase phase, String op, Class<?> type) {
+    private void validateApiType(String addonId, LogPhase phase, String op, Class<?> type) {
         ClassLoader cl = type.getClassLoader();
-        if (cl == coreApiClassLoader) {
+        if (cl == apiClassLoader) {
             return;
         }
 
         log.logInternal(new LogScope.Core(), phase, LogLevel.FATAL,
-            "Invalid service type (must belong to core-api)",
+            "Invalid service type (must belong to api)",
             null,
             new LogKv[] {
                 LogKv.kv("addonId", addonId),
                 LogKv.kv("op", op),
                 LogKv.kv("service", type.getName()),
                 LogKv.kv("serviceCl", cl == null ? "bootstrap" : cl.toString()),
-                LogKv.kv("coreApiCl", coreApiClassLoader == null ? "bootstrap" : coreApiClassLoader.toString())
+                LogKv.kv("apiCl", apiClassLoader == null ? "bootstrap" : apiClassLoader.toString())
             },
             Set.of()
         );
 
         throw new IllegalArgumentException(
-            "Invalid service " + op + ": Service type " + type.getName() + " is not part of core-api. " +
-                "Move the service interface/DTOs to core-api and depend on it as compileOnly."
+            "Invalid service " + op + ": Service type " + type.getName() + " is not part of api. " +
+                "Move the service interface/DTOs to api and depend on it as compileOnly."
         );
     }
 }
