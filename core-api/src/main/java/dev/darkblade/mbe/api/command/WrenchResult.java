@@ -39,6 +39,10 @@ public record WrenchResult(
         return new WrenchResult(WrenchResultType.PASS, null, Map.of());
     }
 
+    public static WrenchResult noop() {
+        return pass();
+    }
+
     public boolean isSuccess() {
         return type == WrenchResultType.SUCCESS;
     }

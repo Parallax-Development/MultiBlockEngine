@@ -17,10 +17,11 @@ import dev.darkblade.mbe.api.service.InspectionPipelineService;
 import dev.darkblade.mbe.api.service.interaction.InteractionPipelineService;
 import dev.darkblade.mbe.api.io.IOService;
 import dev.darkblade.mbe.api.io.IOTickService;
-import dev.darkblade.mbe.api.tool.mode.ToolModeRegistry;
+import dev.darkblade.mbe.api.tool.ToolActionRegistry;
+import dev.darkblade.mbe.api.tool.ToolModeRegistry;
+import dev.darkblade.mbe.api.tool.ToolRegistry;
 import dev.darkblade.mbe.api.wiring.PortResolutionService;
 import dev.darkblade.mbe.api.wiring.NetworkService;
-import dev.darkblade.mbe.api.command.WrenchDispatcher;
 import dev.darkblade.mbe.api.persistence.PersistentStorageService;
 import dev.darkblade.mbe.api.persistence.StorageExceptionHandler;
 import dev.darkblade.mbe.api.persistence.StorageRegistry;
@@ -78,20 +79,17 @@ import dev.darkblade.mbe.core.application.service.port.DefaultPortResolutionServ
 import dev.darkblade.mbe.core.application.service.io.DefaultIOService;
 import dev.darkblade.mbe.core.application.service.io.DefaultIOTickService;
 import dev.darkblade.mbe.core.application.service.tool.DefaultToolModeRegistry;
-import dev.darkblade.mbe.core.application.service.tool.ToolModeContextResolver;
-import dev.darkblade.mbe.core.application.service.tool.ToolModeExecutionService;
-import dev.darkblade.mbe.core.application.service.tool.ToolModeMetricsService;
-import dev.darkblade.mbe.core.application.service.tool.ToolSessionService;
-import dev.darkblade.mbe.core.application.service.tool.WireCutterTool;
+import dev.darkblade.mbe.core.application.service.tool.DefaultToolRegistry;
+import dev.darkblade.mbe.core.application.service.tool.DefaultToolActionRegistry;
+import dev.darkblade.mbe.core.application.service.tool.PdcToolStateResolver;
+import dev.darkblade.mbe.core.application.service.tool.ToolDispatcher;
+import dev.darkblade.mbe.core.application.service.tool.ToolStateResolver;
 import dev.darkblade.mbe.core.application.service.tool.WrenchTool;
-import dev.darkblade.mbe.core.application.service.tool.mode.ConfigureChannelMode;
-import dev.darkblade.mbe.core.application.service.tool.mode.ConfigureIOMode;
-import dev.darkblade.mbe.core.application.service.tool.mode.DebugIOMode;
-import dev.darkblade.mbe.core.application.service.tool.mode.DebugWiringMode;
-import dev.darkblade.mbe.core.application.service.tool.mode.DisconnectNodesMode;
-import dev.darkblade.mbe.core.application.service.tool.mode.LinkPortsMode;
-import dev.darkblade.mbe.core.application.service.tool.mode.SplitNetworkMode;
-import dev.darkblade.mbe.core.application.service.wrench.DefaultWrenchDispatcher;
+import dev.darkblade.mbe.core.application.service.tool.AssemblyMode;
+import dev.darkblade.mbe.core.application.service.tool.AssembleAction;
+import dev.darkblade.mbe.core.application.service.tool.DisassembleAction;
+import dev.darkblade.mbe.core.application.service.tool.InspectAction;
+import dev.darkblade.mbe.core.application.service.tool.SwitchModeAction;
 import dev.darkblade.mbe.core.application.service.wiring.DefaultNetworkService;
 import dev.darkblade.mbe.core.internal.inspection.DefaultInspectionPipelineService;
 import dev.darkblade.mbe.api.command.ExportHookRegistry;
@@ -266,38 +264,24 @@ public class MultiBlockEngine extends JavaPlugin {
         IOService ioService = new DefaultIOService(persistence);
         IOTickService ioTickService = new DefaultIOTickService(ioService);
         NetworkService networkService = new DefaultNetworkService(Bukkit.getPluginManager()::callEvent);
+        ToolRegistry toolRegistry = new DefaultToolRegistry();
         ToolModeRegistry toolModeRegistry = new DefaultToolModeRegistry();
-        ToolSessionService toolSessionService = new ToolSessionService();
-        ToolModeMetricsService toolModeMetricsService = new ToolModeMetricsService();
-        ToolModeContextResolver toolModeContextResolver = new ToolModeContextResolver(manager, ioService, networkService);
-        ToolModeExecutionService toolModeExecutionService = new ToolModeExecutionService(
-                itemStackBridge,
-                toolModeRegistry,
-                toolSessionService,
-                toolModeMetricsService,
-                Bukkit.getPluginManager()::callEvent
-        );
+        ToolActionRegistry toolActionRegistry = new DefaultToolActionRegistry();
+        ToolStateResolver toolStateResolver = new PdcToolStateResolver(itemStackBridge, toolRegistry);
+        ToolDispatcher toolDispatcher = new ToolDispatcher(toolStateResolver, toolRegistry, toolModeRegistry, toolActionRegistry);
         addonManager.registerCoreService(IOService.class, ioService);
         addonManager.registerCoreService(IOTickService.class, ioTickService);
         addonManager.registerCoreService(NetworkService.class, networkService);
+        addonManager.registerCoreService(ToolRegistry.class, toolRegistry);
         addonManager.registerCoreService(ToolModeRegistry.class, toolModeRegistry);
-        addonManager.registerCoreService(ToolSessionService.class, toolSessionService);
-        addonManager.registerCoreService(ToolModeMetricsService.class, toolModeMetricsService);
-        addonManager.registerCoreService(ToolModeExecutionService.class, toolModeExecutionService);
+        addonManager.registerCoreService(ToolActionRegistry.class, toolActionRegistry);
+        addonManager.registerCoreService(ToolStateResolver.class, toolStateResolver);
+        addonManager.registerCoreService(ToolDispatcher.class, toolDispatcher);
         addonManager.registerCoreMbeService(ioService);
         addonManager.registerCoreMbeService(ioTickService);
-        addonManager.registerCoreMbeService(toolModeRegistry);
-        addonManager.registerCoreMbeService(toolSessionService);
-        addonManager.registerCoreMbeService(toolModeMetricsService);
-        addonManager.registerCoreMbeService(toolModeExecutionService);
-
-        toolModeRegistry.register(new ConfigureIOMode(ioService, toolModeContextResolver));
-        toolModeRegistry.register(new ConfigureChannelMode(ioService, toolModeContextResolver));
-        toolModeRegistry.register(new LinkPortsMode(ioService, toolModeContextResolver, toolSessionService));
-        toolModeRegistry.register(new DebugIOMode(ioService, toolModeContextResolver));
-        toolModeRegistry.register(new DisconnectNodesMode(networkService, toolSessionService, toolModeContextResolver));
-        toolModeRegistry.register(new SplitNetworkMode(networkService, toolSessionService, toolModeContextResolver));
-        toolModeRegistry.register(new DebugWiringMode(networkService, toolModeContextResolver));
+        AssemblyMode assemblyMode = new AssemblyMode();
+        ((DefaultToolRegistry) toolRegistry).register(new WrenchTool(assemblyMode));
+        ((DefaultToolModeRegistry) toolModeRegistry).register(assemblyMode);
 
         DefaultAssemblyTriggerRegistry triggerRegistry = new DefaultAssemblyTriggerRegistry();
         BuiltinAssemblyTriggers.registerAll(triggerRegistry);
@@ -320,13 +304,10 @@ public class MultiBlockEngine extends JavaPlugin {
             log.fatal("Assembly coordinator initialization failed");
         }
 
-        WrenchDispatcher wrenchDispatcher = new DefaultWrenchDispatcher(manager, itemStackBridge, i18n, assemblyCoordinator);
-        addonManager.registerCoreService(WrenchDispatcher.class, wrenchDispatcher);
-        if (wrenchDispatcher instanceof DefaultWrenchDispatcher defaultWrenchDispatcher) {
-            defaultWrenchDispatcher.setToolModeExecutionService(toolModeExecutionService);
-            defaultWrenchDispatcher.registerToolItem(new WrenchTool());
-            defaultWrenchDispatcher.registerToolItem(new WireCutterTool());
-        }
+        ((DefaultToolActionRegistry) toolActionRegistry).register(new AssembleAction(assemblyCoordinator, i18n));
+        ((DefaultToolActionRegistry) toolActionRegistry).register(new DisassembleAction(manager, i18n));
+        ((DefaultToolActionRegistry) toolActionRegistry).register(new InspectAction(manager, i18n));
+        ((DefaultToolActionRegistry) toolActionRegistry).register(new SwitchModeAction(toolStateResolver, toolRegistry, i18n));
 
         DisplayEntityRenderer displayRenderer = createDisplayRenderer();
         PreviewSettings previewSettings = new PreviewSettings(
@@ -370,7 +351,7 @@ public class MultiBlockEngine extends JavaPlugin {
 
         editorSessions = new EditorSessionManager();
         interactionRouter = new InteractionRouter();
-        InteractionPipelineService pipelineService = new DefaultInteractionPipelineService(assemblyCoordinator, wrenchDispatcher, interactionRouter, itemStackBridge);
+        InteractionPipelineService pipelineService = new DefaultInteractionPipelineService(assemblyCoordinator, null, interactionRouter, itemStackBridge);
         addonManager.registerCoreService(InteractionPipelineService.class, pipelineService);
         panelBindings = new PanelBindingService(new File(getDataFolder(), "panel-bindings.yml"), interactionRouter);
         panelBindings.load();
