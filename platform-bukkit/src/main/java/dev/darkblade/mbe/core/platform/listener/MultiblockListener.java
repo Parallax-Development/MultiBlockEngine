@@ -8,18 +8,24 @@ import dev.darkblade.mbe.api.logging.LogKv;
 import dev.darkblade.mbe.api.logging.LogLevel;
 import dev.darkblade.mbe.api.logging.LogPhase;
 import dev.darkblade.mbe.api.logging.LogScope;
+import dev.darkblade.mbe.api.command.WrenchContext;
 import dev.darkblade.mbe.api.command.WrenchDispatcher;
 import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.MessageKey;
 import dev.darkblade.mbe.api.assembly.AssemblyContext;
 import dev.darkblade.mbe.api.assembly.AssemblyReport;
+import dev.darkblade.mbe.api.item.ItemInstance;
 import dev.darkblade.mbe.api.service.interaction.InteractionIntent;
 import dev.darkblade.mbe.api.service.interaction.InteractionPipelineService;
+import dev.darkblade.mbe.api.tool.ActionTrigger;
+import dev.darkblade.mbe.api.tool.ToolRegistry;
 import dev.darkblade.mbe.core.application.service.limit.MultiblockLimitService;
 import dev.darkblade.mbe.core.application.service.interaction.DefaultInteractionPipelineService;
 import dev.darkblade.mbe.core.application.service.MultiblockRuntimeService;
+import dev.darkblade.mbe.core.application.service.tool.ToolDispatcher;
 import dev.darkblade.mbe.core.application.service.ui.InteractionRouter;
 import dev.darkblade.mbe.core.domain.assembly.AssemblyCoordinator;
+import dev.darkblade.mbe.core.infrastructure.bridge.item.ItemStackBridge;
 import dev.darkblade.mbe.core.platform.interaction.BukkitInteractionIntentFactory;
 import dev.darkblade.mbe.core.domain.MultiblockInstance;
 import org.bukkit.Bukkit;
@@ -31,6 +37,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.ItemStack;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -51,6 +58,9 @@ public class MultiblockListener implements Listener {
     private final I18nService i18n;
     private final InteractionPipelineService interactionPipeline;
     private final BukkitInteractionIntentFactory intentFactory;
+    private ToolDispatcher toolDispatcher;
+    private ItemStackBridge itemStackBridge;
+    private ToolRegistry toolRegistry;
 
     public MultiblockListener(MultiblockRuntimeService manager) {
         this(manager, Bukkit.getPluginManager()::callEvent, null, null, null);
@@ -129,6 +139,24 @@ public class MultiblockListener implements Listener {
             return;
         }
         event.setUseInteractedBlock(Event.Result.ALLOW);
+        if ((event.getAction() == org.bukkit.event.block.Action.LEFT_CLICK_BLOCK || event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK)
+                && event.getClickedBlock() != null
+                && isToolItem(event.getItem())) {
+            ToolDispatcher dispatcher = resolveToolDispatcher();
+            if (dispatcher == null) {
+                return;
+            }
+            WrenchContext context = new WrenchContext(
+                    event.getPlayer(),
+                    event.getClickedBlock(),
+                    event.getAction(),
+                    event.getItem(),
+                    event.getHand()
+            );
+            dispatcher.dispatch(context, resolveTrigger(event));
+            event.setCancelled(true);
+            return;
+        }
         InteractionIntent intent = intentFactory.from(event);
         if (intent == null) {
             return;
@@ -150,6 +178,77 @@ public class MultiblockListener implements Listener {
         if (interactionPipeline.handle(intent)) {
             event.setCancelled(true);
         }
+    }
+
+    private ActionTrigger resolveTrigger(PlayerInteractEvent event) {
+        if (event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK && event.getPlayer().isSneaking()) {
+            return ActionTrigger.SHIFT_RIGHT_CLICK;
+        }
+        if (event.getAction() == org.bukkit.event.block.Action.LEFT_CLICK_BLOCK && event.getPlayer().isSneaking()) {
+            return ActionTrigger.SHIFT_LEFT_CLICK;
+        }
+        if (event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) {
+            return ActionTrigger.RIGHT_CLICK;
+        }
+        return ActionTrigger.LEFT_CLICK;
+    }
+
+    private boolean isToolItem(ItemStack item) {
+        if (item == null || item.getType().isAir()) {
+            return false;
+        }
+        ItemStackBridge bridge = resolveItemStackBridge();
+        ToolRegistry registry = resolveToolRegistry();
+        if (bridge == null || registry == null) {
+            return false;
+        }
+        ItemInstance instance;
+        try {
+            instance = bridge.fromItemStack(item);
+        } catch (Throwable t) {
+            return false;
+        }
+        if (instance == null || instance.definition() == null || instance.definition().key() == null || instance.definition().key().id() == null) {
+            return false;
+        }
+        String inferredToolId = instance.definition().key().id().key();
+        return registry.get(inferredToolId) != null;
+    }
+
+    private ToolDispatcher resolveToolDispatcher() {
+        if (toolDispatcher != null) {
+            return toolDispatcher;
+        }
+        MultiBlockEngine plugin = MultiBlockEngine.getInstance();
+        if (plugin == null || plugin.getAddonLifecycleService() == null) {
+            return null;
+        }
+        toolDispatcher = plugin.getAddonLifecycleService().getCoreService(ToolDispatcher.class);
+        return toolDispatcher;
+    }
+
+    private ItemStackBridge resolveItemStackBridge() {
+        if (itemStackBridge != null) {
+            return itemStackBridge;
+        }
+        MultiBlockEngine plugin = MultiBlockEngine.getInstance();
+        if (plugin == null || plugin.getAddonLifecycleService() == null) {
+            return null;
+        }
+        itemStackBridge = plugin.getAddonLifecycleService().getCoreService(ItemStackBridge.class);
+        return itemStackBridge;
+    }
+
+    private ToolRegistry resolveToolRegistry() {
+        if (toolRegistry != null) {
+            return toolRegistry;
+        }
+        MultiBlockEngine plugin = MultiBlockEngine.getInstance();
+        if (plugin == null || plugin.getAddonLifecycleService() == null) {
+            return null;
+        }
+        toolRegistry = plugin.getAddonLifecycleService().getCoreService(ToolRegistry.class);
+        return toolRegistry;
     }
 
     @EventHandler

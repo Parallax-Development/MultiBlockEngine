@@ -1,0 +1,65 @@
+package dev.darkblade.mbe.core.application.service.tool;
+
+import dev.darkblade.mbe.api.assembly.AssemblyContext;
+import dev.darkblade.mbe.api.assembly.AssemblyReport;
+import dev.darkblade.mbe.api.command.WrenchContext;
+import dev.darkblade.mbe.api.command.WrenchResult;
+import dev.darkblade.mbe.api.i18n.I18nService;
+import dev.darkblade.mbe.api.i18n.MessageKey;
+import dev.darkblade.mbe.api.service.interaction.InteractionIntent;
+import dev.darkblade.mbe.api.service.interaction.InteractionSource;
+import dev.darkblade.mbe.api.service.interaction.InteractionType;
+import dev.darkblade.mbe.api.tool.ActionId;
+import dev.darkblade.mbe.api.tool.ToolAction;
+import dev.darkblade.mbe.core.domain.assembly.AssemblyCoordinator;
+
+import java.util.Map;
+import java.util.Objects;
+
+public final class AssembleAction implements ToolAction {
+
+    private static final MessageKey MSG_ASSEMBLED = MessageKey.of("mbe", "core.wrench.assembled");
+
+    private final AssemblyCoordinator assemblyCoordinator;
+    private final I18nService i18n;
+
+    public AssembleAction(AssemblyCoordinator assemblyCoordinator, I18nService i18n) {
+        this.assemblyCoordinator = Objects.requireNonNull(assemblyCoordinator, "assemblyCoordinator");
+        this.i18n = i18n;
+    }
+
+    @Override
+    public ActionId id() {
+        return WrenchActions.ASSEMBLE;
+    }
+
+    @Override
+    public WrenchResult execute(WrenchContext context) {
+        AssemblyContext assemblyContext = new AssemblyContext(
+                context.player(),
+                context.clickedBlock(),
+                new InteractionIntent(
+                        context.player(),
+                        InteractionType.WRENCH_USE,
+                        context.clickedBlock(),
+                        context.item(),
+                        InteractionSource.WRENCH
+                )
+        );
+        AssemblyReport report = assemblyCoordinator.attemptAssembly(assemblyContext);
+        if (report == null || !report.success()) {
+            return WrenchResult.noop();
+        }
+        if (i18n != null && context.player() != null) {
+            i18n.send(context.player(), MSG_ASSEMBLED, Map.of("type", safeType(report.multiblockId())));
+        }
+        return WrenchResult.success(MSG_ASSEMBLED.path(), Map.of("type", safeType(report.multiblockId())));
+    }
+
+    private String safeType(String id) {
+        if (id == null || id.isBlank()) {
+            return "unknown";
+        }
+        return id;
+    }
+}

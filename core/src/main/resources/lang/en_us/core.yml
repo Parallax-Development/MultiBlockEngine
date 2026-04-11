@@ -21,6 +21,8 @@ core:
       component_line: "&7- {line}"
   debug:
     session_started: "&aDebug session started for {type}"
+  tool:
+    mode_switched: "Mode changed to: {mode}"
   ui:
     link:
       invalid_block: "&cThat block is not a valid controller_block."
