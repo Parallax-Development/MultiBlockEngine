@@ -9,6 +9,10 @@ import dev.darkblade.mbe.api.i18n.MessageKey;
 import dev.darkblade.mbe.api.i18n.message.CoreMessageKeys;
 import dev.darkblade.mbe.api.logging.CoreLogger;
 import dev.darkblade.mbe.api.logging.LogKv;
+import dev.darkblade.mbe.api.message.MessageChannel;
+import dev.darkblade.mbe.api.message.MessagePriority;
+import dev.darkblade.mbe.api.message.PlayerMessage;
+import dev.darkblade.mbe.api.message.PlayerMessageService;
 import dev.darkblade.mbe.core.MultiBlockEngine;
 import dev.darkblade.mbe.core.application.service.limit.MultiblockLimitService;
 import dev.darkblade.mbe.core.application.service.MultiblockRuntimeService;
@@ -30,6 +34,7 @@ public final class AssemblyCommandService implements MbeCommandService {
     private final AssemblyCoordinator assembly;
     private final MultiblockRuntimeService manager;
     private final I18nService i18n;
+    private final PlayerMessageService messageService;
     private final CoreLogger log;
     private final MultiBlockEngine plugin;
 
@@ -38,6 +43,7 @@ public final class AssemblyCommandService implements MbeCommandService {
         this.assembly = plugin.getAssemblyCoordinator();
         this.manager = plugin.getManager();
         this.i18n = plugin.getAddonLifecycleService().getCoreService(I18nService.class);
+        this.messageService = plugin.getAddonLifecycleService().getCoreService(PlayerMessageService.class);
         this.log = plugin.getLoggingService().core();
     }
 
@@ -210,12 +216,26 @@ public final class AssemblyCommandService implements MbeCommandService {
     }
 
     private void send(CommandSender sender, MessageKey key) {
+        if (sender == null || key == null) {
+            return;
+        }
+        if (sender instanceof Player player && messageService != null) {
+            messageService.send(player, new PlayerMessage(key, MessageChannel.CHAT, MessagePriority.NORMAL, Map.of()));
+            return;
+        }
         if (i18n != null) {
             i18n.send(sender, key);
         }
     }
 
     private void send(CommandSender sender, MessageKey key, java.util.Map<String, ?> params) {
+        if (sender == null || key == null) {
+            return;
+        }
+        if (sender instanceof Player player && messageService != null) {
+            messageService.send(player, new PlayerMessage(key, MessageChannel.CHAT, MessagePriority.NORMAL, castParams(params)));
+            return;
+        }
         if (i18n != null) {
             i18n.send(sender, key, params);
         }
@@ -237,7 +257,21 @@ public final class AssemblyCommandService implements MbeCommandService {
         if (translated == null || translated.isBlank() || translated.equals(key.path())) {
             return false;
         }
-        i18n.send(player, key);
+        send(player, key);
         return true;
+    }
+
+    private Map<String, Object> castParams(Map<String, ?> params) {
+        if (params == null || params.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> out = new java.util.HashMap<>();
+        for (Map.Entry<String, ?> entry : params.entrySet()) {
+            if (entry == null || entry.getKey() == null) {
+                continue;
+            }
+            out.put(entry.getKey(), entry.getValue());
+        }
+        return out.isEmpty() ? Map.of() : Map.copyOf(out);
     }
 }

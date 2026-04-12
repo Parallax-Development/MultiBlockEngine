@@ -2,8 +2,11 @@ package dev.darkblade.mbe.core.application.service.tool;
 
 import dev.darkblade.mbe.api.command.WrenchContext;
 import dev.darkblade.mbe.api.command.WrenchResult;
-import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.MessageKey;
+import dev.darkblade.mbe.api.message.MessageChannel;
+import dev.darkblade.mbe.api.message.MessagePriority;
+import dev.darkblade.mbe.api.message.PlayerMessage;
+import dev.darkblade.mbe.api.message.PlayerMessageService;
 import dev.darkblade.mbe.api.tool.ActionId;
 import dev.darkblade.mbe.api.tool.ToolAction;
 import dev.darkblade.mbe.core.application.service.MultiblockRuntimeService;
@@ -19,11 +22,11 @@ public final class DisassembleAction implements ToolAction {
     private static final MessageKey MSG_NOT_FOUND = MessageKey.of("mbe", "core.wrench.not_found");
 
     private final MultiblockRuntimeService runtimeService;
-    private final I18nService i18n;
+    private final PlayerMessageService messageService;
 
-    public DisassembleAction(MultiblockRuntimeService runtimeService, I18nService i18n) {
+    public DisassembleAction(MultiblockRuntimeService runtimeService, PlayerMessageService messageService) {
         this.runtimeService = Objects.requireNonNull(runtimeService, "runtimeService");
-        this.i18n = i18n;
+        this.messageService = messageService;
     }
 
     @Override
@@ -35,15 +38,20 @@ public final class DisassembleAction implements ToolAction {
     public WrenchResult execute(WrenchContext context) {
         Optional<MultiblockInstance> instanceOpt = runtimeService.getInstanceAt(context.clickedBlock().getLocation());
         if (instanceOpt.isEmpty()) {
-            if (i18n != null && context.player() != null) {
-                i18n.send(context.player(), MSG_NOT_FOUND);
+            if (messageService != null && context.player() != null) {
+                messageService.send(context.player(), new PlayerMessage(MSG_NOT_FOUND, MessageChannel.CHAT, MessagePriority.HIGH, Map.of()));
             }
             return WrenchResult.fail(MSG_NOT_FOUND.path());
         }
         MultiblockInstance instance = instanceOpt.get();
         runtimeService.destroyInstance(instance);
-        if (i18n != null && context.player() != null) {
-            i18n.send(context.player(), MSG_DISASSEMBLED, Map.of("type", instance.type().id()));
+        if (messageService != null && context.player() != null) {
+            messageService.send(context.player(), new PlayerMessage(
+                    MSG_DISASSEMBLED,
+                    MessageChannel.CHAT,
+                    MessagePriority.NORMAL,
+                    Map.of("type", instance.type().id())
+            ));
         }
         return WrenchResult.success(MSG_DISASSEMBLED.path(), Map.of("type", instance.type().id()));
     }

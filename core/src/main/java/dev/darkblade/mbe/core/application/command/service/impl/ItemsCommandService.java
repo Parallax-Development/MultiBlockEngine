@@ -2,14 +2,18 @@ package dev.darkblade.mbe.core.application.command.service.impl;
 
 import dev.darkblade.mbe.core.MultiBlockEngine;
 import dev.darkblade.mbe.api.command.MbeCommandService;
+import dev.darkblade.mbe.api.i18n.I18nService;
+import dev.darkblade.mbe.api.i18n.MessageKey;
 import dev.darkblade.mbe.api.item.ItemDefinition;
 import dev.darkblade.mbe.api.item.ItemInstance;
 import dev.darkblade.mbe.api.item.ItemKey;
 import dev.darkblade.mbe.api.item.ItemKeys;
 import dev.darkblade.mbe.api.item.ItemService;
+import dev.darkblade.mbe.api.message.MessageChannel;
+import dev.darkblade.mbe.api.message.MessagePriority;
+import dev.darkblade.mbe.api.message.PlayerMessage;
+import dev.darkblade.mbe.api.message.PlayerMessageService;
 import dev.darkblade.mbe.core.infrastructure.bridge.item.ItemStackBridge;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -23,14 +27,46 @@ import java.util.Map;
 import java.util.Objects;
 
 public final class ItemsCommandService implements MbeCommandService {
+    private static final String ORIGIN = "mbe";
+    private static final MessageKey MSG_INFO_TITLE = MessageKey.of(ORIGIN, "services.items.info.title");
+    private static final MessageKey MSG_INFO_DESCRIPTION = MessageKey.of(ORIGIN, "services.items.info.description");
+    private static final MessageKey MSG_ITEM_SERVICE_UNAVAILABLE = MessageKey.of(ORIGIN, "services.items.error.item_service_unavailable");
+    private static final MessageKey MSG_REGISTERED = MessageKey.of(ORIGIN, "services.items.info.registered");
+    private static final MessageKey MSG_MISSING_SUBACTION = MessageKey.of(ORIGIN, "services.items.error.missing_subaction");
+    private static final MessageKey MSG_INVALID_SUBACTION = MessageKey.of(ORIGIN, "services.items.error.invalid_subaction");
+    private static final MessageKey MSG_LIST_ENTRY = MessageKey.of(ORIGIN, "services.items.list.entry");
+    private static final MessageKey MSG_LIST_SUMMARY = MessageKey.of(ORIGIN, "services.items.list.summary");
+    private static final MessageKey MSG_USAGE_GET = MessageKey.of(ORIGIN, "services.items.usage.get");
+    private static final MessageKey MSG_USAGE_EXISTS = MessageKey.of(ORIGIN, "services.items.usage.exists");
+    private static final MessageKey MSG_USAGE_GIVE = MessageKey.of(ORIGIN, "services.items.usage.give");
+    private static final MessageKey MSG_USAGE_LIST = MessageKey.of(ORIGIN, "services.items.usage.list");
+    private static final MessageKey MSG_NOT_EXISTS = MessageKey.of(ORIGIN, "services.items.error.not_exists");
+    private static final MessageKey MSG_GET_ITEM = MessageKey.of(ORIGIN, "services.items.get.item");
+    private static final MessageKey MSG_GET_NAME = MessageKey.of(ORIGIN, "services.items.get.name");
+    private static final MessageKey MSG_GET_PROPERTIES = MessageKey.of(ORIGIN, "services.items.get.properties");
+    private static final MessageKey MSG_EXISTS_OK = MessageKey.of(ORIGIN, "services.items.exists.ok");
+    private static final MessageKey MSG_EXISTS_NO = MessageKey.of(ORIGIN, "services.items.exists.no");
+    private static final MessageKey MSG_PLAYERS_ONLY = MessageKey.of(ORIGIN, "services.items.error.players_only");
+    private static final MessageKey MSG_ITEM_STACK_BRIDGE_UNAVAILABLE = MessageKey.of(ORIGIN, "services.items.error.item_stack_bridge_unavailable");
+    private static final MessageKey MSG_INVALID_AMOUNT = MessageKey.of(ORIGIN, "services.items.error.invalid_amount");
+    private static final MessageKey MSG_AMOUNT_POSITIVE = MessageKey.of(ORIGIN, "services.items.error.amount_positive");
+    private static final MessageKey MSG_CREATE_FAILED = MessageKey.of(ORIGIN, "services.items.error.create_failed");
+    private static final MessageKey MSG_CONVERT_FAILED = MessageKey.of(ORIGIN, "services.items.error.convert_failed");
+    private static final MessageKey MSG_INVALID_DELIVERY_ITEM = MessageKey.of(ORIGIN, "services.items.error.invalid_delivery_item");
+    private static final MessageKey MSG_GIVE_SUCCESS = MessageKey.of(ORIGIN, "services.items.give.success");
+    private static final MessageKey MSG_INVALID_KEY = MessageKey.of(ORIGIN, "services.items.error.invalid_key");
 
     private final ItemService itemService;
     private final ItemStackBridge itemStackBridge;
+    private final I18nService i18n;
+    private final PlayerMessageService messageService;
 
     public ItemsCommandService(MultiBlockEngine plugin) {
         Objects.requireNonNull(plugin, "plugin");
         this.itemService = plugin.getAddonLifecycleService().getCoreService(ItemService.class);
         this.itemStackBridge = plugin.getAddonLifecycleService().getCoreService(ItemStackBridge.class);
+        this.i18n = plugin.getAddonLifecycleService().getCoreService(I18nService.class);
+        this.messageService = plugin.getAddonLifecycleService().getCoreService(PlayerMessageService.class);
     }
 
     @Override
@@ -63,33 +99,35 @@ public final class ItemsCommandService implements MbeCommandService {
 
     @Override
     public void info(CommandSender sender, List<String> args) {
-        sender.sendMessage(Component.text("Servicio: items", NamedTextColor.YELLOW));
-        sender.sendMessage(Component.text(description(), NamedTextColor.GRAY));
-        for (String line : executeUsage()) {
-            sender.sendMessage(Component.text(line, NamedTextColor.GRAY));
-        }
+        send(sender, MSG_INFO_TITLE);
+        send(sender, MSG_INFO_DESCRIPTION);
+        send(sender, MSG_USAGE_LIST);
+        send(sender, MSG_USAGE_GET);
+        send(sender, MSG_USAGE_EXISTS);
+        send(sender, MSG_USAGE_GIVE);
 
         if (itemService == null) {
-            sender.sendMessage(Component.text("ItemService no disponible.", NamedTextColor.RED));
+            send(sender, MSG_ITEM_SERVICE_UNAVAILABLE);
             return;
         }
 
         int total = itemService.registry().all().size();
-        sender.sendMessage(Component.text("Registrados: " + total, NamedTextColor.GRAY));
+        send(sender, MSG_REGISTERED, Map.of("count", total));
     }
 
     @Override
     public void execute(CommandSender sender, List<String> args) {
         if (itemService == null) {
-            sender.sendMessage(Component.text("ItemService no disponible.", NamedTextColor.RED));
+            send(sender, MSG_ITEM_SERVICE_UNAVAILABLE);
             return;
         }
 
         if (args == null || args.isEmpty()) {
-            sender.sendMessage(Component.text("Falta subacción.", NamedTextColor.RED));
-            for (String line : executeUsage()) {
-                sender.sendMessage(Component.text(line, NamedTextColor.GRAY));
-            }
+            send(sender, MSG_MISSING_SUBACTION);
+            send(sender, MSG_USAGE_LIST);
+            send(sender, MSG_USAGE_GET);
+            send(sender, MSG_USAGE_EXISTS);
+            send(sender, MSG_USAGE_GIVE);
             return;
         }
 
@@ -100,10 +138,11 @@ public final class ItemsCommandService implements MbeCommandService {
             case "exists" -> executeExists(sender, args);
             case "give" -> executeGive(sender, args);
             default -> {
-                sender.sendMessage(Component.text("Subacción inválida: " + sub, NamedTextColor.RED));
-                for (String line : executeUsage()) {
-                    sender.sendMessage(Component.text(line, NamedTextColor.GRAY));
-                }
+                send(sender, MSG_INVALID_SUBACTION, Map.of("sub", sub));
+                send(sender, MSG_USAGE_LIST);
+                send(sender, MSG_USAGE_GET);
+                send(sender, MSG_USAGE_EXISTS);
+                send(sender, MSG_USAGE_GIVE);
             }
         }
     }
@@ -167,78 +206,78 @@ public final class ItemsCommandService implements MbeCommandService {
             }
             matched++;
             if (shown < 50) {
-                sender.sendMessage(Component.text("- " + id + " v" + def.key().version(), NamedTextColor.GRAY));
+                send(sender, MSG_LIST_ENTRY, Map.of("id", id, "version", def.key().version()));
                 shown++;
             }
         }
 
-        sender.sendMessage(Component.text("Coincidencias: " + matched + (matched > shown ? " (mostrando " + shown + ")" : ""), NamedTextColor.YELLOW));
+        send(sender, MSG_LIST_SUMMARY, Map.of("matched", matched, "shown", shown));
     }
 
     private void executeGet(CommandSender sender, List<String> args) {
         if (args.size() < 2) {
-            sender.sendMessage(Component.text("Uso: /mbe services call items execute get <namespace:key> [version]", NamedTextColor.RED));
+            send(sender, MSG_USAGE_GET);
             return;
         }
 
         ParsedKey parsed = parseKey(args.get(1), args.size() >= 3 ? args.get(2) : null);
         if (!parsed.ok) {
-            sender.sendMessage(Component.text(parsed.error, NamedTextColor.RED));
+            send(sender, MSG_INVALID_KEY);
             return;
         }
 
         if (!itemService.registry().exists(parsed.key)) {
-            sender.sendMessage(Component.text("No existe: " + parsed.key.id() + " v" + parsed.key.version(), NamedTextColor.RED));
+            send(sender, MSG_NOT_EXISTS, Map.of("id", parsed.key.id().toString(), "version", parsed.key.version()));
             return;
         }
 
         ItemDefinition def = itemService.registry().get(parsed.key);
-        sender.sendMessage(Component.text("Item: " + def.key().id() + " v" + def.key().version(), NamedTextColor.YELLOW));
-        sender.sendMessage(Component.text("Nombre: " + safe(def.displayName()), NamedTextColor.GRAY));
+        send(sender, MSG_GET_ITEM, Map.of("id", def.key().id().toString(), "version", def.key().version()));
+        send(sender, MSG_GET_NAME, Map.of("name", safe(def.displayName())));
         Map<String, Object> props = def.properties();
-        sender.sendMessage(Component.text("Propiedades: " + (props == null ? 0 : props.size()), NamedTextColor.GRAY));
+        send(sender, MSG_GET_PROPERTIES, Map.of("count", props == null ? 0 : props.size()));
     }
 
     private void executeExists(CommandSender sender, List<String> args) {
         if (args.size() < 2) {
-            sender.sendMessage(Component.text("Uso: /mbe services call items execute exists <namespace:key> [version]", NamedTextColor.RED));
+            send(sender, MSG_USAGE_EXISTS);
             return;
         }
 
         ParsedKey parsed = parseKey(args.get(1), args.size() >= 3 ? args.get(2) : null);
         if (!parsed.ok) {
-            sender.sendMessage(Component.text(parsed.error, NamedTextColor.RED));
+            send(sender, MSG_INVALID_KEY);
             return;
         }
 
         boolean exists = itemService.registry().exists(parsed.key);
-        sender.sendMessage(Component.text(exists ? "OK" : "NO", exists ? NamedTextColor.GREEN : NamedTextColor.RED));
+        send(sender, exists ? MSG_EXISTS_OK : MSG_EXISTS_NO);
     }
 
     private void executeGive(CommandSender sender, List<String> args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(Component.text("Solo jugadores.", NamedTextColor.RED));
+            send(sender, MSG_PLAYERS_ONLY);
             return;
         }
 
         if (itemStackBridge == null) {
-            player.sendMessage(Component.text("ItemStackBridge no disponible.", NamedTextColor.RED));
+            send(player, MSG_ITEM_STACK_BRIDGE_UNAVAILABLE);
             return;
         }
 
         if (args.size() < 2) {
-            player.sendMessage(Component.text("Uso: /mbe services call items execute give <namespace:key> [version] [cantidad]", NamedTextColor.RED));
+            send(player, MSG_USAGE_GIVE);
             return;
         }
 
         ParsedKey parsed = parseKey(args.get(1), args.size() >= 3 ? args.get(2) : null);
         if (!parsed.ok) {
-            player.sendMessage(Component.text(parsed.error, NamedTextColor.RED));
+            send(player, MSG_INVALID_KEY);
             return;
         }
 
         if (!itemService.registry().exists(parsed.key)) {
-            player.sendMessage(Component.text("No existe: " + parsed.key.id() + " v" + parsed.key.version(), NamedTextColor.RED));
+            send(player, MSG_NOT_EXISTS, Map.of("id", parsed.key.id().toString(), "version", parsed.key.version()));
             return;
         }
 
@@ -247,12 +286,12 @@ public final class ItemsCommandService implements MbeCommandService {
             try {
                 amount = Integer.parseInt(args.get(3));
             } catch (NumberFormatException ex) {
-                player.sendMessage(Component.text("Cantidad inválida.", NamedTextColor.RED));
+                send(player, MSG_INVALID_AMOUNT);
                 return;
             }
         }
         if (amount <= 0) {
-            player.sendMessage(Component.text("Cantidad debe ser > 0.", NamedTextColor.RED));
+            send(player, MSG_AMOUNT_POSITIVE);
             return;
         }
 
@@ -260,12 +299,12 @@ public final class ItemsCommandService implements MbeCommandService {
         try {
             instance = itemService.factory().create(parsed.key);
         } catch (RuntimeException ex) {
-            player.sendMessage(Component.text("No se pudo crear el item.", NamedTextColor.RED));
+            send(player, MSG_CREATE_FAILED);
             return;
         }
 
         if (instance == null) {
-            player.sendMessage(Component.text("No se pudo crear el item.", NamedTextColor.RED));
+            send(player, MSG_CREATE_FAILED);
             return;
         }
 
@@ -273,12 +312,12 @@ public final class ItemsCommandService implements MbeCommandService {
         try {
             proto = itemStackBridge.toItemStack(instance);
         } catch (RuntimeException ex) {
-            player.sendMessage(Component.text("No se pudo convertir el item.", NamedTextColor.RED));
+            send(player, MSG_CONVERT_FAILED);
             return;
         }
 
         if (proto == null || proto.getType() == Material.AIR) {
-            player.sendMessage(Component.text("Item inválido para entrega.", NamedTextColor.RED));
+            send(player, MSG_INVALID_DELIVERY_ITEM);
             return;
         }
 
@@ -308,7 +347,11 @@ public final class ItemsCommandService implements MbeCommandService {
             remaining -= toGive;
         }
 
-        player.sendMessage(Component.text("Entregado: " + given + " x " + parsed.key.id() + " v" + parsed.key.version(), NamedTextColor.GREEN));
+        send(player, MSG_GIVE_SUCCESS, Map.of(
+                "amount", given,
+                "id", parsed.key.id().toString(),
+                "version", parsed.key.version()
+        ));
     }
 
     private static ParsedKey parseKey(String namespacedId, String versionText) {
@@ -318,9 +361,26 @@ public final class ItemsCommandService implements MbeCommandService {
                 version = Integer.parseInt(versionText);
             }
             ItemKey key = ItemKeys.of(namespacedId, Math.max(0, version));
-            return new ParsedKey(true, key, "");
+            return new ParsedKey(true, key);
         } catch (Exception e) {
-            return new ParsedKey(false, null, "ItemKey inválido. Usa: <namespace:key> [version]");
+            return new ParsedKey(false, null);
+        }
+    }
+
+    private void send(CommandSender sender, MessageKey key) {
+        send(sender, key, Map.of());
+    }
+
+    private void send(CommandSender sender, MessageKey key, Map<String, Object> params) {
+        if (sender == null || key == null) {
+            return;
+        }
+        if (sender instanceof Player player && messageService != null) {
+            messageService.send(player, new PlayerMessage(key, MessageChannel.CHAT, MessagePriority.NORMAL, params == null ? Map.of() : params));
+            return;
+        }
+        if (i18n != null) {
+            i18n.send(sender, key, params == null ? Map.of() : params);
         }
     }
 
@@ -328,6 +388,6 @@ public final class ItemsCommandService implements MbeCommandService {
         return v == null ? "" : v;
     }
 
-    private record ParsedKey(boolean ok, ItemKey key, String error) {
+    private record ParsedKey(boolean ok, ItemKey key) {
     }
 }

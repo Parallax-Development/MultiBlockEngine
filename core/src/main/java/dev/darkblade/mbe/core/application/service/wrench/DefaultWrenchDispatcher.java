@@ -8,6 +8,10 @@ import dev.darkblade.mbe.api.i18n.message.CoreMessageKeys;
 import dev.darkblade.mbe.api.item.ItemInstance;
 import dev.darkblade.mbe.api.item.ItemKey;
 import dev.darkblade.mbe.api.item.ItemKeys;
+import dev.darkblade.mbe.api.message.MessageChannel;
+import dev.darkblade.mbe.api.message.MessagePriority;
+import dev.darkblade.mbe.api.message.PlayerMessage;
+import dev.darkblade.mbe.api.message.PlayerMessageService;
 import dev.darkblade.mbe.api.logging.CoreLogger;
 import dev.darkblade.mbe.api.logging.LogKv;
 import dev.darkblade.mbe.api.logging.LogLevel;
@@ -943,13 +947,36 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
         if (player == null || key == null) {
             return;
         }
-        if (i18n == null) {
+        PlayerMessageService messageService = resolveMessageService();
+        if (messageService == null) {
             return;
         }
         try {
-            i18n.send(player, key, params);
+            messageService.send(player, new PlayerMessage(key, MessageChannel.CHAT, MessagePriority.NORMAL, castParams(params)));
         } catch (Throwable ignored) {
         }
+    }
+
+    private PlayerMessageService resolveMessageService() {
+        MultiBlockEngine plugin = MultiBlockEngine.getInstance();
+        if (plugin == null || plugin.getAddonLifecycleService() == null) {
+            return null;
+        }
+        return plugin.getAddonLifecycleService().getCoreService(PlayerMessageService.class);
+    }
+
+    private Map<String, Object> castParams(Map<String, ?> params) {
+        if (params == null || params.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        for (Map.Entry<String, ?> entry : params.entrySet()) {
+            if (entry == null || entry.getKey() == null) {
+                continue;
+            }
+            out.put(entry.getKey(), entry.getValue());
+        }
+        return out.isEmpty() ? Map.of() : Map.copyOf(out);
     }
 
     private void executeActionSafely(String runtimePhase, Action action, MultiblockInstance instance, Player player) {

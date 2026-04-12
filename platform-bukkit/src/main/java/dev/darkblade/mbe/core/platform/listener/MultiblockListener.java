@@ -15,6 +15,10 @@ import dev.darkblade.mbe.api.i18n.MessageKey;
 import dev.darkblade.mbe.api.assembly.AssemblyContext;
 import dev.darkblade.mbe.api.assembly.AssemblyReport;
 import dev.darkblade.mbe.api.item.ItemInstance;
+import dev.darkblade.mbe.api.message.MessageChannel;
+import dev.darkblade.mbe.api.message.MessagePriority;
+import dev.darkblade.mbe.api.message.PlayerMessage;
+import dev.darkblade.mbe.api.message.PlayerMessageService;
 import dev.darkblade.mbe.api.service.interaction.InteractionIntent;
 import dev.darkblade.mbe.api.service.interaction.InteractionPipelineService;
 import dev.darkblade.mbe.api.tool.ActionTrigger;
@@ -279,11 +283,20 @@ public class MultiblockListener implements Listener {
             return;
         }
         String typeId = instance.type().id() == null ? "" : instance.type().id();
-        I18nService service = resolveI18n();
-        if (service == null) {
+        PlayerMessageService messageService = resolveMessageService();
+        if (messageService != null) {
+            messageService.send(player, new PlayerMessage(
+                    MSG_DISASSEMBLED,
+                    MessageChannel.CHAT,
+                    MessagePriority.NORMAL,
+                    Map.of("type", typeId)
+            ));
             return;
         }
-        service.send(player, MSG_DISASSEMBLED, Map.of("type", typeId));
+        I18nService service = resolveI18n();
+        if (service != null) {
+            service.send(player, MSG_DISASSEMBLED, Map.of("type", typeId));
+        }
     }
 
     private I18nService resolveI18n() {
@@ -310,7 +323,20 @@ public class MultiblockListener implements Listener {
         if (translated == null || translated.isBlank() || translated.equals(key.path())) {
             return;
         }
+        PlayerMessageService messageService = resolveMessageService();
+        if (messageService != null) {
+            messageService.send(player, new PlayerMessage(key, MessageChannel.CHAT, MessagePriority.HIGH, Map.of()));
+            return;
+        }
         service.send(player, key);
+    }
+
+    private PlayerMessageService resolveMessageService() {
+        MultiBlockEngine plugin = MultiBlockEngine.getInstance();
+        if (plugin == null || plugin.getAddonLifecycleService() == null) {
+            return null;
+        }
+        return plugin.getAddonLifecycleService().getCoreService(PlayerMessageService.class);
     }
 
     private void unregisterLimit(MultiblockInstance instance, Player player) {

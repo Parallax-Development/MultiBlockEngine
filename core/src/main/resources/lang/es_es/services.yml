@@ -1,1 +1,92 @@
-{}
+services:
+  items:
+    info:
+      title: "&eServicio: items"
+      description: "&7Consulta y diagnóstico del registro de items"
+      registered: "&7Registrados: {count}"
+    error:
+      item_service_unavailable: "&cItemService no disponible."
+      missing_subaction: "&cFalta subacción."
+      invalid_subaction: "&cSubacción inválida: {sub}"
+      not_exists: "&cNo existe: {id} v{version}"
+      players_only: "&cSolo jugadores."
+      item_stack_bridge_unavailable: "&cItemStackBridge no disponible."
+      invalid_amount: "&cCantidad inválida."
+      amount_positive: "&cLa cantidad debe ser > 0."
+      create_failed: "&cNo se pudo crear el item."
+      convert_failed: "&cNo se pudo convertir el item."
+      invalid_delivery_item: "&cItem inválido para entrega."
+      invalid_key: "&cItemKey inválido. Usa: <namespace:key> [version]"
+    usage:
+      list: "&7/mbe services call items execute list [contains]"
+      get: "&cUso: /mbe services call items execute get <namespace:key> [version]"
+      exists: "&cUso: /mbe services call items execute exists <namespace:key> [version]"
+      give: "&cUso: /mbe services call items execute give <namespace:key> [version] [cantidad]"
+    list:
+      entry: "&7- {id} v{version}"
+      summary: "&eCoincidencias: {matched} (mostrando {shown})"
+    get:
+      item: "&eItem: {id} v{version}"
+      name: "&7Nombre: {name}"
+      properties: "&7Propiedades: {count}"
+    exists:
+      ok: "&aOK"
+      no: "&cNO"
+    give:
+      success: "&aEntregado: {amount} x {id} v{version}"
+  blueprint:
+    info:
+      execute_catalog: "&7Servicio blueprint: execute catalog"
+    usage:
+      catalog: "&7/mbe services call blueprint execute catalog"
+    error:
+      service_unavailable: "&cBlueprintService no disponible."
+      player_only: "&cSolo jugadores pueden abrir el catálogo."
+      invalid_subcommand: "&cSubcomando inválido. Usa: catalog"
+  ui:
+    info:
+      title: "&eServicio: ui"
+      description: "&7Binding entre paneles UI y controllers de multiblocks"
+      panel_service: "&7PanelViewService: {status}"
+      bindings_count: "&7Bindings registrados: {count}"
+    usage:
+      link: "&7/mbe services call ui execute link <panelId>"
+      cancel: "&7/mbe services call ui execute cancel"
+      list: "&7/mbe services call ui execute list"
+    error:
+      unknown_subcommand: "&cSubcomando desconocido: {action}"
+      player_only_link: "&cSolo jugadores pueden iniciar sesiones de link."
+      services_unavailable: "&cServicios de editor/binding no disponibles."
+      resolve_panel_service: "&cError al resolver PanelViewService."
+      panel_service_unavailable: "&cNo hay PanelViewService disponible. Verifica que el addon UI lo registre."
+      panel_not_found: "&cNo existe el panel: {panel}"
+      panel_validation_failed: "&cEl addon UI falló al validar el panel: {panel}"
+      player_only_cancel: "&cSolo jugadores pueden cancelar sesiones."
+      editor_unavailable: "&cEditorSessionManager no disponible."
+      binding_unavailable: "&cPanelBindingService no disponible."
+    link:
+      started: "&aSesión iniciada. Haz click en el controller_block del multiblock."
+      cancel_hint: "&7Usa /mbe services call ui execute cancel para cancelar."
+    list:
+      title: "&eBindings: {count}"
+      entry: "&7{panel} @ {world}:{x},{y},{z} [{trigger}]"
+  router:
+    error:
+      service_not_specified: "&cServicio no especificado."
+      service_not_found: "&cServicio no encontrado: {service}"
+      execution_failed: "&cFallo ejecutando el servicio: {service}"
+      generic: "&cComando de servicios inválido."
+    hint:
+      use_services_list: "&7Usa: /{label} services list"
+      check_console: "&7Revisa consola para detalles."
+    help:
+      usage: "&eUso: /{label} <inspect|reload|status|debug|services>"
+      services_usage: "&eServicios: /{label} services call <servicio> <info|execute> <args>"
+    overview:
+      usage: "&eUso:"
+      list: "&7/{label} services list"
+      call: "&7/{label} services call <servicio> <info|execute> <args>"
+      example: "&7Ejemplo: /{label} services call items info"
+    list:
+      title: "&eServicios disponibles ({count}):"
+      entry: "&7- {id} : {description}"

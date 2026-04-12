@@ -4,8 +4,11 @@ import dev.darkblade.mbe.api.assembly.AssemblyContext;
 import dev.darkblade.mbe.api.assembly.AssemblyReport;
 import dev.darkblade.mbe.api.command.WrenchContext;
 import dev.darkblade.mbe.api.command.WrenchResult;
-import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.MessageKey;
+import dev.darkblade.mbe.api.message.MessageChannel;
+import dev.darkblade.mbe.api.message.MessagePriority;
+import dev.darkblade.mbe.api.message.PlayerMessage;
+import dev.darkblade.mbe.api.message.PlayerMessageService;
 import dev.darkblade.mbe.api.service.interaction.InteractionIntent;
 import dev.darkblade.mbe.api.service.interaction.InteractionSource;
 import dev.darkblade.mbe.api.service.interaction.InteractionType;
@@ -21,11 +24,11 @@ public final class AssembleAction implements ToolAction {
     private static final MessageKey MSG_ASSEMBLED = MessageKey.of("mbe", "core.wrench.assembled");
 
     private final AssemblyCoordinator assemblyCoordinator;
-    private final I18nService i18n;
+    private final PlayerMessageService messageService;
 
-    public AssembleAction(AssemblyCoordinator assemblyCoordinator, I18nService i18n) {
+    public AssembleAction(AssemblyCoordinator assemblyCoordinator, PlayerMessageService messageService) {
         this.assemblyCoordinator = Objects.requireNonNull(assemblyCoordinator, "assemblyCoordinator");
-        this.i18n = i18n;
+        this.messageService = messageService;
     }
 
     @Override
@@ -50,8 +53,13 @@ public final class AssembleAction implements ToolAction {
         if (report == null || !report.success()) {
             return WrenchResult.noop();
         }
-        if (i18n != null && context.player() != null) {
-            i18n.send(context.player(), MSG_ASSEMBLED, Map.of("type", safeType(report.multiblockId())));
+        if (messageService != null && context.player() != null) {
+            messageService.send(context.player(), new PlayerMessage(
+                    MSG_ASSEMBLED,
+                    MessageChannel.CHAT,
+                    MessagePriority.NORMAL,
+                    Map.of("type", safeType(report.multiblockId()))
+            ));
         }
         return WrenchResult.success(MSG_ASSEMBLED.path(), Map.of("type", safeType(report.multiblockId())));
     }

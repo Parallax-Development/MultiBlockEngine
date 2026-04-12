@@ -2,12 +2,17 @@ package dev.darkblade.mbe.core.application.command.service;
 
 import dev.darkblade.mbe.core.MultiBlockEngine;
 import dev.darkblade.mbe.api.command.MbeCommandService;
+import dev.darkblade.mbe.api.i18n.I18nService;
+import dev.darkblade.mbe.api.i18n.MessageKey;
 import dev.darkblade.mbe.api.logging.CoreLogger;
 import dev.darkblade.mbe.api.logging.LogKv;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
+import dev.darkblade.mbe.api.message.MessageChannel;
+import dev.darkblade.mbe.api.message.MessagePriority;
+import dev.darkblade.mbe.api.message.PlayerMessage;
+import dev.darkblade.mbe.api.message.PlayerMessageService;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.ServicePriority;
 
@@ -22,6 +27,23 @@ import java.util.Objects;
 import java.util.Optional;
 
 public final class ServicesCommandRouter {
+    private static final String ORIGIN = "mbe";
+    private static final MessageKey MSG_ERROR_SERVICE_NOT_SPECIFIED = MessageKey.of(ORIGIN, "services.router.error.service_not_specified");
+    private static final MessageKey MSG_ERROR_SERVICE_NOT_FOUND = MessageKey.of(ORIGIN, "services.router.error.service_not_found");
+    private static final MessageKey MSG_ERROR_SERVICE_EXECUTION_FAILED = MessageKey.of(ORIGIN, "services.router.error.execution_failed");
+    private static final MessageKey MSG_HINT_USE_SERVICES_LIST = MessageKey.of(ORIGIN, "services.router.hint.use_services_list");
+    private static final MessageKey MSG_HINT_CHECK_CONSOLE = MessageKey.of(ORIGIN, "services.router.hint.check_console");
+    private static final MessageKey MSG_HELP_USAGE = MessageKey.of(ORIGIN, "services.router.help.usage");
+    private static final MessageKey MSG_HELP_SERVICES_USAGE = MessageKey.of(ORIGIN, "services.router.help.services_usage");
+    private static final MessageKey MSG_OVERVIEW_USAGE = MessageKey.of(ORIGIN, "services.router.overview.usage");
+    private static final MessageKey MSG_OVERVIEW_LIST = MessageKey.of(ORIGIN, "services.router.overview.list");
+    private static final MessageKey MSG_OVERVIEW_CALL = MessageKey.of(ORIGIN, "services.router.overview.call");
+    private static final MessageKey MSG_OVERVIEW_EXAMPLE = MessageKey.of(ORIGIN, "services.router.overview.example");
+    private static final MessageKey MSG_LIST_TITLE = MessageKey.of(ORIGIN, "services.router.list.title");
+    private static final MessageKey MSG_LIST_ENTRY = MessageKey.of(ORIGIN, "services.router.list.entry");
+    private static final MessageKey MSG_ERROR_GENERIC = MessageKey.of(ORIGIN, "services.router.error.generic");
+
+    private final MultiBlockEngine plugin;
 
     private final CoreLogger log;
     private final ServiceCallParser parser = new ServiceCallParser();
@@ -29,6 +51,7 @@ public final class ServicesCommandRouter {
 
     public ServicesCommandRouter(MultiBlockEngine plugin) {
         Objects.requireNonNull(plugin, "plugin");
+        this.plugin = plugin;
         this.log = plugin.getLoggingService().core();
     }
 
@@ -48,13 +71,13 @@ public final class ServicesCommandRouter {
         Objects.requireNonNull(sender, "sender");
         String sid = serviceId == null ? "" : serviceId.trim();
         if (sid.isEmpty()) {
-            sendError(sender, "Servicio no especificado", List.of("Usa: /" + label + " services list"));
+            sendError(sender, MSG_ERROR_SERVICE_NOT_SPECIFIED, Map.of(), List.of(Map.entry(MSG_HINT_USE_SERVICES_LIST, Map.of("label", label))));
             return true;
         }
 
         Optional<MbeCommandService> svcOpt = resolveService(sid);
         if (svcOpt.isEmpty()) {
-            sendError(sender, "Servicio no encontrado: " + sid, List.of("Usa: /" + label + " services list"));
+            sendError(sender, MSG_ERROR_SERVICE_NOT_FOUND, Map.of("service", sid), List.of(Map.entry(MSG_HINT_USE_SERVICES_LIST, Map.of("label", label))));
             return true;
         }
 
@@ -74,7 +97,7 @@ public final class ServicesCommandRouter {
             }
         } catch (Throwable t) {
             audit(sender, label, svc, m, safeArgs, false, t);
-            sendError(sender, "Fallo ejecutando el servicio: " + svc.id(), List.of("Revisa consola para detalles."));
+            sendError(sender, MSG_ERROR_SERVICE_EXECUTION_FAILED, Map.of("service", svc.id()), List.of(Map.entry(MSG_HINT_CHECK_CONSOLE, Map.of())));
         }
         return true;
     }
@@ -133,14 +156,14 @@ public final class ServicesCommandRouter {
 
         ServiceCallParser.ParseResult parsed = parser.parseServicesCall(safeArgs);
         if (parsed instanceof ServiceCallParser.ParseResult.Error err) {
-            sendError(sender, err.message(), err.hints());
+            sendError(sender, MSG_ERROR_GENERIC, Map.of(), List.of(Map.entry(MSG_HINT_USE_SERVICES_LIST, Map.of("label", label))));
             return true;
         }
 
         ServiceCallParser.ServiceCall call = ((ServiceCallParser.ParseResult.Ok) parsed).call();
         Optional<MbeCommandService> svcOpt = resolveService(call.serviceId());
         if (svcOpt.isEmpty()) {
-            sendError(sender, "Servicio no encontrado: " + call.serviceId(), List.of("Usa: /mbe services list"));
+            sendError(sender, MSG_ERROR_SERVICE_NOT_FOUND, Map.of("service", call.serviceId()), List.of(Map.entry(MSG_HINT_USE_SERVICES_LIST, Map.of("label", "mbe"))));
             return true;
         }
 
@@ -155,7 +178,7 @@ public final class ServicesCommandRouter {
             }
         } catch (Throwable t) {
             audit(sender, label, svc, call.mode(), call.args(), false, t);
-            sendError(sender, "Fallo ejecutando el servicio: " + svc.id(), List.of("Revisa consola para detalles."));
+            sendError(sender, MSG_ERROR_SERVICE_EXECUTION_FAILED, Map.of("service", svc.id()), List.of(Map.entry(MSG_HINT_CHECK_CONSOLE, Map.of())));
         }
         return true;
     }
@@ -263,15 +286,15 @@ public final class ServicesCommandRouter {
     }
 
     private void sendHelp(CommandSender sender, String label) {
-        sender.sendMessage(Component.text("Uso: /" + label + " <inspect|reload|status|debug|services>", NamedTextColor.YELLOW));
-        sender.sendMessage(Component.text("Servicios: /" + label + " services call <servicio> <info|execute> <argumentos>", NamedTextColor.YELLOW));
+        send(sender, MSG_HELP_USAGE, Map.of("label", label));
+        send(sender, MSG_HELP_SERVICES_USAGE, Map.of("label", label));
     }
 
     private void sendServicesOverview(CommandSender sender, String label) {
-        sender.sendMessage(Component.text("Uso:", NamedTextColor.YELLOW));
-        sender.sendMessage(Component.text("/" + label + " services list", NamedTextColor.GRAY));
-        sender.sendMessage(Component.text("/" + label + " services call <servicio> <info|execute> <argumentos>", NamedTextColor.GRAY));
-        sender.sendMessage(Component.text("Ejemplo: /" + label + " services call items info", NamedTextColor.GRAY));
+        send(sender, MSG_OVERVIEW_USAGE);
+        send(sender, MSG_OVERVIEW_LIST, Map.of("label", label));
+        send(sender, MSG_OVERVIEW_CALL, Map.of("label", label));
+        send(sender, MSG_OVERVIEW_EXAMPLE, Map.of("label", label));
     }
 
     private void sendServicesList(CommandSender sender) {
@@ -284,17 +307,21 @@ public final class ServicesCommandRouter {
         }
 
         all.sort((a, b) -> a.id().compareToIgnoreCase(b.id()));
-        sender.sendMessage(Component.text("Servicios disponibles (" + all.size() + "):", NamedTextColor.YELLOW));
+        send(sender, MSG_LIST_TITLE, Map.of("count", all.size()));
         for (MbeCommandService svc : all) {
-            sender.sendMessage(Component.text("- " + svc.id() + " : " + safe(svc.description()), NamedTextColor.GRAY));
+            send(sender, MSG_LIST_ENTRY, Map.of("id", svc.id(), "description", safe(svc.description())));
         }
     }
 
-    private void sendError(CommandSender sender, String message, List<String> hints) {
-        sender.sendMessage(Component.text(message == null ? "Error" : message, NamedTextColor.RED));
-        for (String hint : hints == null ? List.<String>of() : hints) {
-            if (hint != null && !hint.isBlank()) {
-                sender.sendMessage(Component.text(hint, NamedTextColor.GRAY));
+    private void sendError(CommandSender sender, MessageKey messageKey, Map<String, Object> params, List<Map.Entry<MessageKey, Map<String, Object>>> hints) {
+        if (messageKey != null) {
+            send(sender, messageKey, params);
+        } else {
+            send(sender, MSG_ERROR_GENERIC);
+        }
+        for (Map.Entry<MessageKey, Map<String, Object>> hint : hints == null ? List.<Map.Entry<MessageKey, Map<String, Object>>>of() : hints) {
+            if (hint != null && hint.getKey() != null) {
+                send(sender, hint.getKey(), hint.getValue() == null ? Map.of() : hint.getValue());
             }
         }
     }
@@ -340,4 +367,24 @@ public final class ServicesCommandRouter {
     private static String safe(String v) {
         return v == null ? "" : v;
     }
+
+    private void send(CommandSender sender, MessageKey key) {
+        send(sender, key, Map.of());
+    }
+
+    private void send(CommandSender sender, MessageKey key, Map<String, Object> params) {
+        if (sender == null || key == null) {
+            return;
+        }
+        PlayerMessageService messageService = plugin.getAddonLifecycleService().getCoreService(PlayerMessageService.class);
+        if (sender instanceof Player player && messageService != null) {
+            messageService.send(player, new PlayerMessage(key, MessageChannel.CHAT, MessagePriority.NORMAL, params == null ? Map.of() : params));
+            return;
+        }
+        I18nService i18n = plugin.getAddonLifecycleService().getCoreService(I18nService.class);
+        if (i18n != null) {
+            i18n.send(sender, key, params == null ? Map.of() : params);
+        }
+    }
+
 }

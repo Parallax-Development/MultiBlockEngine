@@ -15,6 +15,10 @@ import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.MessageKey;
 import dev.darkblade.mbe.api.i18n.MessageUtils;
 import dev.darkblade.mbe.api.i18n.message.CoreMessageKeys;
+import dev.darkblade.mbe.api.message.MessageChannel;
+import dev.darkblade.mbe.api.message.MessagePriority;
+import dev.darkblade.mbe.api.message.PlayerMessage;
+import dev.darkblade.mbe.api.message.PlayerMessageService;
 import dev.darkblade.mbe.core.infrastructure.bridge.item.ItemStackBridge;
 import dev.darkblade.mbe.core.internal.tooling.export.ExportSession;
 import dev.darkblade.mbe.core.internal.tooling.export.SelectionService;
@@ -33,8 +37,6 @@ import dev.darkblade.mbe.core.domain.MultiblockInstance;
 import dev.darkblade.mbe.core.domain.MultiblockType;
 import dev.darkblade.mbe.core.domain.PatternEntry;
 import dev.darkblade.mbe.core.infrastructure.config.parser.MultiblockParser;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.block.Block;
@@ -91,19 +93,20 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
     private static final MessageKey MSG_RELOAD_DONE_TYPES = MessageKey.of(ORIGIN, "commands.reload.done_types");
     private static final MessageKey MSG_RELOAD_DONE_RESTART = MessageKey.of(ORIGIN, "commands.reload.done_restart");
     private static final MessageKey MSG_STATUS_TITLE = MessageKey.of(ORIGIN, "commands.status.title");
-    private static final MessageKey MSG_STATUS_LOADED_TYPES = MessageKey.of(ORIGIN, "commands.status.loaded_types");
-    private static final MessageKey MSG_STATUS_TOTAL_CREATED = MessageKey.of(ORIGIN, "commands.status.total_created");
-    private static final MessageKey MSG_STATUS_TOTAL_DESTROYED = MessageKey.of(ORIGIN, "commands.status.total_destroyed");
-    private static final MessageKey MSG_STATUS_STRUCTURE_CHECKS = MessageKey.of(ORIGIN, "commands.status.structure_checks");
-    private static final MessageKey MSG_STATUS_AVG_TICK = MessageKey.of(ORIGIN, "commands.status.avg_tick");
+    private static final MessageKey MSG_STATUS_LOADED_TYPES_VALUE = MessageKey.of(ORIGIN, "commands.status.loaded_types_value");
+    private static final MessageKey MSG_STATUS_TOTAL_CREATED_VALUE = MessageKey.of(ORIGIN, "commands.status.total_created_value");
+    private static final MessageKey MSG_STATUS_TOTAL_DESTROYED_VALUE = MessageKey.of(ORIGIN, "commands.status.total_destroyed_value");
+    private static final MessageKey MSG_STATUS_STRUCTURE_CHECKS_VALUE = MessageKey.of(ORIGIN, "commands.status.structure_checks_value");
+    private static final MessageKey MSG_STATUS_AVG_TICK_VALUE = MessageKey.of(ORIGIN, "commands.status.avg_tick_value");
     private static final MessageKey MSG_INSPECT_MUST_LOOK_AT_BLOCK = MessageKey.of(ORIGIN, "commands.inspect.must_look_at_block");
     private static final MessageKey MSG_INSPECT_NONE = MessageKey.of(ORIGIN, "commands.inspect.none_here");
     private static final MessageKey MSG_INSPECT_TITLE = MessageKey.of(ORIGIN, "commands.inspect.title");
-    private static final MessageKey MSG_INSPECT_TYPE = MessageKey.of(ORIGIN, "commands.inspect.type");
-    private static final MessageKey MSG_INSPECT_STATE = MessageKey.of(ORIGIN, "commands.inspect.state");
-    private static final MessageKey MSG_INSPECT_FACING = MessageKey.of(ORIGIN, "commands.inspect.facing");
-    private static final MessageKey MSG_INSPECT_ANCHOR = MessageKey.of(ORIGIN, "commands.inspect.anchor");
     private static final MessageKey MSG_INSPECT_HIGHLIGHTED = MessageKey.of(ORIGIN, "commands.inspect.highlighted");
+    private static final MessageKey MSG_INSPECT_TYPE_VALUE = MessageKey.of(ORIGIN, "commands.inspect.type_value");
+    private static final MessageKey MSG_INSPECT_STATE_VALUE = MessageKey.of(ORIGIN, "commands.inspect.state_value");
+    private static final MessageKey MSG_INSPECT_FACING_VALUE = MessageKey.of(ORIGIN, "commands.inspect.facing_value");
+    private static final MessageKey MSG_INSPECT_ANCHOR_VALUE = MessageKey.of(ORIGIN, "commands.inspect.anchor_value");
+    private static final MessageKey MSG_BLUEPRINT_AVAILABLE_IDS = MessageKey.of(ORIGIN, "commands.blueprint.available_ids");
 
     private final MultiBlockEngine plugin;
     private final ServicesCommandRouter services;
@@ -233,7 +236,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        sender.sendMessage(Component.text(tr(sender, MSG_UNKNOWN_SUBCOMMAND), NamedTextColor.RED));
+        send(sender, MSG_UNKNOWN_SUBCOMMAND);
         sendHelp(sender, label);
         return true;
     }
@@ -484,7 +487,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
             }
             java.util.Collections.sort(ids);
             send(sender, CoreMessageKeys.BLUEPRINT_AVAILABLE_TITLE, "count", ids.size());
-            sender.sendMessage(Component.text(String.join(", ", ids), NamedTextColor.GRAY));
+            send(sender, MSG_BLUEPRINT_AVAILABLE_IDS, "ids", String.join(", ", ids));
             return;
         }
 
@@ -552,7 +555,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
 
     private void handleDebug(Player player, String[] args) {
         if (args.length < 2) {
-            player.sendMessage(Component.text(tr(player, MSG_DEBUG_USAGE), NamedTextColor.RED));
+            send(player, MSG_DEBUG_USAGE);
             return;
         }
         
@@ -560,7 +563,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
         Optional<MultiblockType> typeOpt = plugin.getManager().getType(id);
         
         if (typeOpt.isEmpty()) {
-            player.sendMessage(Component.text(tr(player, MSG_DEBUG_TYPE_NOT_FOUND, "id", id), NamedTextColor.RED));
+            send(player, MSG_DEBUG_TYPE_NOT_FOUND, "id", id);
             return;
         }
         MultiblockType type = typeOpt.get();
@@ -575,7 +578,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
         if (args.length >= 3) {
             targetPlayer = org.bukkit.Bukkit.getPlayer(args[2]);
             if (targetPlayer == null) {
-                player.sendMessage(Component.text(tr(player, MSG_DEBUG_PLAYER_NOT_FOUND, "player", args[2]), NamedTextColor.RED));
+                send(player, MSG_DEBUG_PLAYER_NOT_FOUND, "player", args[2]);
                 return;
             }
         }
@@ -583,7 +586,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
         // Raytrace for anchor
         Block targetBlock = targetPlayer.getTargetBlockExact(10);
         if (targetBlock == null || targetBlock.getType().isAir()) {
-            player.sendMessage(Component.text(tr(player, MSG_DEBUG_MUST_LOOK_AT_BLOCK), NamedTextColor.RED));
+            send(player, MSG_DEBUG_MUST_LOOK_AT_BLOCK);
             return;
         }
         
@@ -619,24 +622,24 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
         if (targetName != null && !targetName.isBlank()) {
             target = org.bukkit.Bukkit.getPlayer(targetName);
             if (target == null) {
-                sender.sendMessage(Component.text(tr(sender, MSG_REPORT_PLAYER_NOT_FOUND, "player", targetName), NamedTextColor.RED));
+                send(sender, MSG_REPORT_PLAYER_NOT_FOUND, "player", targetName);
                 return;
             }
         } else if (sender instanceof Player p) {
             target = p;
         } else {
-            sender.sendMessage(Component.text(tr(sender, MSG_REPORT_PLAYER_NOT_FOUND, "player", "<jugador>"), NamedTextColor.RED));
+            send(sender, MSG_REPORT_PLAYER_NOT_FOUND, "player", "<jugador>");
             return;
         }
 
         if (plugin.getAssemblyCoordinator() == null) {
-            sender.sendMessage(Component.text(tr(sender, MSG_REPORT_NONE), NamedTextColor.YELLOW));
+            send(sender, MSG_REPORT_NONE);
             return;
         }
 
         AssemblyReport report = plugin.getAssemblyCoordinator().lastReport(target.getUniqueId()).orElse(null);
         if (report == null) {
-            sender.sendMessage(Component.text(tr(sender, MSG_REPORT_NONE), NamedTextColor.YELLOW));
+            send(sender, MSG_REPORT_NONE);
             return;
         }
 
@@ -647,40 +650,40 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
     }
 
     private void sendReport(CommandSender sender, AssemblyReport report) {
-        sender.sendMessage(Component.text(tr(sender, MSG_REPORT_TITLE), NamedTextColor.AQUA));
-        sender.sendMessage(Component.text(tr(sender, MSG_REPORT_RESULT, "result", report.success() ? "SUCCESS" : "FAILED"), NamedTextColor.GRAY));
+        send(sender, MSG_REPORT_TITLE);
+        send(sender, MSG_REPORT_RESULT, "result", report.success() ? "SUCCESS" : "FAILED");
         if (report.reasonKey() != null && !report.reasonKey().isBlank()) {
-            sender.sendMessage(Component.text(tr(sender, MSG_REPORT_REASON, "reason", report.reasonKey()), NamedTextColor.GRAY));
+            send(sender, MSG_REPORT_REASON, "reason", report.reasonKey());
         }
-        sender.sendMessage(Component.text(tr(sender, MSG_REPORT_TRIGGER, "trigger", report.trigger()), NamedTextColor.DARK_GRAY));
-        sender.sendMessage(Component.text(tr(sender, MSG_REPORT_MULTIBLOCK, "multiblock", report.multiblockId()), NamedTextColor.DARK_GRAY));
-        sender.sendMessage(Component.text(tr(sender, MSG_REPORT_DEBUG_TITLE), NamedTextColor.GOLD));
+        send(sender, MSG_REPORT_TRIGGER, "trigger", report.trigger());
+        send(sender, MSG_REPORT_MULTIBLOCK, "multiblock", report.multiblockId());
+        send(sender, MSG_REPORT_DEBUG_TITLE);
         if (report.debugData().isEmpty()) {
-            sender.sendMessage(Component.text(tr(sender, MSG_REPORT_DEBUG_LINE, "key", "-", "value", "-"), NamedTextColor.GRAY));
+            send(sender, MSG_REPORT_DEBUG_LINE, "key", "-", "value", "-");
         } else {
             for (Map.Entry<String, Object> entry : report.debugData().entrySet()) {
-                sender.sendMessage(Component.text(tr(sender, MSG_REPORT_DEBUG_LINE, "key", entry.getKey(), "value", String.valueOf(entry.getValue())), NamedTextColor.GRAY));
+                send(sender, MSG_REPORT_DEBUG_LINE, "key", entry.getKey(), "value", String.valueOf(entry.getValue()));
             }
         }
-        sender.sendMessage(Component.text(tr(sender, MSG_REPORT_TRACE_TITLE), NamedTextColor.GOLD));
+        send(sender, MSG_REPORT_TRACE_TITLE);
         int i = 1;
         for (AssemblyStepTrace step : report.trace()) {
             if (step == null) {
                 continue;
             }
-            sender.sendMessage(Component.text(tr(
+            send(
                     sender,
                     MSG_REPORT_TRACE_LINE,
                     "index", i++,
                     "step", step.step(),
                     "status", step.success() ? "OK" : "FAIL",
                     "detail", step.detail()
-            ), step.success() ? NamedTextColor.GREEN : NamedTextColor.RED));
+            );
         }
     }
 
     private void handleReload(CommandSender sender) {
-        sender.sendMessage(Component.text(tr(sender, MSG_RELOAD_START), NamedTextColor.YELLOW));
+        send(sender, MSG_RELOAD_START);
         
         // Reload Config
         plugin.reloadConfig();
@@ -713,35 +716,20 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
         // Restart ticking with new config
         plugin.getManager().startTicking(plugin);
         
-        sender.sendMessage(Component.text(tr(sender, MSG_RELOAD_DONE_TYPES, "count", newTypes.size()), NamedTextColor.GREEN));
-        sender.sendMessage(Component.text(tr(sender, MSG_RELOAD_DONE_RESTART), NamedTextColor.GREEN));
+        send(sender, MSG_RELOAD_DONE_TYPES, "count", newTypes.size());
+        send(sender, MSG_RELOAD_DONE_RESTART);
     }
     
     private void handleStatus(CommandSender sender) {
         MultiblockRuntimeService manager = plugin.getManager();
         MetricsService metrics = manager.getMetrics();
         
-        sender.sendMessage(Component.text(tr(sender, MSG_STATUS_TITLE), NamedTextColor.BLUE));
-        sender.sendMessage(Component.textOfChildren(
-                Component.text(tr(sender, MSG_STATUS_LOADED_TYPES), NamedTextColor.GRAY),
-                Component.text(String.valueOf(manager.getTypes().size()), NamedTextColor.WHITE)
-        ));
-        sender.sendMessage(Component.textOfChildren(
-                Component.text(tr(sender, MSG_STATUS_TOTAL_CREATED), NamedTextColor.GRAY),
-                Component.text(String.valueOf(metrics.getCreatedInstances()), NamedTextColor.WHITE)
-        ));
-        sender.sendMessage(Component.textOfChildren(
-                Component.text(tr(sender, MSG_STATUS_TOTAL_DESTROYED), NamedTextColor.GRAY),
-                Component.text(String.valueOf(metrics.getDestroyedInstances()), NamedTextColor.WHITE)
-        ));
-        sender.sendMessage(Component.textOfChildren(
-                Component.text(tr(sender, MSG_STATUS_STRUCTURE_CHECKS), NamedTextColor.GRAY),
-                Component.text(String.valueOf(metrics.getStructureChecks()), NamedTextColor.WHITE)
-        ));
-        sender.sendMessage(Component.textOfChildren(
-                Component.text(tr(sender, MSG_STATUS_AVG_TICK), NamedTextColor.GRAY),
-                Component.text(String.format("%.1f s", metrics.getAverageTickTimeMs() / 1000.0D), NamedTextColor.WHITE)
-        ));
+        send(sender, MSG_STATUS_TITLE);
+        send(sender, MSG_STATUS_LOADED_TYPES_VALUE, "value", manager.getTypes().size());
+        send(sender, MSG_STATUS_TOTAL_CREATED_VALUE, "value", metrics.getCreatedInstances());
+        send(sender, MSG_STATUS_TOTAL_DESTROYED_VALUE, "value", metrics.getDestroyedInstances());
+        send(sender, MSG_STATUS_STRUCTURE_CHECKS_VALUE, "value", metrics.getStructureChecks());
+        send(sender, MSG_STATUS_AVG_TICK_VALUE, "value", String.format("%.1f s", metrics.getAverageTickTimeMs() / 1000.0D));
     }
 
     private void handleAssemble(Player player) {
@@ -819,7 +807,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
     private void handleInspect(Player player, String[] args) {
         Block target = player.getTargetBlockExact(5);
         if (target == null) {
-            player.sendMessage(Component.text(tr(player, MSG_INSPECT_MUST_LOOK_AT_BLOCK), NamedTextColor.RED));
+            send(player, MSG_INSPECT_MUST_LOOK_AT_BLOCK);
             return;
         }
 
@@ -827,7 +815,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
         Optional<MultiblockInstance> instanceOpt = manager.getInstanceAt(target.getLocation());
 
         if (instanceOpt.isEmpty()) {
-            player.sendMessage(Component.text(tr(player, MSG_INSPECT_NONE), NamedTextColor.YELLOW));
+            send(player, MSG_INSPECT_NONE);
             return;
         }
 
@@ -869,60 +857,36 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
             };
 
             InspectionRenderer renderer = (p, data, ctx) -> {
-                p.sendMessage(Component.text(tr(p, MSG_INSPECT_TITLE), NamedTextColor.GREEN));
+                send(p, MSG_INSPECT_TITLE);
 
                 InspectionEntry type = data.entries().get("type");
                 if (type != null) {
-                    p.sendMessage(Component.textOfChildren(
-                            Component.text(tr(p, MSG_INSPECT_TYPE), NamedTextColor.GOLD),
-                            Component.text(String.valueOf(type.value()), NamedTextColor.WHITE)
-                    ));
+                    send(p, MSG_INSPECT_TYPE_VALUE, "value", String.valueOf(type.value()));
                 }
 
                 InspectionEntry state = data.entries().get("state");
                 if (state != null) {
-                    p.sendMessage(Component.textOfChildren(
-                            Component.text(tr(p, MSG_INSPECT_STATE), NamedTextColor.GOLD),
-                            Component.text(String.valueOf(state.value()), NamedTextColor.WHITE)
-                    ));
+                    send(p, MSG_INSPECT_STATE_VALUE, "value", String.valueOf(state.value()));
                 }
 
                 InspectionEntry facing = data.entries().get("facing");
                 if (facing != null) {
-                    p.sendMessage(Component.textOfChildren(
-                            Component.text(tr(p, MSG_INSPECT_FACING), NamedTextColor.GOLD),
-                            Component.text(String.valueOf(facing.value()), NamedTextColor.WHITE)
-                    ));
+                    send(p, MSG_INSPECT_FACING_VALUE, "value", String.valueOf(facing.value()));
                 }
 
                 InspectionEntry anchor = data.entries().get("anchor");
                 if (anchor != null) {
-                    p.sendMessage(Component.textOfChildren(
-                            Component.text(tr(p, MSG_INSPECT_ANCHOR), NamedTextColor.GOLD),
-                            Component.text(String.valueOf(anchor.value()), NamedTextColor.WHITE)
-                    ));
+                    send(p, MSG_INSPECT_ANCHOR_VALUE, "value", String.valueOf(anchor.value()));
                 }
             };
 
             pipeline.inspect(player, InteractionSource.COMMAND, requestedLevel, inspectable, renderer);
         } else {
-            player.sendMessage(Component.text(tr(player, MSG_INSPECT_TITLE), NamedTextColor.GREEN));
-            player.sendMessage(Component.textOfChildren(
-                    Component.text(tr(player, MSG_INSPECT_TYPE), NamedTextColor.GOLD),
-                    Component.text(instance.type().id(), NamedTextColor.WHITE)
-            ));
-            player.sendMessage(Component.textOfChildren(
-                    Component.text(tr(player, MSG_INSPECT_STATE), NamedTextColor.GOLD),
-                    Component.text(String.valueOf(instance.state()), NamedTextColor.WHITE)
-            ));
-            player.sendMessage(Component.textOfChildren(
-                    Component.text(tr(player, MSG_INSPECT_FACING), NamedTextColor.GOLD),
-                    Component.text(String.valueOf(instance.facing()), NamedTextColor.WHITE)
-            ));
-            player.sendMessage(Component.textOfChildren(
-                    Component.text(tr(player, MSG_INSPECT_ANCHOR), NamedTextColor.GOLD),
-                    Component.text(formatLoc(instance.anchorLocation()), NamedTextColor.WHITE)
-            ));
+            send(player, MSG_INSPECT_TITLE);
+            send(player, MSG_INSPECT_TYPE_VALUE, "value", instance.type().id());
+            send(player, MSG_INSPECT_STATE_VALUE, "value", String.valueOf(instance.state()));
+            send(player, MSG_INSPECT_FACING_VALUE, "value", String.valueOf(instance.facing()));
+            send(player, MSG_INSPECT_ANCHOR_VALUE, "value", formatLoc(instance.anchorLocation()));
         }
         
         // Visualize
@@ -951,18 +915,18 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
         // Highlight anchor specifically
         player.spawnParticle(Particle.FLAME, anchor.clone().add(0.5, 0.5, 0.5), 10, 0.1, 0.1, 0.1, 0.05);
         
-        player.sendMessage(Component.text(tr(player, MSG_INSPECT_HIGHLIGHTED), NamedTextColor.AQUA));
-    }
-
-    private String tr(CommandSender sender, MessageKey key, Object... params) {
-        I18nService i18n = plugin.getAddonLifecycleService().getCoreService(I18nService.class);
-        if (i18n == null) {
-            return key == null ? "" : key.fullKey();
-        }
-        return i18n.tr(sender, key, params);
+        send(player, MSG_INSPECT_HIGHLIGHTED);
     }
 
     private void send(CommandSender sender, MessageKey key) {
+        if (sender == null || key == null) {
+            return;
+        }
+        PlayerMessageService messageService = plugin.getAddonLifecycleService().getCoreService(PlayerMessageService.class);
+        if (sender instanceof Player player && messageService != null) {
+            messageService.send(player, new PlayerMessage(key, MessageChannel.CHAT, MessagePriority.NORMAL, Map.of()));
+            return;
+        }
         I18nService i18n = plugin.getAddonLifecycleService().getCoreService(I18nService.class);
         if (i18n == null) {
             return;
@@ -971,11 +935,38 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
     }
 
     private void send(CommandSender sender, MessageKey key, Object... params) {
+        if (sender == null || key == null) {
+            return;
+        }
+        PlayerMessageService messageService = plugin.getAddonLifecycleService().getCoreService(PlayerMessageService.class);
+        if (sender instanceof Player player && messageService != null) {
+            messageService.send(player, new PlayerMessage(
+                    key,
+                    MessageChannel.CHAT,
+                    MessagePriority.NORMAL,
+                    castParams(MessageUtils.params(params))
+            ));
+            return;
+        }
         I18nService i18n = plugin.getAddonLifecycleService().getCoreService(I18nService.class);
         if (i18n == null) {
             return;
         }
         i18n.send(sender, key, MessageUtils.params(params));
+    }
+
+    private Map<String, Object> castParams(Map<String, ?> params) {
+        if (params == null || params.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> out = new java.util.HashMap<>();
+        for (Map.Entry<String, ?> entry : params.entrySet()) {
+            if (entry == null || entry.getKey() == null) {
+                continue;
+            }
+            out.put(entry.getKey(), entry.getValue());
+        }
+        return out.isEmpty() ? Map.of() : Map.copyOf(out);
     }
 
     private String formatLoc(Location loc) {

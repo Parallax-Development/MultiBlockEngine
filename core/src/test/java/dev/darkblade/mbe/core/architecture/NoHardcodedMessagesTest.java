@@ -4,6 +4,7 @@ import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 import dev.darkblade.mbe.core.domain.action.SendMessageAction;
+import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -25,6 +26,13 @@ public class NoHardcodedMessagesTest {
                     .that().resideOutsideOfPackages("..api.i18n..", "..core.infrastructure.i18n..")
                     .should().callMethod(CommandSender.class, "sendMessage", String.class)
                     .because("Sender messages must use I18nService");
+
+    @ArchTest
+    static final ArchRule no_direct_player_actionbar_outside_message_service =
+            noClasses()
+                    .that().resideOutsideOfPackage("..core.application.service.messaging..")
+                    .should().callMethod(Player.class, "sendActionBar", Component.class)
+                    .because("ActionBar messages must use PlayerMessageService");
 
     @ArchTest
     static final ArchRule send_message_action_no_string_fields =
