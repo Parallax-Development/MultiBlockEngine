@@ -1,44 +1,68 @@
 package dev.darkblade.mbe.core.domain.action;
 
+import dev.darkblade.mbe.api.i18n.MessageKey;
+import dev.darkblade.mbe.api.message.MessageChannel;
+import dev.darkblade.mbe.api.message.MessagePriority;
+import dev.darkblade.mbe.api.message.PlayerMessage;
+import dev.darkblade.mbe.api.message.PlayerMessageService;
 import dev.darkblade.mbe.core.domain.MultiblockInstance;
 import dev.darkblade.mbe.core.internal.tooling.PlayerResolver;
 import dev.darkblade.mbe.core.internal.tooling.StringUtil;
-import me.clip.placeholderapi.PlaceholderAPI;
-import net.kyori.adventure.title.Title;
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
-import java.time.Duration;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 
-public record TitleAction(String title, String subtitle, int fadeIn, int stay, int fadeOut, Object target) implements Action {
+public record TitleAction(MessageKey key, MessageKey subtitleKey, Map<String, Object> params, Object target) implements Action {
     @Override
     public void execute(MultiblockInstance instance, Player player) {
         Collection<Player> targets = PlayerResolver.resolve(target, instance, player);
-        
-        String parsedTitle = StringUtil.parsePlaceholders(title, instance);
-        String parsedSubtitle = StringUtil.parsePlaceholders(subtitle, instance);
-        
-        boolean hasPapi = Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null;
-        
-        // Adventure API logic (Standard in Paper 1.20.4)
-        Title.Times times = Title.Times.times(
-            Duration.ofMillis(fadeIn * 50L), 
-            Duration.ofMillis(stay * 50L), 
-            Duration.ofMillis(fadeOut * 50L)
-        );
+        if (targets.isEmpty() || (key == null && subtitleKey == null)) {
+            return;
+        }
+        PlayerMessageService messageService = PlayerMessageServiceLocator.resolve();
+        if (messageService == null) {
+            return;
+        }
+        Map<String, Object> resolvedParams = resolveParams(instance);
 
         for (Player p : targets) {
-            String finalTitle = parsedTitle;
-            String finalSubtitle = parsedSubtitle;
-            
-            if (hasPapi) {
-                finalTitle = PlaceholderAPI.setPlaceholders(p, finalTitle);
-                finalSubtitle = PlaceholderAPI.setPlaceholders(p, finalSubtitle);
+            if (key != null) {
+                messageService.send(p, new PlayerMessage(
+                        key,
+                        MessageChannel.TITLE,
+                        MessagePriority.CRITICAL,
+                        resolvedParams
+                ));
             }
-            
-            Title t = Title.title(StringUtil.legacyText(finalTitle), StringUtil.legacyText(finalSubtitle), times);
-            p.showTitle(t);
+            if (subtitleKey != null) {
+                messageService.send(p, new PlayerMessage(
+                        subtitleKey,
+                        MessageChannel.SUBTITLE,
+                        MessagePriority.CRITICAL,
+                        resolvedParams
+                ));
+            }
         }
+    }
+
+    private Map<String, Object> resolveParams(MultiblockInstance instance) {
+        if (params == null || params.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> out = new HashMap<>();
+        for (Map.Entry<String, Object> entry : params.entrySet()) {
+            if (entry == null || entry.getKey() == null) {
+                continue;
+            }
+            Object value = entry.getValue();
+            if (value instanceof String text) {
+                out.put(entry.getKey(), StringUtil.parsePlaceholders(text, instance));
+                continue;
+            }
+            out.put(entry.getKey(), value);
+        }
+        return Map.copyOf(out);
     }
 }

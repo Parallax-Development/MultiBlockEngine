@@ -1,7 +1,10 @@
 package dev.darkblade.mbe.core.internal.tooling.export;
 
-import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.message.CoreMessageKeys;
+import dev.darkblade.mbe.api.message.MessageChannel;
+import dev.darkblade.mbe.api.message.MessagePriority;
+import dev.darkblade.mbe.api.message.PlayerMessage;
+import dev.darkblade.mbe.api.message.PlayerMessageService;
 import dev.darkblade.mbe.core.MultiBlockEngine;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -45,23 +48,28 @@ public final class ExportInteractListener implements Listener {
 
         session.markRole(clicked.getLocation(), role);
         session.clearPendingRole();
-        I18nService i18n = resolveI18n();
-        if (i18n != null) {
-            i18n.send(player, CoreMessageKeys.EXPORT_MARKED, java.util.Map.of(
+        PlayerMessageService messageService = resolveMessageService();
+        if (messageService != null) {
+            messageService.send(player, new PlayerMessage(
+                    CoreMessageKeys.EXPORT_MARKED,
+                    MessageChannel.CHAT,
+                    MessagePriority.NORMAL,
+                    java.util.Map.of(
                     "role", role,
                     "x", clicked.getX(),
                     "y", clicked.getY(),
                     "z", clicked.getZ()
+                    )
             ));
         }
         event.setCancelled(true);
     }
 
-    private I18nService resolveI18n() {
+    private PlayerMessageService resolveMessageService() {
         MultiBlockEngine plugin = MultiBlockEngine.getInstance();
         if (plugin == null || plugin.getAddonLifecycleService() == null) {
             return null;
         }
-        return plugin.getAddonLifecycleService().getCoreService(I18nService.class);
+        return plugin.getAddonLifecycleService().getCoreService(PlayerMessageService.class);
     }
 }

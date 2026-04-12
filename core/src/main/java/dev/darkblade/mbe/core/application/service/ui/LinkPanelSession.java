@@ -3,8 +3,11 @@ package dev.darkblade.mbe.core.application.service.ui;
 import dev.darkblade.mbe.api.editor.EditorInput;
 import dev.darkblade.mbe.api.editor.EditorSession;
 import dev.darkblade.mbe.api.editor.EditorSessionType;
-import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.message.CoreMessageKeys;
+import dev.darkblade.mbe.api.message.MessageChannel;
+import dev.darkblade.mbe.api.message.MessagePriority;
+import dev.darkblade.mbe.api.message.PlayerMessage;
+import dev.darkblade.mbe.api.message.PlayerMessageService;
 import dev.darkblade.mbe.core.MultiBlockEngine;
 import dev.darkblade.mbe.core.application.service.MultiblockRuntimeService;
 import dev.darkblade.mbe.core.application.service.editor.EditorSessionManager;
@@ -96,25 +99,39 @@ public final class LinkPanelSession implements EditorSession {
     }
 
     private void send(Player player, CoreMessageKeys key) {
-        I18nService i18n = resolveI18n();
-        if (i18n != null) {
-            i18n.send(player, key);
+        PlayerMessageService messageService = resolveMessageService();
+        if (messageService != null) {
+            messageService.send(player, new PlayerMessage(key, MessageChannel.CHAT, MessagePriority.NORMAL, java.util.Map.of()));
         }
     }
 
     private void send(Player player, CoreMessageKeys key, java.util.Map<String, ?> params) {
-        I18nService i18n = resolveI18n();
-        if (i18n != null) {
-            i18n.send(player, key, params);
+        PlayerMessageService messageService = resolveMessageService();
+        if (messageService != null) {
+            messageService.send(player, new PlayerMessage(key, MessageChannel.CHAT, MessagePriority.NORMAL, castParams(params)));
         }
     }
 
-    private I18nService resolveI18n() {
+    private PlayerMessageService resolveMessageService() {
         MultiBlockEngine plugin = MultiBlockEngine.getInstance();
         if (plugin == null || plugin.getAddonLifecycleService() == null) {
             return null;
         }
-        return plugin.getAddonLifecycleService().getCoreService(I18nService.class);
+        return plugin.getAddonLifecycleService().getCoreService(PlayerMessageService.class);
+    }
+
+    private java.util.Map<String, Object> castParams(java.util.Map<String, ?> params) {
+        if (params == null || params.isEmpty()) {
+            return java.util.Map.of();
+        }
+        java.util.Map<String, Object> out = new java.util.HashMap<>();
+        for (java.util.Map.Entry<String, ?> entry : params.entrySet()) {
+            if (entry == null || entry.getKey() == null) {
+                continue;
+            }
+            out.put(entry.getKey(), entry.getValue());
+        }
+        return out.isEmpty() ? java.util.Map.of() : java.util.Map.copyOf(out);
     }
 
     private boolean isController(Location clicked, Location anchor) {

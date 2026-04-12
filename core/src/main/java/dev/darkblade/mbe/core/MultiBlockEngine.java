@@ -12,6 +12,7 @@ import dev.darkblade.mbe.api.logging.LogScope;
 import dev.darkblade.mbe.api.item.ItemService;
 import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.LocaleProvider;
+import dev.darkblade.mbe.api.message.PlayerMessageService;
 import dev.darkblade.mbe.api.blueprint.BlueprintService;
 import dev.darkblade.mbe.api.service.InspectionPipelineService;
 import dev.darkblade.mbe.api.service.interaction.InteractionPipelineService;
@@ -62,6 +63,7 @@ import dev.darkblade.mbe.core.application.service.limit.MultiblockLimitResolver;
 import dev.darkblade.mbe.core.application.service.limit.MultiblockLimitService;
 import dev.darkblade.mbe.core.application.service.limit.MultiblockLimitServiceImpl;
 import dev.darkblade.mbe.core.application.service.limit.PermissionBasedLimitResolver;
+import dev.darkblade.mbe.core.application.service.messaging.PlayerMessageServiceImpl;
 import dev.darkblade.mbe.api.ui.binding.PanelBindingRegistry;
 import dev.darkblade.mbe.api.ui.binding.PanelBindingMutationService;
 import dev.darkblade.mbe.api.ui.binding.PanelBindingLinkService;
@@ -250,6 +252,9 @@ public class MultiBlockEngine extends JavaPlugin {
         );
         addonManager.registerCoreService(LocaleProvider.class, localeProvider);
         addonManager.registerCoreService(I18nService.class, i18n);
+        PlayerMessageServiceImpl playerMessageService = new PlayerMessageServiceImpl(i18n);
+        addonManager.registerCoreService(PlayerMessageService.class, playerMessageService);
+        addonManager.registerCoreMbeService(playerMessageService);
 
         PermissionBasedLimitResolver limitResolver = new PermissionBasedLimitResolver(new File(getDataFolder(), "limits.yml"), log);
         MultiblockLimitServiceImpl limitService = new MultiblockLimitServiceImpl(persistence, limitResolver);
@@ -304,10 +309,10 @@ public class MultiBlockEngine extends JavaPlugin {
             log.fatal("Assembly coordinator initialization failed");
         }
 
-        ((DefaultToolActionRegistry) toolActionRegistry).register(new AssembleAction(assemblyCoordinator, i18n));
-        ((DefaultToolActionRegistry) toolActionRegistry).register(new DisassembleAction(manager, i18n));
-        ((DefaultToolActionRegistry) toolActionRegistry).register(new InspectAction(manager, i18n));
-        ((DefaultToolActionRegistry) toolActionRegistry).register(new SwitchModeAction(toolStateResolver, toolRegistry, i18n));
+        ((DefaultToolActionRegistry) toolActionRegistry).register(new AssembleAction(assemblyCoordinator, playerMessageService));
+        ((DefaultToolActionRegistry) toolActionRegistry).register(new DisassembleAction(manager, playerMessageService));
+        ((DefaultToolActionRegistry) toolActionRegistry).register(new InspectAction(manager, playerMessageService));
+        ((DefaultToolActionRegistry) toolActionRegistry).register(new SwitchModeAction(toolStateResolver, toolRegistry, playerMessageService));
 
         DisplayEntityRenderer displayRenderer = createDisplayRenderer();
         PreviewSettings previewSettings = new PreviewSettings(
@@ -316,7 +321,7 @@ public class MultiBlockEngine extends JavaPlugin {
             getConfig().getDouble("preview.maxDistance", 24.0D),
             Duration.ofSeconds(Math.max(3, getConfig().getLong("preview.timeoutSeconds", 20L)))
         );
-        structurePreviewService = new StructurePreviewServiceImpl(this, displayRenderer, i18n, new UnknownValidationStrategy(), previewSettings);
+        structurePreviewService = new StructurePreviewServiceImpl(this, displayRenderer, playerMessageService, new UnknownValidationStrategy(), previewSettings);
         structurePreviewService.start();
         addonManager.registerCoreService(DisplayEntityRenderer.class, displayRenderer);
         registerPlatformPreviewRendererService(displayRenderer);

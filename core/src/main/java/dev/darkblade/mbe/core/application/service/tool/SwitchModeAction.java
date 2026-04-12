@@ -2,8 +2,11 @@ package dev.darkblade.mbe.core.application.service.tool;
 
 import dev.darkblade.mbe.api.command.WrenchContext;
 import dev.darkblade.mbe.api.command.WrenchResult;
-import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.MessageKey;
+import dev.darkblade.mbe.api.message.MessageChannel;
+import dev.darkblade.mbe.api.message.MessagePriority;
+import dev.darkblade.mbe.api.message.PlayerMessage;
+import dev.darkblade.mbe.api.message.PlayerMessageService;
 import dev.darkblade.mbe.api.tool.ActionId;
 import dev.darkblade.mbe.api.tool.Tool;
 import dev.darkblade.mbe.api.tool.ToolAction;
@@ -23,12 +26,12 @@ public final class SwitchModeAction implements ToolAction {
 
     private final ToolStateResolver stateResolver;
     private final ToolRegistry toolRegistry;
-    private final I18nService i18n;
+    private final PlayerMessageService messageService;
 
-    public SwitchModeAction(ToolStateResolver stateResolver, ToolRegistry toolRegistry, I18nService i18n) {
+    public SwitchModeAction(ToolStateResolver stateResolver, ToolRegistry toolRegistry, PlayerMessageService messageService) {
         this.stateResolver = Objects.requireNonNull(stateResolver, "stateResolver");
         this.toolRegistry = Objects.requireNonNull(toolRegistry, "toolRegistry");
-        this.i18n = i18n;
+        this.messageService = messageService;
     }
 
     @Override
@@ -61,8 +64,13 @@ public final class SwitchModeAction implements ToolAction {
         ToolMode nextMode = modes.get((currentIndex + 1) % modes.size());
         ToolState nextState = new ToolState(tool.id(), nextMode.id());
         stateResolver.save(context.item(), nextState);
-        if (i18n != null && context.player() != null) {
-            i18n.send(context.player(), MSG_SWITCHED, Map.of("mode", nextMode.id()));
+        if (messageService != null && context.player() != null) {
+            messageService.send(context.player(), new PlayerMessage(
+                    MSG_SWITCHED,
+                    MessageChannel.ACTION_BAR,
+                    MessagePriority.LOW,
+                    Map.of("mode", nextMode.id())
+            ));
         }
         return WrenchResult.success(MSG_SWITCHED.path(), Map.of("mode", nextMode.id()));
     }

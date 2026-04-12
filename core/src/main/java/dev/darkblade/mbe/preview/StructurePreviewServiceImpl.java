@@ -1,7 +1,10 @@
 package dev.darkblade.mbe.preview;
 
-import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.MessageKey;
+import dev.darkblade.mbe.api.message.MessageChannel;
+import dev.darkblade.mbe.api.message.MessagePriority;
+import dev.darkblade.mbe.api.message.PlayerMessage;
+import dev.darkblade.mbe.api.message.PlayerMessageService;
 import dev.darkblade.mbe.api.service.InjectService;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -30,7 +33,7 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
     @InjectService
     private DisplayEntityRenderer injectedRenderer;
     private final DisplayEntityRenderer fallbackRenderer;
-    private final I18nService i18n;
+    private final PlayerMessageService messageService;
     private final PreviewSessionManager sessions;
     private final PreviewValidationStrategy validationStrategy;
     private final Queue<RenderTask> renderQueue;
@@ -43,13 +46,13 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
     public StructurePreviewServiceImpl(
         JavaPlugin plugin,
         DisplayEntityRenderer renderer,
-        I18nService i18n,
+        PlayerMessageService messageService,
         PreviewValidationStrategy validationStrategy,
         PreviewSettings settings
     ) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.fallbackRenderer = Objects.requireNonNull(renderer, "renderer");
-        this.i18n = i18n;
+        this.messageService = messageService;
         this.validationStrategy = Objects.requireNonNull(validationStrategy, "validationStrategy");
         this.sessions = new PreviewSessionManager();
         this.renderQueue = new ConcurrentLinkedQueue<>();
@@ -364,11 +367,11 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
     }
 
     private void send(Player player, MessageKey key) {
-        if (player == null || key == null || i18n == null) {
+        if (player == null || key == null || messageService == null) {
             return;
         }
         try {
-            i18n.send(player, key);
+            messageService.send(player, new PlayerMessage(key, MessageChannel.CHAT, MessagePriority.NORMAL, java.util.Map.of()));
         } catch (Throwable ignored) {
         }
     }

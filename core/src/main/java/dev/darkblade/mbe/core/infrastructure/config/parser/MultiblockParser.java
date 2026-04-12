@@ -59,22 +59,8 @@ public class MultiblockParser {
     private void registerDefaults() {
         // Actions
         api.registerAction("message", map -> {
-            String keyPath = (String) map.get("key");
-            if ((keyPath == null || keyPath.isBlank()) && map.get("value") instanceof String legacyValue) {
-                keyPath = legacyValue;
-            }
-            MessageKey key = MessageKey.of("mbe", keyPath == null ? "" : keyPath);
-            Map<String, Object> params = new HashMap<>();
-            Object paramsObj = map.get("params");
-            if (paramsObj instanceof Map<?, ?> raw) {
-                for (Map.Entry<?, ?> entry : raw.entrySet()) {
-                    if (entry == null || entry.getKey() == null) {
-                        continue;
-                    }
-                    params.put(String.valueOf(entry.getKey()), entry.getValue());
-                }
-            }
-            return new SendMessageAction(key, Map.copyOf(params), map.get("target"));
+            MessageKey key = messageKey(map, "key", "value");
+            return new SendMessageAction(key, parseMessageParams(map), map.get("target"));
         });
         api.registerAction("command", map -> new ConsoleCommandAction((String) map.get("value")));
         api.registerAction("set_state", map -> new SetStateAction(MultiblockState.valueOf((String) map.get("value"))));
@@ -134,16 +120,15 @@ public class MultiblockParser {
         });
         
         api.registerAction("title", map -> {
-            String title = (String) map.getOrDefault("title", "");
-            String subtitle = (String) map.getOrDefault("subtitle", "");
-            int fadeIn = (int) map.getOrDefault("fade_in", 10);
-            int stay = (int) map.getOrDefault("stay", 70);
-            int fadeOut = (int) map.getOrDefault("fade_out", 20);
-            Object target = map.get("target");
-            return new TitleAction(title, subtitle, fadeIn, stay, fadeOut, target);
+            MessageKey titleKey = messageKey(map, "key", "title");
+            MessageKey subtitleKey = messageKey(map, "subtitle_key", "subtitle");
+            return new TitleAction(titleKey, subtitleKey, parseMessageParams(map), map.get("target"));
         });
         
-        api.registerAction("actionbar", map -> new ActionBarAction((String) map.get("message"), map.get("target")));
+        api.registerAction("actionbar", map -> {
+            MessageKey key = messageKey(map, "key", "message");
+            return new ActionBarAction(key, parseMessageParams(map), map.get("target"));
+        });
         
         api.registerAction("teleport", map -> {
             Vector offset = parseVector(map.getOrDefault("offset", List.of(0, 0, 0)));
@@ -176,6 +161,36 @@ public class MultiblockParser {
             }
             return new TagMatcher(tag);
         });
+    }
+
+    private MessageKey messageKey(Map<String, Object> map, String preferredField, String legacyField) {
+        String keyPath = asString(map.get(preferredField));
+        if ((keyPath == null || keyPath.isBlank()) && legacyField != null) {
+            keyPath = asString(map.get(legacyField));
+        }
+        if (keyPath == null || keyPath.isBlank()) {
+            return null;
+        }
+        return MessageKey.of("mbe", keyPath);
+    }
+
+    private Map<String, Object> parseMessageParams(Map<String, Object> map) {
+        Object paramsObj = map.get("params");
+        if (!(paramsObj instanceof Map<?, ?> raw) || raw.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> params = new HashMap<>();
+        for (Map.Entry<?, ?> entry : raw.entrySet()) {
+            if (entry == null || entry.getKey() == null) {
+                continue;
+            }
+            params.put(String.valueOf(entry.getKey()), entry.getValue());
+        }
+        return params.isEmpty() ? Map.of() : Map.copyOf(params);
+    }
+
+    private String asString(Object value) {
+        return value == null ? null : String.valueOf(value);
     }
 
     public List<MultiblockType> loadAll(File directory) {

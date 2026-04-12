@@ -1,1 +1,92 @@
-{}
+services:
+  items:
+    info:
+      title: "&eService: items"
+      description: "&7Registry query and diagnostics for items"
+      registered: "&7Registered: {count}"
+    error:
+      item_service_unavailable: "&cItemService unavailable."
+      missing_subaction: "&cMissing subaction."
+      invalid_subaction: "&cInvalid subaction: {sub}"
+      not_exists: "&cNot found: {id} v{version}"
+      players_only: "&cPlayers only."
+      item_stack_bridge_unavailable: "&cItemStackBridge unavailable."
+      invalid_amount: "&cInvalid amount."
+      amount_positive: "&cAmount must be > 0."
+      create_failed: "&cCould not create item."
+      convert_failed: "&cCould not convert item."
+      invalid_delivery_item: "&cInvalid item for delivery."
+      invalid_key: "&cInvalid ItemKey. Use: <namespace:key> [version]"
+    usage:
+      list: "&7/mbe services call items execute list [contains]"
+      get: "&cUsage: /mbe services call items execute get <namespace:key> [version]"
+      exists: "&cUsage: /mbe services call items execute exists <namespace:key> [version]"
+      give: "&cUsage: /mbe services call items execute give <namespace:key> [version] [amount]"
+    list:
+      entry: "&7- {id} v{version}"
+      summary: "&eMatches: {matched} (showing {shown})"
+    get:
+      item: "&eItem: {id} v{version}"
+      name: "&7Name: {name}"
+      properties: "&7Properties: {count}"
+    exists:
+      ok: "&aOK"
+      no: "&cNO"
+    give:
+      success: "&aGiven: {amount} x {id} v{version}"
+  blueprint:
+    info:
+      execute_catalog: "&7Blueprint service: execute catalog"
+    usage:
+      catalog: "&7/mbe services call blueprint execute catalog"
+    error:
+      service_unavailable: "&cBlueprintService unavailable."
+      player_only: "&cOnly players can open the catalog."
+      invalid_subcommand: "&cInvalid subcommand. Use: catalog"
+  ui:
+    info:
+      title: "&eService: ui"
+      description: "&7Binding between UI panels and multiblock controllers"
+      panel_service: "&7PanelViewService: {status}"
+      bindings_count: "&7Registered bindings: {count}"
+    usage:
+      link: "&7/mbe services call ui execute link <panelId>"
+      cancel: "&7/mbe services call ui execute cancel"
+      list: "&7/mbe services call ui execute list"
+    error:
+      unknown_subcommand: "&cUnknown subcommand: {action}"
+      player_only_link: "&cOnly players can start link sessions."
+      services_unavailable: "&cEditor/binding services unavailable."
+      resolve_panel_service: "&cFailed to resolve PanelViewService."
+      panel_service_unavailable: "&cNo PanelViewService available. Check UI addon registration."
+      panel_not_found: "&cPanel not found: {panel}"
+      panel_validation_failed: "&cUI addon failed while validating panel: {panel}"
+      player_only_cancel: "&cOnly players can cancel sessions."
+      editor_unavailable: "&cEditorSessionManager unavailable."
+      binding_unavailable: "&cPanelBindingService unavailable."
+    link:
+      started: "&aSession started. Click the multiblock controller_block."
+      cancel_hint: "&7Use /mbe services call ui execute cancel to cancel."
+    list:
+      title: "&eBindings: {count}"
+      entry: "&7{panel} @ {world}:{x},{y},{z} [{trigger}]"
+  router:
+    error:
+      service_not_specified: "&cService not specified."
+      service_not_found: "&cService not found: {service}"
+      execution_failed: "&cService execution failed: {service}"
+      generic: "&cService command is invalid."
+    hint:
+      use_services_list: "&7Use: /{label} services list"
+      check_console: "&7Check console for details."
+    help:
+      usage: "&eUsage: /{label} <inspect|reload|status|debug|services>"
+      services_usage: "&eServices: /{label} services call <service> <info|execute> <args>"
+    overview:
+      usage: "&eUsage:"
+      list: "&7/{label} services list"
+      call: "&7/{label} services call <service> <info|execute> <args>"
+      example: "&7Example: /{label} services call items info"
+    list:
+      title: "&eAvailable services ({count}):"
+      entry: "&7- {id} : {description}"
