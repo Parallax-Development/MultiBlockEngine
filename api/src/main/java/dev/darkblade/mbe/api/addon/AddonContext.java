@@ -33,6 +33,9 @@ public interface AddonContext {
 
     <T> void registerService(Class<T> serviceType, T service);
     <T> T getService(Class<T> serviceType);
+    default <T extends MBEService> T getMbeService(Class<T> serviceType) {
+        return getService(serviceType);
+    }
     default void registerService(MBEService service) {
         throw new UnsupportedOperationException("Dynamic service registration not available");
     }

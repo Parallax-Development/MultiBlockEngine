@@ -372,6 +372,10 @@ public class AddonLifecycleService {
         return serviceLifecycleManager.getByType(serviceType);
     }
 
+    public ServiceLifecycleOrchestrator.LifecyclePhase getCurrentLifecyclePhase() {
+        return serviceLifecycleManager.getCurrentPhase();
+    }
+
     private Optional<?> resolveExternalService(String ownerId, Class<?> serviceType) {
         if (serviceType == null) {
             return Optional.empty();
@@ -1486,6 +1490,7 @@ public class AddonLifecycleService {
 
     public void enableAddons() {
         EngineLogger core = coreLogger(LogPhase.ENABLE);
+        serviceLifecycleManager.setCurrentPhase(ServiceLifecycleOrchestrator.LifecyclePhase.CORE_SERVICES);
         serviceLifecycleManager.injectServices(CORE_PROVIDER_ID);
         serviceLifecycleManager.enableServices(CORE_PROVIDER_ID);
 
@@ -1497,6 +1502,8 @@ public class AddonLifecycleService {
             serviceLifecycleManager.injectServices(id);
         }
 
+        serviceLifecycleManager.setCurrentPhase(ServiceLifecycleOrchestrator.LifecyclePhase.ADDON_SERVICES);
+        List<String> contentRegistrationOrder = new ArrayList<>();
         for (String id : resolvedOrder) {
             LoadedAddon loaded = loadedAddons.get(id);
             if (loaded == null) continue;
@@ -1510,9 +1517,18 @@ public class AddonLifecycleService {
                 continue;
             }
 
+            loaded.phase().set(LogPhase.ENABLE);
+            serviceLifecycleManager.enableServices(id);
+            contentRegistrationOrder.add(id);
+        }
+
+        serviceLifecycleManager.setCurrentPhase(ServiceLifecycleOrchestrator.LifecyclePhase.CONTENT_REGISTRATION);
+        for (String id : contentRegistrationOrder) {
+            LoadedAddon loaded = loadedAddons.get(id);
+            if (loaded == null) {
+                continue;
+            }
             try {
-                loaded.phase().set(LogPhase.ENABLE);
-                serviceLifecycleManager.enableServices(id);
                 loaded.addon().onEnable();
 
                 List<PendingExposure> exposures = pendingExposures.getOrDefault(id, List.of());
@@ -1558,9 +1574,11 @@ public class AddonLifecycleService {
                 close(loaded.classLoader());
             }
         }
+        serviceLifecycleManager.setCurrentPhase(ServiceLifecycleOrchestrator.LifecyclePhase.RUNTIME);
     }
 
     public void disableAddons() {
+        serviceLifecycleManager.setCurrentPhase(ServiceLifecycleOrchestrator.LifecyclePhase.ADDON_SERVICES);
         pendingExposures.clear();
         while (!enableOrder.isEmpty()) {
             String id = enableOrder.removeLast();
@@ -1589,6 +1607,7 @@ public class AddonLifecycleService {
             states.putIfAbsent(id, AddonState.DISABLED);
         }
 
+        serviceLifecycleManager.setCurrentPhase(ServiceLifecycleOrchestrator.LifecyclePhase.CORE_SERVICES);
         serviceLifecycleManager.disableServices(CORE_PROVIDER_ID);
         exposedServices.clear();
         serviceLifecycleManager.clear();

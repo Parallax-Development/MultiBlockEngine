@@ -19,6 +19,7 @@ import dev.darkblade.mbe.api.message.MessageChannel;
 import dev.darkblade.mbe.api.message.MessagePriority;
 import dev.darkblade.mbe.api.message.PlayerMessage;
 import dev.darkblade.mbe.api.message.PlayerMessageService;
+import dev.darkblade.mbe.api.ui.PanelViewService;
 import dev.darkblade.mbe.core.infrastructure.bridge.item.ItemStackBridge;
 import dev.darkblade.mbe.core.internal.tooling.export.ExportSession;
 import dev.darkblade.mbe.core.internal.tooling.export.SelectionService;
@@ -107,6 +108,11 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
     private static final MessageKey MSG_INSPECT_FACING_VALUE = MessageKey.of(ORIGIN, "commands.inspect.facing_value");
     private static final MessageKey MSG_INSPECT_ANCHOR_VALUE = MessageKey.of(ORIGIN, "commands.inspect.anchor_value");
     private static final MessageKey MSG_BLUEPRINT_AVAILABLE_IDS = MessageKey.of(ORIGIN, "commands.blueprint.available_ids");
+    private static final MessageKey MSG_UI_DEBUG_USAGE = MessageKey.of(ORIGIN, "commands.ui.debug_usage");
+    private static final MessageKey MSG_UI_DEBUG_TITLE = MessageKey.of(ORIGIN, "commands.ui.debug_title");
+    private static final MessageKey MSG_UI_DEBUG_ENTRY = MessageKey.of(ORIGIN, "commands.ui.debug_entry");
+    private static final MessageKey MSG_UI_DEBUG_NONE = MessageKey.of(ORIGIN, "commands.ui.debug_none");
+    private static final MessageKey MSG_UI_DEBUG_UNAVAILABLE = MessageKey.of(ORIGIN, "commands.ui.debug_unavailable");
 
     private final MultiBlockEngine plugin;
     private final ServicesCommandRouter services;
@@ -180,6 +186,10 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
         if (root.equals("status") || root.equals("stats")) {
             handleStatus(sender);
             return true;
+        }
+
+        if (root.equals("ui")) {
+            return handleUi(sender, label, safeArgs);
         }
 
         if (root.equals("report")) {
@@ -351,6 +361,28 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
 
         List<String> remaining = args.length <= 2 ? List.of() : java.util.Arrays.asList(java.util.Arrays.copyOfRange(args, 2, args.length));
         return services.dispatch(sender, label, op, "execute", remaining);
+    }
+
+    private boolean handleUi(CommandSender sender, String label, String[] args) {
+        if (args.length < 3 || !"debug".equalsIgnoreCase(args[1]) || !"panels".equalsIgnoreCase(args[2])) {
+            send(sender, MSG_UI_DEBUG_USAGE, "label", label);
+            return true;
+        }
+        PanelViewService panelViewService = plugin.getAddonLifecycleService().getCoreService(PanelViewService.class);
+        if (panelViewService == null) {
+            send(sender, MSG_UI_DEBUG_UNAVAILABLE);
+            return true;
+        }
+        List<String> panelIds = panelViewService.getRegisteredPanelIds();
+        send(sender, MSG_UI_DEBUG_TITLE, "count", panelIds.size());
+        if (panelIds.isEmpty()) {
+            send(sender, MSG_UI_DEBUG_NONE);
+            return true;
+        }
+        for (String panelId : panelIds) {
+            send(sender, MSG_UI_DEBUG_ENTRY, "panel", panelId);
+        }
+        return true;
     }
 
     private void sendHelp(CommandSender sender, String label) {
@@ -1003,6 +1035,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
             roots.add("inspect");
             roots.add("status");
             roots.add("stats");
+            roots.add("ui");
             roots.add("report");
             if (sender instanceof Player) {
                 roots.add("assemble");
@@ -1062,6 +1095,16 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
                     return filter(out, safeArgs[2]);
                 }
                 return filter(List.of("--console"), safeArgs[2]);
+            }
+            return Collections.emptyList();
+        }
+
+        if (root.equals("ui")) {
+            if (safeArgs.length == 2) {
+                return filter(List.of("debug"), safeArgs[1]);
+            }
+            if (safeArgs.length == 3 && "debug".equalsIgnoreCase(safeArgs[1])) {
+                return filter(List.of("panels"), safeArgs[2]);
             }
             return Collections.emptyList();
         }

@@ -68,8 +68,11 @@ import dev.darkblade.mbe.core.application.service.messaging.PlayerMessageService
 import dev.darkblade.mbe.api.ui.binding.PanelBindingRegistry;
 import dev.darkblade.mbe.api.ui.binding.PanelBindingMutationService;
 import dev.darkblade.mbe.api.ui.binding.PanelBindingLinkService;
+import dev.darkblade.mbe.api.ui.PanelViewService;
 import dev.darkblade.mbe.core.application.service.ui.InteractionRouter;
 import dev.darkblade.mbe.core.application.service.ui.PanelBindingService;
+import dev.darkblade.mbe.core.application.service.ui.PanelViewServiceImpl;
+import dev.darkblade.mbe.core.application.service.ui.runtime.DefaultUIRuntimeRegistry;
 import dev.darkblade.mbe.core.domain.MultiblockInstance;
 import dev.darkblade.mbe.core.domain.MultiblockType;
 import dev.darkblade.mbe.core.infrastructure.config.parser.MultiblockParser;
@@ -174,6 +177,8 @@ public class MultiBlockEngine extends JavaPlugin {
     private PlayerMultiblockContextResolver metadataContextResolver;
     private TickService tickService;
     private Tickable ioTickable;
+    private DefaultUIRuntimeRegistry uiRuntimeRegistry;
+    private PanelViewServiceImpl panelViewService;
 
     @Override
     public void onEnable() {
@@ -212,6 +217,11 @@ public class MultiBlockEngine extends JavaPlugin {
         tickService = new TickService(this, log);
         addonManager.registerCoreService(dev.darkblade.mbe.api.tick.TickService.class, tickService);
         addonManager.registerCoreMbeService(tickService);
+        uiRuntimeRegistry = new DefaultUIRuntimeRegistry();
+        panelViewService = new PanelViewServiceImpl(uiRuntimeRegistry, addonManager);
+        addonManager.registerCoreService(PanelViewService.class, panelViewService);
+        addonManager.registerCoreMbeService(uiRuntimeRegistry);
+        addonManager.registerCoreMbeService(panelViewService);
 
         StorageExceptionHandler storageExceptionHandler = (storageService, error) -> {
             if (error == null) {
@@ -363,6 +373,7 @@ public class MultiBlockEngine extends JavaPlugin {
 
         editorSessions = new EditorSessionManager();
         interactionRouter = new InteractionRouter();
+        interactionRouter.setPanelViewService(panelViewService);
         InteractionPipelineService pipelineService = new DefaultInteractionPipelineService(assemblyCoordinator, null, interactionRouter, itemStackBridge);
         addonManager.registerCoreService(InteractionPipelineService.class, pipelineService);
         panelBindings = new PanelBindingService(new File(getDataFolder(), "panel-bindings.yml"), interactionRouter);

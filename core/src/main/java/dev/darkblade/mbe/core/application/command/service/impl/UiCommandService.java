@@ -13,7 +13,6 @@ import dev.darkblade.mbe.core.application.service.MultiblockRuntimeService;
 import dev.darkblade.mbe.core.application.service.editor.EditorSessionManager;
 import dev.darkblade.mbe.core.application.service.ui.LinkPanelSession;
 import dev.darkblade.mbe.core.application.service.ui.PanelBindingService;
-import dev.darkblade.mbe.core.application.service.ui.PanelViewResolver;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -48,6 +47,7 @@ public final class UiCommandService implements MbeCommandService {
     private final EditorSessionManager sessions;
     private final PanelBindingService bindings;
     private final MultiblockRuntimeService multiblocks;
+    private final PanelViewService panelViewService;
     private final I18nService i18n;
     private final PlayerMessageService messageService;
 
@@ -56,6 +56,7 @@ public final class UiCommandService implements MbeCommandService {
         this.sessions = plugin.getAddonLifecycleService().getCoreService(EditorSessionManager.class);
         this.bindings = plugin.getAddonLifecycleService().getCoreService(PanelBindingService.class);
         this.multiblocks = plugin.getManager();
+        this.panelViewService = plugin.getAddonLifecycleService().getCoreService(PanelViewService.class);
         this.i18n = plugin.getAddonLifecycleService().getCoreService(I18nService.class);
         this.messageService = plugin.getAddonLifecycleService().getCoreService(PlayerMessageService.class);
     }
@@ -88,7 +89,7 @@ public final class UiCommandService implements MbeCommandService {
     public void info(CommandSender sender, List<String> args) {
         send(sender, MSG_INFO_TITLE);
         send(sender, MSG_INFO_DESCRIPTION);
-        send(sender, MSG_INFO_PANEL_SERVICE, java.util.Map.of("status", resolvePanelService() != null ? "available" : "unavailable"));
+        send(sender, MSG_INFO_PANEL_SERVICE, java.util.Map.of("status", panelViewService != null ? "available" : "unavailable"));
         send(sender, MSG_INFO_BINDINGS_COUNT, java.util.Map.of("count", bindings == null ? 0 : bindings.all().size()));
     }
 
@@ -144,20 +145,13 @@ public final class UiCommandService implements MbeCommandService {
             send(sender, MSG_USAGE_LINK);
             return;
         }
-        PanelViewService panelService;
-        try {
-            panelService = resolvePanelService();
-        } catch (Throwable t) {
-            send(sender, MSG_ERROR_RESOLVE_PANEL_SERVICE);
-            return;
-        }
-        if (panelService == null) {
+        if (panelViewService == null) {
             send(sender, MSG_ERROR_PANEL_SERVICE_UNAVAILABLE);
             return;
         }
         String panelId = args.get(1);
         try {
-            if (!panelService.panelExists(panelId)) {
+            if (panelViewService.getPanel(panelId).isEmpty()) {
                 send(sender, MSG_ERROR_PANEL_NOT_FOUND, java.util.Map.of("panel", panelId));
                 return;
             }
@@ -198,10 +192,6 @@ public final class UiCommandService implements MbeCommandService {
                         "z", binding.z(),
                         "trigger", binding.triggerType()
                 )));
-    }
-
-    private PanelViewService resolvePanelService() {
-        return PanelViewResolver.resolve();
     }
 
     private void send(CommandSender sender, MessageKey key) {

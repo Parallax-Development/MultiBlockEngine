@@ -14,6 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class InteractionRouter {
     private final Map<BlockPosition, PanelBinding> clickBindings = new ConcurrentHashMap<>();
+    private volatile PanelViewService panelViewService;
 
     public void registerClickBinding(PanelBinding binding) {
         if (binding == null) {
@@ -49,7 +50,7 @@ public final class InteractionRouter {
         if (bindingOpt.isEmpty()) {
             return false;
         }
-        PanelViewService panelService = resolvePanelService();
+        PanelViewService panelService = panelViewService;
         if (panelService == null) {
             return false;
         }
@@ -58,7 +59,7 @@ public final class InteractionRouter {
         return true;
     }
 
-    private PanelViewService resolvePanelService() {
-        return PanelViewResolver.resolve();
+    public void setPanelViewService(PanelViewService panelViewService) {
+        this.panelViewService = panelViewService;
     }
 }
