@@ -31,7 +31,9 @@ export:
 
 addons:
   contracts:
+    # Valid values: WARN, ERROR
     nonApiAccess: WARN
+    serviceApiType: WARN
 
 preview:
   batchSize: 30

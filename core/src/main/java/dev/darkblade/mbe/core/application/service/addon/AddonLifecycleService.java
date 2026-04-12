@@ -44,6 +44,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
@@ -133,6 +134,7 @@ public class AddonLifecycleService {
     private final Map<String, List<PendingExposure>> pendingExposures = new ConcurrentHashMap<>();
     private final Map<String, List<ExposedService>> exposedServices = new ConcurrentHashMap<>();
     private final ClassLoader apiClassLoader = MultiblockAPI.class.getClassLoader();
+    private volatile AddonServiceRegistry.ApiTypeEnforcementMode serviceApiTypeMode = AddonServiceRegistry.ApiTypeEnforcementMode.ERROR;
 
     public AddonLifecycleService(MultiBlockEngine plugin, MultiblockAPI api, CoreLogger log) {
         this.plugin = plugin;
@@ -143,7 +145,7 @@ public class AddonLifecycleService {
         this.serviceRegistry = new AddonServiceRegistry(this.log);
         MBEServiceRegistry mbeServiceRegistry = new MBEServiceRegistry();
         this.crossReferenceManager = new AddonCrossReferenceService();
-        ServiceInjector serviceInjector = new ServiceInjector(mbeServiceRegistry, this.crossReferenceManager, this.log);
+        ServiceInjector serviceInjector = new ServiceInjector(mbeServiceRegistry, this.crossReferenceManager, this.log, this::resolveExternalService);
         this.serviceLifecycleManager = new ServiceLifecycleOrchestrator(mbeServiceRegistry, serviceInjector, this.log);
         this.dependencyResolver = new AddonDependencyResolver();
 
@@ -241,7 +243,10 @@ public class AddonLifecycleService {
 
         ContractsEnforcementMode contractsMode = contractsEnforcementMode();
         boolean strictContracts = contractsMode == ContractsEnforcementMode.ERROR;
+        this.serviceApiTypeMode = serviceApiTypeEnforcementModeFromConfig();
+        serviceRegistry.setApiTypeEnforcementMode(this.serviceApiTypeMode);
         core.info("Addon contracts enforcement mode", LogKv.kv("mode", contractsMode.name()));
+        core.info("Addon service api type enforcement mode", LogKv.kv("mode", this.serviceApiTypeMode.name()));
 
         Map<String, AddonAuditReport> auditReports = auditDiscoveredAddons(discoveredAddons, auditIndexesByFile, strictContracts);
         for (AddonAuditReport report : auditReports.values()) {
@@ -367,6 +372,25 @@ public class AddonLifecycleService {
         return serviceLifecycleManager.getByType(serviceType);
     }
 
+    private Optional<?> resolveExternalService(String ownerId, Class<?> serviceType) {
+        if (serviceType == null) {
+            return Optional.empty();
+        }
+        String owner = trimToNull(ownerId);
+        if (owner == null) {
+            owner = CORE_PROVIDER_ID;
+        }
+        Optional<?> resolved = resolveExternalServiceByType(owner, serviceType);
+        if (resolved.isPresent() || CORE_PROVIDER_ID.equals(owner)) {
+            return resolved;
+        }
+        return resolveExternalServiceByType(CORE_PROVIDER_ID, serviceType);
+    }
+
+    private <T> Optional<T> resolveExternalServiceByType(String ownerId, Class<T> serviceType) {
+        return serviceRegistry.resolveIfEnabled(ownerId, serviceType, this::getState);
+    }
+
     public record AddonRuntime(String id, ClassLoader classLoader, Path dataFolder) {
         public AddonRuntime {
             if (id == null || id.isBlank()) {
@@ -445,10 +469,13 @@ public class AddonLifecycleService {
             return;
         }
 
-        log.logInternal(new LogScope.Addon(addonId, addonVersion(addonId)), LogPhase.LOAD, LogLevel.FATAL,
-            "Invalid service exposure: service type is not part of api",
+        AddonServiceRegistry.ApiTypeEnforcementMode mode = this.serviceApiTypeMode;
+        LogLevel level = mode == AddonServiceRegistry.ApiTypeEnforcementMode.ERROR ? LogLevel.FATAL : LogLevel.WARN;
+        log.logInternal(new LogScope.Addon(addonId, addonVersion(addonId)), LogPhase.LOAD, level,
+            "Service exposure type is not part of api",
             null,
             new LogKv[] {
+                LogKv.kv("mode", mode.name()),
                 LogKv.kv("service", apiType.getName()),
                 LogKv.kv("serviceCl", cl == null ? "bootstrap" : cl.toString()),
                 LogKv.kv("apiCl", apiClassLoader == null ? "bootstrap" : apiClassLoader.toString())
@@ -456,10 +483,12 @@ public class AddonLifecycleService {
             Set.of()
         );
 
-        throw new IllegalArgumentException(
-            "Invalid service exposure: Service type " + apiType.getName() + " is not part of api. " +
-                "Move the service interface/DTOs to api and depend on it as compileOnly."
-        );
+        if (mode == AddonServiceRegistry.ApiTypeEnforcementMode.ERROR) {
+            throw new IllegalArgumentException(
+                "Invalid service exposure: Service type " + apiType.getName() + " is not part of api. " +
+                    "Move the service interface/DTOs to api and depend on it as compileOnly."
+            );
+        }
     }
 
     public void failAddon(String addonId, AddonException.Phase phase, String message, Throwable cause, boolean fatal) {
@@ -896,11 +925,6 @@ public class AddonLifecycleService {
                 fatal = true;
             }
 
-            if (!idx.apiClasses().isEmpty()) {
-                violations.add("defines *.api.* packages inside addon");
-                fatal = true;
-            }
-
             Set<String> shared = sharedApisByAddon.getOrDefault(idx.addonId(), Set.of());
             if (!shared.isEmpty()) {
                 violations.add("shared API definitions duplicated across addons");
@@ -1030,6 +1054,26 @@ public class AddonLifecycleService {
             return ContractsEnforcementMode.ERROR;
         }
         return ContractsEnforcementMode.WARN;
+    }
+
+    private AddonServiceRegistry.ApiTypeEnforcementMode serviceApiTypeEnforcementModeFromConfig() {
+        String raw = null;
+        try {
+            raw = trimToNull(plugin.getConfig().getString("addons.contracts.serviceApiType"));
+            if (raw == null) {
+                raw = trimToNull(plugin.getConfig().getString("addons.audit.serviceApiType"));
+            }
+        } catch (Throwable ignored) {
+            raw = null;
+        }
+        if (raw == null) {
+            return AddonServiceRegistry.ApiTypeEnforcementMode.WARN;
+        }
+        String normalized = raw.trim().toUpperCase(java.util.Locale.ROOT);
+        if ("ERROR".equals(normalized) || "STRICT".equals(normalized)) {
+            return AddonServiceRegistry.ApiTypeEnforcementMode.ERROR;
+        }
+        return AddonServiceRegistry.ApiTypeEnforcementMode.WARN;
     }
 
     private ClassFileInspection inspectClassFile(InputStream rawIn) throws IOException {
