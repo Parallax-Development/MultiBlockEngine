@@ -9,10 +9,12 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 public final class MBEServiceRegistry {
     private static final Pattern SERVICE_ID_PATTERN = Pattern.compile("^[a-z0-9][a-z0-9_\\-]*:[a-z0-9][a-z0-9_.\\-]*$");
+    private static final Logger LOGGER = Logger.getLogger(MBEServiceRegistry.class.getName());
 
     private final ConcurrentHashMap<String, MBEService> services = new ConcurrentHashMap<>();
     private final CopyOnWriteArrayList<ServiceListener> listeners = new CopyOnWriteArrayList<>();
@@ -20,7 +22,6 @@ public final class MBEServiceRegistry {
     public void register(MBEService service) {
         Objects.requireNonNull(service, "service");
         String id = normalizeServiceId(service.getServiceId());
-
         MBEService previous = services.putIfAbsent(id, service);
         if (previous != null && previous != service) {
             throw new IllegalStateException("Service id already registered: " + id);
@@ -30,6 +31,7 @@ public final class MBEServiceRegistry {
             for (ServiceListener listener : listeners) {
                 listener.onServiceAvailable(service);
             }
+            LOGGER.info("MBEService registered id=" + id + " type=" + service.getClass().getName());
         }
     }
 
@@ -55,7 +57,11 @@ public final class MBEServiceRegistry {
     }
 
     public Optional<MBEService> unregister(String id) {
-        MBEService removed = services.remove(normalizeServiceId(id));
+        String normalized = normalizeServiceId(id);
+        MBEService removed = services.remove(normalized);
+        if (removed != null) {
+            LOGGER.info("MBEService unregistered id=" + normalized + " type=" + removed.getClass().getName());
+        }
         return Optional.ofNullable(removed);
     }
 

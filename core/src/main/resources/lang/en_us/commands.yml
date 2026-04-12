@@ -1,7 +1,7 @@
 commands:
   usage:
-    console: "Usage: /{label} <help|status|report|admin|debug>"
-    player: "Usage: /{label} <help|inspect|assemble|disassemble|status|report|admin|debug>"
+    console: "Usage: /{label} <help|status|ui|report|admin|debug>"
+    player: "Usage: /{label} <help|inspect|assemble|disassemble|status|ui|report|admin|debug>"
   help:
     inspect: "/{label} inspect"
     assemble: "/{label} assemble"
@@ -72,6 +72,12 @@ commands:
     total_destroyed_value: "Total destroyed: {value}"
     structure_checks_value: "Structure checks: {value}"
     avg_tick_value: "Average tick (s): {value}"
+  ui:
+    debug_usage: "Usage: /{label} ui debug panels"
+    debug_title: "Registered panels ({count}):"
+    debug_entry: "- {panel}"
+    debug_none: "No panels are registered."
+    debug_unavailable: "Panel view service is unavailable."
   inspect:
     must_look_at_block: "You must look at a block."
     none_here: "No structure here."

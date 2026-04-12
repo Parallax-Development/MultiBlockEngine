@@ -18,12 +18,21 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicReference;
 
 public final class ServiceLifecycleOrchestrator {
+    public enum LifecyclePhase {
+        CORE_SERVICES,
+        ADDON_SERVICES,
+        CONTENT_REGISTRATION,
+        RUNTIME
+    }
+
     private final MBEServiceRegistry registry;
     private final ServiceInjector injector;
     private final CoreLogger log;
     private final Map<String, List<String>> servicesByAddon = new ConcurrentHashMap<>();
+    private final AtomicReference<LifecyclePhase> currentPhase = new AtomicReference<>(LifecyclePhase.CORE_SERVICES);
 
     public ServiceLifecycleOrchestrator(MBEServiceRegistry registry, ServiceInjector injector, CoreLogger log) {
         this.registry = Objects.requireNonNull(registry, "registry");
@@ -33,8 +42,19 @@ public final class ServiceLifecycleOrchestrator {
 
     public void clear() {
         stopTickServiceIfPresent("unknown");
+        currentPhase.set(LifecyclePhase.CORE_SERVICES);
         servicesByAddon.clear();
         registry.clear();
+    }
+
+    public LifecyclePhase getCurrentPhase() {
+        return currentPhase.get();
+    }
+
+    public void setCurrentPhase(LifecyclePhase phase) {
+        if (phase != null) {
+            currentPhase.set(phase);
+        }
     }
 
     public void registerService(String addonId, MBEService service) {
