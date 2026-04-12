@@ -9,6 +9,7 @@ import dev.darkblade.mbe.api.logging.LogKv;
 import dev.darkblade.mbe.api.logging.LogLevel;
 import dev.darkblade.mbe.api.logging.LogPhase;
 import dev.darkblade.mbe.api.logging.LogScope;
+import dev.darkblade.mbe.api.tick.Tickable;
 import dev.darkblade.mbe.core.domain.MultiblockInstance;
 import dev.darkblade.mbe.core.domain.MultiblockState;
 import dev.darkblade.mbe.core.domain.MultiblockSource;
@@ -23,14 +24,13 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.Directional;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.Set;
 
-public class MultiblockRuntimeService {
+public class MultiblockRuntimeService implements Tickable {
     private final Map<String, MultiblockType> types = new HashMap<>();
     private final Map<String, MultiblockSource> sourcesByTypeId = new HashMap<>();
     private final Map<Location, MultiblockInstance> activeInstances = new ConcurrentHashMap<>();
@@ -40,7 +40,6 @@ public class MultiblockRuntimeService {
     private final HologramService holograms = new HologramService();
     private AddonLifecycleService addonManager;
     private InstanceStorageService storage;
-    private BukkitTask tickTask;
     private final Map<String, List<MultiblockType>> variantsBySignature = new HashMap<>();
     
     // Supported rotations
@@ -98,7 +97,6 @@ public class MultiblockRuntimeService {
     }
     
     public void unregisterAll() {
-        stopTicking();
         holograms.removeAll();
         types.clear();
         sourcesByTypeId.clear();
@@ -179,28 +177,12 @@ public class MultiblockRuntimeService {
         return computeSignature(type);
     }
     
-    public void stopTicking() {
-        if (tickTask != null && !tickTask.isCancelled()) {
-            tickTask.cancel();
-        }
-        tickTask = null;
-    }
-    
-    public void startTicking(MultiBlockEngine plugin) {
-        stopTicking();
-        
-        // Load config for metrics
-        metrics.setEnabled(plugin.getConfig().getBoolean("metrics", true));
-        
-        // Run every tick (1)
-        tickTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 1L, 1L);
-    }
-    
     public MetricsService getMetrics() {
         return metrics;
     }
-    
-    private void tick() {
+
+    @Override
+    public void tick() {
         long startTime = System.nanoTime();
         long currentTick = Bukkit.getCurrentTick();
         
