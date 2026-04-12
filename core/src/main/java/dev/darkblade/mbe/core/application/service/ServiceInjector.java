@@ -16,19 +16,27 @@ import java.lang.reflect.Type;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiFunction;
 
 public final class ServiceInjector {
+    private static final BiFunction<String, Class<?>, Optional<?>> NO_EXTERNAL_RESOLVER = (ownerId, type) -> Optional.empty();
     private final MBEServiceRegistry registry;
     private final AddonCrossReferenceService crossReferenceManager;
+    private final BiFunction<String, Class<?>, Optional<?>> externalResolver;
     private final CoreLogger log;
 
     public ServiceInjector(MBEServiceRegistry registry, CoreLogger log) {
-        this(registry, null, log);
+        this(registry, null, log, NO_EXTERNAL_RESOLVER);
     }
 
     public ServiceInjector(MBEServiceRegistry registry, AddonCrossReferenceService crossReferenceManager, CoreLogger log) {
+        this(registry, crossReferenceManager, log, NO_EXTERNAL_RESOLVER);
+    }
+
+    public ServiceInjector(MBEServiceRegistry registry, AddonCrossReferenceService crossReferenceManager, CoreLogger log, BiFunction<String, Class<?>, Optional<?>> externalResolver) {
         this.registry = Objects.requireNonNull(registry, "registry");
         this.crossReferenceManager = crossReferenceManager;
+        this.externalResolver = externalResolver == null ? NO_EXTERNAL_RESOLVER : externalResolver;
         this.log = Objects.requireNonNull(log, "log");
     }
 
@@ -64,8 +72,13 @@ public final class ServiceInjector {
                     }
                     java.util.List<?> matches = registry.getByType(wrappedType);
                     if (matches.isEmpty()) {
+                        Optional<?> external = resolveExternal(ownerId, wrappedType);
+                        if (external.isPresent()) {
+                            field.set(target, Optional.of(external.get()));
+                            return;
+                        }
                         field.set(target, Optional.empty());
-                        warn(ownerId, "Optional service not available", field, id, wrappedType);
+                        optionalMissing(ownerId, field, id, wrappedType);
                         return;
                     }
                     field.set(target, Optional.of(matches.get(0)));
@@ -75,6 +88,11 @@ public final class ServiceInjector {
                 java.util.List<?> matches = registry.getByType(field.getType());
                 if (!matches.isEmpty()) {
                     field.set(target, matches.get(0));
+                    return;
+                }
+                Optional<?> external = resolveExternal(ownerId, field.getType());
+                if (external.isPresent()) {
+                    field.set(target, external.get());
                     return;
                 }
                 warn(ownerId, "Service not available for type-based injection", field, id, field.getType());
@@ -89,14 +107,23 @@ public final class ServiceInjector {
                     return;
                 }
                 Object value = registry.get(id, wrappedType);
+                if (((Optional<?>) value).isEmpty()) {
+                    Optional<?> external = resolveExternal(ownerId, wrappedType);
+                    if (external.isPresent()) {
+                        value = Optional.of(external.get());
+                    }
+                }
                 field.set(target, value);
                 if (((Optional<?>) value).isEmpty()) {
-                    warn(ownerId, "Optional service not available", field, id, wrappedType);
+                    optionalMissing(ownerId, field, id, wrappedType);
                 }
                 return;
             }
 
             Optional<?> resolved = registry.get(id, field.getType());
+            if (resolved.isEmpty()) {
+                resolved = resolveExternal(ownerId, field.getType());
+            }
             if (resolved.isPresent()) {
                 field.set(target, resolved.get());
                 return;
@@ -120,6 +147,31 @@ public final class ServiceInjector {
             LogKv.kv("serviceId", serviceId == null ? "" : serviceId),
             LogKv.kv("expectedType", expectedType == null ? "" : expectedType.getName())
         }, Set.of());
+    }
+
+    private void optionalMissing(String ownerId, Field field, String serviceId, Class<?> expectedType) {
+        log.logInternal(scope(ownerId), LogPhase.SERVICE_RESOLVE, LogLevel.DEBUG, "Optional service not available", null, new LogKv[] {
+            LogKv.kv("owner", ownerId == null ? "unknown" : ownerId),
+            LogKv.kv("targetField", field.getDeclaringClass().getName() + "#" + field.getName()),
+            LogKv.kv("serviceId", serviceId == null ? "" : serviceId),
+            LogKv.kv("expectedType", expectedType == null ? "" : expectedType.getName())
+        }, Set.of());
+    }
+
+    private Optional<?> resolveExternal(String ownerId, Class<?> expectedType) {
+        if (expectedType == null) {
+            return Optional.empty();
+        }
+        try {
+            Optional<?> resolved = externalResolver.apply(ownerId, expectedType);
+            return resolved == null ? Optional.empty() : resolved;
+        } catch (Throwable t) {
+            log.logInternal(scope(ownerId), LogPhase.SERVICE_RESOLVE, LogLevel.WARN, "External service resolve failed", t, new LogKv[] {
+                LogKv.kv("owner", ownerId == null ? "unknown" : ownerId),
+                LogKv.kv("expectedType", expectedType.getName())
+            }, Set.of());
+            return Optional.empty();
+        }
     }
 
     private void injectCrossReference(Object target, Field field, InjectCrossReference marker, String ownerId) {

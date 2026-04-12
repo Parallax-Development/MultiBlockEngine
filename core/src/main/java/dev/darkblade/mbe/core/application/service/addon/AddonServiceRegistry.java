@@ -15,15 +15,25 @@ import java.util.function.Function;
 
 public final class AddonServiceRegistry {
 
+    public enum ApiTypeEnforcementMode {
+        WARN,
+        ERROR
+    }
+
     private record ServiceEntry(String providerAddonId, Object service) {}
 
     private final Map<Class<?>, ServiceEntry> services = new HashMap<>();
     private final CoreLogger log;
     private final ClassLoader apiClassLoader;
+    private volatile ApiTypeEnforcementMode apiTypeEnforcementMode = ApiTypeEnforcementMode.ERROR;
 
     public AddonServiceRegistry(CoreLogger log) {
         this.log = Objects.requireNonNull(log, "log");
         this.apiClassLoader = dev.darkblade.mbe.api.MultiblockAPI.class.getClassLoader();
+    }
+
+    public void setApiTypeEnforcementMode(ApiTypeEnforcementMode mode) {
+        this.apiTypeEnforcementMode = mode == null ? ApiTypeEnforcementMode.ERROR : mode;
     }
 
     public synchronized <T> void register(String addonId, Class<T> serviceType, T service) {
@@ -96,12 +106,15 @@ public final class AddonServiceRegistry {
             return;
         }
 
-        log.logInternal(new LogScope.Core(), phase, LogLevel.FATAL,
-            "Invalid service type (must belong to api)",
+        ApiTypeEnforcementMode mode = apiTypeEnforcementMode;
+        LogLevel level = mode == ApiTypeEnforcementMode.ERROR ? LogLevel.FATAL : LogLevel.WARN;
+        log.logInternal(new LogScope.Core(), phase, level,
+            "Service type is not part of api",
             null,
             new LogKv[] {
                 LogKv.kv("addonId", addonId),
                 LogKv.kv("op", op),
+                LogKv.kv("mode", mode.name()),
                 LogKv.kv("service", type.getName()),
                 LogKv.kv("serviceCl", cl == null ? "bootstrap" : cl.toString()),
                 LogKv.kv("apiCl", apiClassLoader == null ? "bootstrap" : apiClassLoader.toString())
@@ -109,9 +122,11 @@ public final class AddonServiceRegistry {
             Set.of()
         );
 
-        throw new IllegalArgumentException(
-            "Invalid service " + op + ": Service type " + type.getName() + " is not part of api. " +
-                "Move the service interface/DTOs to api and depend on it as compileOnly."
-        );
+        if (mode == ApiTypeEnforcementMode.ERROR) {
+            throw new IllegalArgumentException(
+                "Invalid service " + op + ": Service type " + type.getName() + " is not part of api. " +
+                    "Move the service interface/DTOs to api and depend on it as compileOnly."
+            );
+        }
     }
 }

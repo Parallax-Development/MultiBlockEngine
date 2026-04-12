@@ -158,6 +158,7 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
         if (!ids.isEmpty()) {
             renderer().destroyEntities(player, ids);
         }
+        pruneQueuedTasks(session);
         session.clearBlocks();
         if (notifyCancelled) {
             send(player, MSG_PREVIEW_CANCELLED);
@@ -230,6 +231,7 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
         if (!ids.isEmpty()) {
             renderer().destroyEntities(player, ids);
         }
+        pruneQueuedTasks(session);
         session.clearBlocks();
         queueSpawn(player, session, session.nextRenderVersion());
     }
@@ -270,6 +272,7 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
             if (task == null) {
                 return;
             }
+            processed++;
             Player player = task.player();
             if (player == null || !player.isOnline()) {
                 continue;
@@ -293,7 +296,6 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
                     active.trackBlock(task.blockPosition(), new SessionPreviewBlock(task.blockData(), entityId, previous != null && previous.completed()));
                 }
             }
-            processed++;
         }
     }
 
@@ -303,6 +305,7 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
             Player player = Bukkit.getPlayer(session.playerId());
             if (player == null || !player.isOnline()) {
                 sessions.remove(session.playerId());
+                pruneQueuedTasks(session);
                 session.clearBlocks();
                 continue;
             }
@@ -344,6 +347,13 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
             ids.add(block.entityId());
         }
         return ids;
+    }
+
+    private void pruneQueuedTasks(PreviewSession session) {
+        if (session == null) {
+            return;
+        }
+        renderQueue.removeIf(task -> task != null && task.session() == session);
     }
 
     private boolean matches(BlockData placed, BlockData expected) {
