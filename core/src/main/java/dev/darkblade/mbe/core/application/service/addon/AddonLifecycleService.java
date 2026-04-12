@@ -1486,6 +1486,8 @@ public class AddonLifecycleService {
 
     public void enableAddons() {
         EngineLogger core = coreLogger(LogPhase.ENABLE);
+        serviceLifecycleManager.injectServices(CORE_PROVIDER_ID);
+        serviceLifecycleManager.enableServices(CORE_PROVIDER_ID);
 
         for (String id : resolvedOrder) {
             LoadedAddon loaded = loadedAddons.get(id);
@@ -1587,6 +1589,7 @@ public class AddonLifecycleService {
             states.putIfAbsent(id, AddonState.DISABLED);
         }
 
+        serviceLifecycleManager.disableServices(CORE_PROVIDER_ID);
         exposedServices.clear();
         serviceLifecycleManager.clear();
         crossReferenceManager.clear();

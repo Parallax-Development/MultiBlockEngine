@@ -712,9 +712,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
         }
 
         plugin.getManager().reloadTypesWithSources(newTypes, sources);
-        
-        // Restart ticking with new config
-        plugin.getManager().startTicking(plugin);
+        plugin.getManager().getMetrics().setEnabled(plugin.getConfig().getBoolean("metrics", true));
         
         send(sender, MSG_RELOAD_DONE_TYPES, "count", newTypes.size());
         send(sender, MSG_RELOAD_DONE_RESTART);

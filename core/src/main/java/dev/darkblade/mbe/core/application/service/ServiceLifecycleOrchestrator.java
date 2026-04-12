@@ -7,6 +7,7 @@ import dev.darkblade.mbe.api.logging.LogPhase;
 import dev.darkblade.mbe.api.logging.LogScope;
 import dev.darkblade.mbe.api.service.MBEService;
 import dev.darkblade.mbe.api.service.ServiceListener;
+import dev.darkblade.mbe.core.application.service.tick.TickService;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -31,6 +32,7 @@ public final class ServiceLifecycleOrchestrator {
     }
 
     public void clear() {
+        stopTickServiceIfPresent("unknown");
         servicesByAddon.clear();
         registry.clear();
     }
@@ -104,10 +106,12 @@ public final class ServiceLifecycleOrchestrator {
                 }, Set.of());
             }
         }
+        startTickServiceIfPresent(owner);
     }
 
     public void disableServices(String addonId) {
         String owner = normalizeAddonId(addonId);
+        stopTickServiceIfPresent(owner);
         List<MBEService> services = new ArrayList<>(servicesOf(owner));
         Collections.reverse(services);
 
@@ -125,6 +129,30 @@ public final class ServiceLifecycleOrchestrator {
         }
 
         servicesByAddon.remove(owner);
+    }
+
+    private void startTickServiceIfPresent(String addonId) {
+        for (TickService tickService : registry.getByType(TickService.class)) {
+            try {
+                tickService.start();
+            } catch (Throwable t) {
+                log.logInternal(scope(addonId), LogPhase.ENABLE, LogLevel.WARN, "TickService start failed", t, new LogKv[] {
+                    LogKv.kv("addonId", addonId)
+                }, Set.of());
+            }
+        }
+    }
+
+    private void stopTickServiceIfPresent(String addonId) {
+        for (TickService tickService : registry.getByType(TickService.class)) {
+            try {
+                tickService.stop();
+            } catch (Throwable t) {
+                log.logInternal(scope(addonId), LogPhase.DISABLE, LogLevel.WARN, "TickService stop failed", t, new LogKv[] {
+                    LogKv.kv("addonId", addonId)
+                }, Set.of());
+            }
+        }
     }
 
     public <T> List<T> getByType(Class<T> type) {

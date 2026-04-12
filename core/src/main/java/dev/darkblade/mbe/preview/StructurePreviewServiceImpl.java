@@ -6,6 +6,7 @@ import dev.darkblade.mbe.api.message.MessagePriority;
 import dev.darkblade.mbe.api.message.PlayerMessage;
 import dev.darkblade.mbe.api.message.PlayerMessageService;
 import dev.darkblade.mbe.api.service.InjectService;
+import dev.darkblade.mbe.api.tick.Tickable;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
@@ -13,7 +14,6 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitTask;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -23,13 +23,12 @@ import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-public final class StructurePreviewServiceImpl implements StructurePreviewService {
+public final class StructurePreviewServiceImpl implements StructurePreviewService, Tickable {
     private static final String ORIGIN = "mbe";
     private static final MessageKey MSG_PREVIEW_STARTED = MessageKey.of(ORIGIN, "core.preview.started");
     private static final MessageKey MSG_PREVIEW_CANCELLED = MessageKey.of(ORIGIN, "core.preview.cancelled");
     private static final MessageKey MSG_PREVIEW_COMPLETED = MessageKey.of(ORIGIN, "core.preview.completed");
 
-    private final JavaPlugin plugin;
     @InjectService
     private DisplayEntityRenderer injectedRenderer;
     private final DisplayEntityRenderer fallbackRenderer;
@@ -41,7 +40,6 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
     private final int raycastDistance;
     private final double maxDistanceSquared;
     private final Duration timeout;
-    private BukkitTask tickTask;
 
     public StructurePreviewServiceImpl(
         JavaPlugin plugin,
@@ -50,7 +48,7 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
         PreviewValidationStrategy validationStrategy,
         PreviewSettings settings
     ) {
-        this.plugin = Objects.requireNonNull(plugin, "plugin");
+        Objects.requireNonNull(plugin, "plugin");
         this.fallbackRenderer = Objects.requireNonNull(renderer, "renderer");
         this.messageService = messageService;
         this.validationStrategy = Objects.requireNonNull(validationStrategy, "validationStrategy");
@@ -63,18 +61,7 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
         this.timeout = settings.timeout() == null ? Duration.ofSeconds(20) : settings.timeout();
     }
 
-    public void start() {
-        if (tickTask != null) {
-            return;
-        }
-        tickTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 1L, 1L);
-    }
-
     public void stop() {
-        if (tickTask != null) {
-            tickTask.cancel();
-            tickTask = null;
-        }
         for (PreviewSession session : new ArrayList<>(sessions.all())) {
             Player player = Bukkit.getPlayer(session.playerId());
             if (player != null) {
@@ -260,7 +247,8 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
         session.touch();
     }
 
-    private void tick() {
+    @Override
+    public void tick() {
         processQueue();
         cleanupSessions();
     }

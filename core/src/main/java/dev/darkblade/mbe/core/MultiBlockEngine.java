@@ -16,6 +16,7 @@ import dev.darkblade.mbe.api.message.PlayerMessageService;
 import dev.darkblade.mbe.api.blueprint.BlueprintService;
 import dev.darkblade.mbe.api.service.InspectionPipelineService;
 import dev.darkblade.mbe.api.service.interaction.InteractionPipelineService;
+import dev.darkblade.mbe.api.tick.Tickable;
 import dev.darkblade.mbe.api.io.IOService;
 import dev.darkblade.mbe.api.io.IOTickService;
 import dev.darkblade.mbe.api.tool.ToolActionRegistry;
@@ -92,6 +93,7 @@ import dev.darkblade.mbe.core.application.service.tool.AssembleAction;
 import dev.darkblade.mbe.core.application.service.tool.DisassembleAction;
 import dev.darkblade.mbe.core.application.service.tool.InspectAction;
 import dev.darkblade.mbe.core.application.service.tool.SwitchModeAction;
+import dev.darkblade.mbe.core.application.service.tick.TickService;
 import dev.darkblade.mbe.core.application.service.wiring.DefaultNetworkService;
 import dev.darkblade.mbe.core.internal.inspection.DefaultInspectionPipelineService;
 import dev.darkblade.mbe.api.command.ExportHookRegistry;
@@ -170,6 +172,8 @@ public class MultiBlockEngine extends JavaPlugin {
     private PlayerMultiblockQueryServiceImpl playerMultiblockQueryService;
     private MetadataServiceImpl metadataService;
     private PlayerMultiblockContextResolver metadataContextResolver;
+    private TickService tickService;
+    private Tickable ioTickable;
 
     @Override
     public void onEnable() {
@@ -205,6 +209,9 @@ public class MultiBlockEngine extends JavaPlugin {
 
         addonManager = new AddonLifecycleService(this, api, log);
         manager.setAddonLifecycleService(addonManager);
+        tickService = new TickService(this, log);
+        addonManager.registerCoreService(dev.darkblade.mbe.api.tick.TickService.class, tickService);
+        addonManager.registerCoreMbeService(tickService);
 
         StorageExceptionHandler storageExceptionHandler = (storageService, error) -> {
             if (error == null) {
@@ -322,10 +329,10 @@ public class MultiBlockEngine extends JavaPlugin {
             Duration.ofSeconds(Math.max(3, getConfig().getLong("preview.timeoutSeconds", 20L)))
         );
         structurePreviewService = new StructurePreviewServiceImpl(this, displayRenderer, playerMessageService, new UnknownValidationStrategy(), previewSettings);
-        structurePreviewService.start();
         addonManager.registerCoreService(DisplayEntityRenderer.class, displayRenderer);
         registerPlatformPreviewRendererService(displayRenderer);
         addonManager.registerCoreService(StructurePreviewService.class, structurePreviewService);
+        tickService.register(structurePreviewService);
         structureCatalogService = new StructureCatalogServiceImpl(manager);
         addonManager.registerCoreService(StructureCatalogService.class, structureCatalogService);
         BuildContextService buildContextService = new InMemoryBuildContextService();
@@ -430,6 +437,14 @@ public class MultiBlockEngine extends JavaPlugin {
             manager.registerInstance(inst, false);
         }
         log.info("Restored active instances", dev.darkblade.mbe.api.logging.LogKv.kv("count", instances.size()));
+        manager.getMetrics().setEnabled(getConfig().getBoolean("metrics", true));
+        tickService.register(manager);
+        ioTickable = () -> {
+            for (MultiblockInstance active : manager.getActiveInstancesSnapshot()) {
+                ioTickService.tick(active);
+            }
+        };
+        tickService.register(ioTickable);
 
         log.setCorePhase(LogPhase.ENABLE);
         addonManager.enableAddons();
@@ -465,9 +480,6 @@ public class MultiBlockEngine extends JavaPlugin {
         getCommand("multiblock").setExecutor(cmd);
         getCommand("multiblock").setTabCompleter(cmd);
         
-        // Start Ticking
-        manager.startTicking(this);
-
         Bukkit.getScheduler().runTaskTimerAsynchronously(this, () -> {
             try {
                 if (persistence != null) {
@@ -476,11 +488,6 @@ public class MultiBlockEngine extends JavaPlugin {
             } catch (Exception ignored) {
             }
         }, 20L * 60L, 20L * 60L);
-        Bukkit.getScheduler().runTaskTimer(this, () -> {
-            for (MultiblockInstance active : manager.getActiveInstancesSnapshot()) {
-                ioTickService.tick(active);
-            }
-        }, 1L, 1L);
         
         // Register PlaceholderExpansion
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
@@ -507,7 +514,19 @@ public class MultiBlockEngine extends JavaPlugin {
             editorSessions.cancelAll();
         }
         if (structurePreviewService != null) {
+            if (tickService != null) {
+                tickService.unregister(structurePreviewService);
+            }
             structurePreviewService.stop();
+        }
+        if (tickService != null) {
+            if (manager != null) {
+                tickService.unregister(manager);
+            }
+            if (ioTickable != null) {
+                tickService.unregister(ioTickable);
+                ioTickable = null;
+            }
         }
         if (panelBindings != null) {
             panelBindings.save();
