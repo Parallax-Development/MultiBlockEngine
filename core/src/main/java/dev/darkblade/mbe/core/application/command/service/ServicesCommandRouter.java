@@ -2,6 +2,8 @@ package dev.darkblade.mbe.core.application.command.service;
 
 import dev.darkblade.mbe.core.MultiBlockEngine;
 import dev.darkblade.mbe.api.command.MbeCommandService;
+import dev.darkblade.mbe.api.event.ComponentAvailabilityEvent;
+import dev.darkblade.mbe.api.event.ComponentKind;
 import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.MessageKey;
 import dev.darkblade.mbe.api.logging.CoreLogger;
@@ -13,6 +15,11 @@ import dev.darkblade.mbe.api.message.PlayerMessageService;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.server.ServiceRegisterEvent;
+import org.bukkit.event.server.ServiceUnregisterEvent;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.ServicePriority;
 
@@ -25,8 +32,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
-public final class ServicesCommandRouter {
+public final class ServicesCommandRouter implements Listener {
     private static final String ORIGIN = "mbe";
     private static final MessageKey MSG_ERROR_SERVICE_NOT_SPECIFIED = MessageKey.of(ORIGIN, "services.router.error.service_not_specified");
     private static final MessageKey MSG_ERROR_SERVICE_NOT_FOUND = MessageKey.of(ORIGIN, "services.router.error.service_not_found");
@@ -48,11 +56,15 @@ public final class ServicesCommandRouter {
     private final CoreLogger log;
     private final ServiceCallParser parser = new ServiceCallParser();
     private final ServiceRegistry registry = new ServiceRegistry();
+    private final DynamicCommandServiceRegistry externalRegistry;
 
     public ServicesCommandRouter(MultiBlockEngine plugin) {
         Objects.requireNonNull(plugin, "plugin");
         this.plugin = plugin;
         this.log = plugin.getLoggingService().core();
+        this.externalRegistry = new DynamicCommandServiceRegistry(this::loadExternalCommandServices);
+        plugin.getServer().getPluginManager().registerEvents(this, plugin);
+        refreshExternalCommandServices();
     }
 
     public void registerInternal(MbeCommandService service) {
@@ -237,19 +249,55 @@ public final class ServicesCommandRouter {
             return Optional.empty();
         }
 
-        Map<String, RegisteredServiceProvider<MbeCommandService>> external = loadExternalServices();
-        RegisteredServiceProvider<MbeCommandService> rsp = external.get(key.toLowerCase(Locale.ROOT));
-        return rsp == null ? Optional.empty() : Optional.ofNullable(rsp.getProvider());
+        return externalRegistry.resolve(key);
     }
 
     private List<String> mergedIds() {
         List<String> out = new ArrayList<>(registry.ids());
-        out.addAll(loadExternalServices().keySet());
+        out.addAll(externalRegistry.ids());
         out.sort(String::compareToIgnoreCase);
         return List.copyOf(out);
     }
 
-    private Map<String, RegisteredServiceProvider<MbeCommandService>> loadExternalServices() {
+    public synchronized void refreshExternalCommandServices() {
+        this.externalRegistry.refresh();
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onServiceRegistered(ServiceRegisterEvent event) {
+        if (event == null || event.getProvider() == null || !MbeCommandService.class.equals(event.getProvider().getService())) {
+            return;
+        }
+        refreshExternalCommandServices();
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onServiceUnregistered(ServiceUnregisterEvent event) {
+        if (event == null || event.getProvider() == null || !MbeCommandService.class.equals(event.getProvider().getService())) {
+            return;
+        }
+        refreshExternalCommandServices();
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onComponentAvailability(ComponentAvailabilityEvent event) {
+        if (event == null) {
+            return;
+        }
+        if (event.getComponentKind() == ComponentKind.COMMAND_SERVICE || event.getComponentKind() == ComponentKind.SERVICE) {
+            refreshExternalCommandServices();
+        }
+    }
+
+    private List<MbeCommandService> loadExternalCommandServices() {
+        Map<String, RegisteredServiceProvider<MbeCommandService>> byId = loadExternalServiceProvidersSnapshot();
+        return byId.values().stream()
+                .map(RegisteredServiceProvider::getProvider)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toUnmodifiableList());
+    }
+
+    private Map<String, RegisteredServiceProvider<MbeCommandService>> loadExternalServiceProvidersSnapshot() {
         var regs = Bukkit.getServicesManager().getRegistrations(MbeCommandService.class);
         Map<String, RegisteredServiceProvider<MbeCommandService>> byId = new HashMap<>();
         if (regs == null) {
@@ -299,12 +347,7 @@ public final class ServicesCommandRouter {
 
     private void sendServicesList(CommandSender sender) {
         List<MbeCommandService> all = new ArrayList<>(registry.list());
-        for (RegisteredServiceProvider<MbeCommandService> rsp : loadExternalServices().values()) {
-            MbeCommandService svc = rsp.getProvider();
-            if (svc != null) {
-                all.add(svc);
-            }
-        }
+        all.addAll(externalRegistry.services());
 
         all.sort((a, b) -> a.id().compareToIgnoreCase(b.id()));
         send(sender, MSG_LIST_TITLE, Map.of("count", all.size()));

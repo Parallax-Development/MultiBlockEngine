@@ -5,6 +5,7 @@ import dev.darkblade.mbe.api.metadata.ComputedMetadataKey;
 import dev.darkblade.mbe.api.metadata.MetadataContext;
 import dev.darkblade.mbe.api.metadata.MetadataKey;
 import dev.darkblade.mbe.api.metadata.MetadataService;
+import dev.darkblade.mbe.core.application.service.ManagedCoreService;
 import dev.darkblade.mbe.core.domain.MultiblockInstance;
 import org.bukkit.Bukkit;
 import org.jetbrains.annotations.Nullable;
@@ -16,7 +17,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
-public final class MetadataServiceImpl implements MetadataService {
+public final class MetadataServiceImpl implements MetadataService, ManagedCoreService {
     private final Map<String, MetadataKey<?>> registry = new ConcurrentHashMap<>();
     private final Map<MultiblockInstance, MetadataContainer> byInstance = new ConcurrentHashMap<>();
     private final Map<PlaceholderCacheKey, CacheEntry> placeholderCache = new ConcurrentHashMap<>();
@@ -29,6 +30,11 @@ public final class MetadataServiceImpl implements MetadataService {
     @Override
     public String getServiceId() {
         return "mbe:metadata";
+    }
+
+    @Override
+    public String getManagedCoreServiceId() {
+        return getServiceId();
     }
 
     @Override
@@ -124,6 +130,11 @@ public final class MetadataServiceImpl implements MetadataService {
     public void invalidateAll() {
         byInstance.clear();
         placeholderCache.clear();
+    }
+
+    @Override
+    public void onCoreDisable() {
+        invalidateAll();
     }
 
     private String formatForPlaceholder(MetadataKey<?> key, MetadataContext context) {

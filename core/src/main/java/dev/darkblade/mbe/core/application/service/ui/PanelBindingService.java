@@ -4,6 +4,7 @@ import dev.darkblade.mbe.api.ui.binding.PanelBinding;
 import dev.darkblade.mbe.api.ui.binding.PanelBindingLinkService;
 import dev.darkblade.mbe.api.ui.binding.PanelBindingMutationService;
 import dev.darkblade.mbe.api.ui.binding.PanelBindingRegistry;
+import dev.darkblade.mbe.core.application.service.ManagedCoreService;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.file.YamlConfiguration;
 
@@ -20,7 +21,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-public final class PanelBindingService implements PanelBindingRegistry, PanelBindingMutationService, PanelBindingLinkService {
+public final class PanelBindingService implements PanelBindingRegistry, PanelBindingMutationService, PanelBindingLinkService, ManagedCoreService {
     private final File file;
     private final Map<UUID, PanelBinding> bindingsById = new ConcurrentHashMap<>();
     private final Map<BlockPosition, PanelBinding> bindingsByPosition = new ConcurrentHashMap<>();
@@ -184,6 +185,21 @@ public final class PanelBindingService implements PanelBindingRegistry, PanelBin
     @Override
     public Collection<PanelBinding> all() {
         return List.copyOf(bindingsById.values());
+    }
+
+    @Override
+    public String getManagedCoreServiceId() {
+        return "mbe:panel-bindings";
+    }
+
+    @Override
+    public void onCoreLoad() {
+        load();
+    }
+
+    @Override
+    public void onCoreDisable() {
+        save();
     }
 
     private void clearInMemory() {

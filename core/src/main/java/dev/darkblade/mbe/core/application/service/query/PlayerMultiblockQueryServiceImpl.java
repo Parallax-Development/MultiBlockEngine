@@ -1,5 +1,6 @@
 package dev.darkblade.mbe.core.application.service.query;
 
+import dev.darkblade.mbe.core.application.service.ManagedCoreService;
 import dev.darkblade.mbe.core.application.service.MultiblockRuntimeService;
 import dev.darkblade.mbe.core.domain.MultiblockInstance;
 import org.bukkit.Location;
@@ -14,7 +15,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-public final class PlayerMultiblockQueryServiceImpl implements PlayerMultiblockQueryService {
+public final class PlayerMultiblockQueryServiceImpl implements PlayerMultiblockQueryService, ManagedCoreService {
     private static final Set<String> OWNER_KEYS = Set.of(
             "owner",
             "ownerId",
@@ -82,6 +83,11 @@ public final class PlayerMultiblockQueryServiceImpl implements PlayerMultiblockQ
         return getPlayerInstances(playerId, multiblockId).size();
     }
 
+    @Override
+    public String getManagedCoreServiceId() {
+        return "mbe:player-query";
+    }
+
     public void trackOwnership(UUID playerId, MultiblockInstance instance) {
         if (playerId == null || instance == null) {
             return;
@@ -124,6 +130,11 @@ public final class PlayerMultiblockQueryServiceImpl implements PlayerMultiblockQ
         instancesCache.clear();
         valuesCache.clear();
         aggregateCache.clear();
+    }
+
+    @Override
+    public void onCoreDisable() {
+        invalidateAll();
     }
 
     public int getAggregateCacheSize() {

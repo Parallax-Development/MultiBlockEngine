@@ -5,6 +5,7 @@ import dev.darkblade.mbe.api.assembly.AssemblyReport;
 import dev.darkblade.mbe.api.command.WrenchContext;
 import dev.darkblade.mbe.api.command.WrenchResult;
 import dev.darkblade.mbe.api.i18n.MessageKey;
+import dev.darkblade.mbe.api.i18n.message.CoreMessageKeys;
 import dev.darkblade.mbe.api.message.MessageChannel;
 import dev.darkblade.mbe.api.message.MessagePriority;
 import dev.darkblade.mbe.api.message.PlayerMessage;
@@ -21,7 +22,7 @@ import java.util.Objects;
 
 public final class AssembleAction implements ToolAction {
 
-    private static final MessageKey MSG_ASSEMBLED = MessageKey.of("mbe", "core.wrench.assembled");
+    private static final MessageKey MSG_ASSEMBLED = CoreMessageKeys.WRENCH_ASSEMBLED;
 
     private final AssemblyCoordinator assemblyCoordinator;
     private final PlayerMessageService messageService;
