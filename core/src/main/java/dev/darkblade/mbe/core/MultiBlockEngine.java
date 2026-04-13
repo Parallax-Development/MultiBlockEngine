@@ -48,6 +48,7 @@ import dev.darkblade.mbe.core.infrastructure.integration.MetadataInvalidationLis
 import dev.darkblade.mbe.core.infrastructure.integration.MultiblockExpansion;
 import dev.darkblade.mbe.core.infrastructure.integration.PlaceholderCacheInvalidationListener;
 import dev.darkblade.mbe.core.infrastructure.integration.IOPortLifecycleListener;
+import dev.darkblade.mbe.core.application.service.CoreServiceLifecycleCoordinator;
 import dev.darkblade.mbe.core.application.service.MultiblockRuntimeService;
 import dev.darkblade.mbe.core.application.service.editor.EditorSessionManager;
 import dev.darkblade.mbe.core.application.service.interaction.DefaultInteractionPipelineService;
@@ -175,6 +176,7 @@ public class MultiBlockEngine extends JavaPlugin {
     private PlayerMultiblockQueryServiceImpl playerMultiblockQueryService;
     private MetadataServiceImpl metadataService;
     private PlayerMultiblockContextResolver metadataContextResolver;
+    private CoreServiceLifecycleCoordinator coreServiceLifecycleCoordinator;
     private TickService tickService;
     private Tickable ioTickable;
     private DefaultUIRuntimeRegistry uiRuntimeRegistry;
@@ -214,6 +216,7 @@ public class MultiBlockEngine extends JavaPlugin {
 
         addonManager = new AddonLifecycleService(this, api, log);
         manager.setAddonLifecycleService(addonManager);
+        coreServiceLifecycleCoordinator = new CoreServiceLifecycleCoordinator();
         tickService = new TickService(this, log);
         addonManager.registerCoreService(dev.darkblade.mbe.api.tick.TickService.class, tickService);
         addonManager.registerCoreMbeService(tickService);
@@ -377,7 +380,7 @@ public class MultiBlockEngine extends JavaPlugin {
         InteractionPipelineService pipelineService = new DefaultInteractionPipelineService(assemblyCoordinator, null, interactionRouter, itemStackBridge);
         addonManager.registerCoreService(InteractionPipelineService.class, pipelineService);
         panelBindings = new PanelBindingService(new File(getDataFolder(), "panel-bindings.yml"), interactionRouter);
-        panelBindings.load();
+        coreServiceLifecycleCoordinator.register(panelBindings);
         addonManager.registerCoreService(EditorSessionManager.class, editorSessions);
         addonManager.registerCoreService(PanelBindingService.class, panelBindings);
         addonManager.registerCoreService(PanelBindingRegistry.class, panelBindings);
@@ -385,6 +388,7 @@ public class MultiBlockEngine extends JavaPlugin {
         addonManager.registerCoreService(PanelBindingLinkService.class, panelBindings);
         long metadataPlaceholderCacheTtlMs = Math.max(0L, getConfig().getLong("metadata.placeholder-cache-ttl-ms", 1000L));
         metadataService = new MetadataServiceImpl(metadataPlaceholderCacheTtlMs);
+        coreServiceLifecycleCoordinator.register(metadataService);
         addonManager.registerCoreService(MetadataService.class, metadataService);
         metadataContextResolver = new PlayerMultiblockContextResolver(
                 manager,
@@ -393,7 +397,9 @@ public class MultiBlockEngine extends JavaPlugin {
         registerDefaultMetadata(metadataService);
         long placeholderCacheTtlMs = Math.max(0L, getConfig().getLong("placeholder.cache-ttl-ms", 1000L));
         playerMultiblockQueryService = new PlayerMultiblockQueryServiceImpl(manager, placeholderCacheTtlMs);
+        coreServiceLifecycleCoordinator.register(playerMultiblockQueryService);
         addonManager.registerCoreService(PlayerMultiblockQueryService.class, playerMultiblockQueryService);
+        coreServiceLifecycleCoordinator.loadAll();
 
         addonManager.loadAddons();
 
@@ -458,6 +464,7 @@ public class MultiBlockEngine extends JavaPlugin {
         tickService.register(ioTickable);
 
         log.setCorePhase(LogPhase.ENABLE);
+        coreServiceLifecycleCoordinator.enableAll();
         addonManager.enableAddons();
 
         manager.initializePendingCapabilities();
@@ -539,8 +546,8 @@ public class MultiBlockEngine extends JavaPlugin {
                 ioTickable = null;
             }
         }
-        if (panelBindings != null) {
-            panelBindings.save();
+        if (coreServiceLifecycleCoordinator != null) {
+            coreServiceLifecycleCoordinator.disableAll();
         }
         if (addonManager != null) {
             addonManager.disableAddons();

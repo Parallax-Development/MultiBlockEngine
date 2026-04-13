@@ -3,6 +3,7 @@ package dev.darkblade.mbe.core.application.service.tool;
 import dev.darkblade.mbe.api.command.WrenchContext;
 import dev.darkblade.mbe.api.command.WrenchResult;
 import dev.darkblade.mbe.api.i18n.MessageKey;
+import dev.darkblade.mbe.api.i18n.message.CoreMessageKeys;
 import dev.darkblade.mbe.api.message.MessageChannel;
 import dev.darkblade.mbe.api.message.MessagePriority;
 import dev.darkblade.mbe.api.message.PlayerMessage;
@@ -19,12 +20,12 @@ import java.util.Optional;
 
 public final class InspectAction implements ToolAction {
 
-    private static final MessageKey MSG_NOT_FOUND = MessageKey.of("mbe", "core.wrench.not_found");
-    private static final MessageKey MSG_TITLE = MessageKey.of("mbe", "core.wrench.inspect.title");
-    private static final MessageKey MSG_TYPE = MessageKey.of("mbe", "core.wrench.inspect.type");
-    private static final MessageKey MSG_STATE = MessageKey.of("mbe", "core.wrench.inspect.state");
-    private static final MessageKey MSG_FACING = MessageKey.of("mbe", "core.wrench.inspect.facing");
-    private static final MessageKey MSG_ANCHOR = MessageKey.of("mbe", "core.wrench.inspect.anchor");
+    private static final MessageKey MSG_NOT_FOUND = CoreMessageKeys.WRENCH_NOT_FOUND;
+    private static final MessageKey MSG_TITLE = CoreMessageKeys.WRENCH_INSPECT_TITLE;
+    private static final MessageKey MSG_TYPE = CoreMessageKeys.WRENCH_INSPECT_TYPE;
+    private static final MessageKey MSG_STATE = CoreMessageKeys.WRENCH_INSPECT_STATE;
+    private static final MessageKey MSG_FACING = CoreMessageKeys.WRENCH_INSPECT_FACING;
+    private static final MessageKey MSG_ANCHOR = CoreMessageKeys.WRENCH_INSPECT_ANCHOR;
 
     private final MultiblockRuntimeService runtimeService;
     private final PlayerMessageService messageService;

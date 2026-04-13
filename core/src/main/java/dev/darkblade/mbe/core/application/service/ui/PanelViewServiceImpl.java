@@ -1,5 +1,8 @@
 package dev.darkblade.mbe.core.application.service.ui;
 
+import dev.darkblade.mbe.api.event.ComponentAvailabilityEvent;
+import dev.darkblade.mbe.api.event.ComponentChangeType;
+import dev.darkblade.mbe.api.event.ComponentKind;
 import dev.darkblade.mbe.api.service.MBEService;
 import dev.darkblade.mbe.api.ui.PanelViewService;
 import dev.darkblade.mbe.api.ui.runtime.PanelDefinition;
@@ -8,6 +11,7 @@ import dev.darkblade.mbe.api.ui.runtime.PanelOpenService;
 import dev.darkblade.mbe.core.application.service.ServiceLifecycleOrchestrator;
 import dev.darkblade.mbe.core.application.service.addon.AddonLifecycleService;
 import dev.darkblade.mbe.core.application.service.ui.runtime.UIRuntimeRegistry;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.util.Map;
@@ -36,6 +40,7 @@ public final class PanelViewServiceImpl implements PanelViewService, MBEService 
             throw new IllegalStateException("Panel registration outside allowed phase");
         }
         registry.registerPanel(id, panel);
+        publishPanelEvent(id, ComponentChangeType.ADDED);
     }
 
     @Override
@@ -50,7 +55,11 @@ public final class PanelViewServiceImpl implements PanelViewService, MBEService 
 
     @Override
     public boolean unregisterPanel(PanelId id) {
-        return registry.unregisterPanel(id);
+        boolean removed = registry.unregisterPanel(id);
+        if (removed) {
+            publishPanelEvent(id, ComponentChangeType.REMOVED);
+        }
+        return removed;
     }
 
     @Override
@@ -65,5 +74,17 @@ public final class PanelViewServiceImpl implements PanelViewService, MBEService 
         if (opener != null) {
             opener.openPanel(player, panelId);
         }
+    }
+
+    private void publishPanelEvent(PanelId id, ComponentChangeType changeType) {
+        if (id == null || Bukkit.getServer() == null) {
+            return;
+        }
+        Bukkit.getPluginManager().callEvent(new ComponentAvailabilityEvent(
+                "mbe:core",
+                id.value(),
+                ComponentKind.UI_PANEL,
+                changeType
+        ));
     }
 }

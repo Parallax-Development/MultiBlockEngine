@@ -3,6 +3,7 @@ package dev.darkblade.mbe.core.application.service.tool;
 import dev.darkblade.mbe.api.command.WrenchContext;
 import dev.darkblade.mbe.api.command.WrenchResult;
 import dev.darkblade.mbe.api.i18n.MessageKey;
+import dev.darkblade.mbe.api.i18n.message.CoreMessageKeys;
 import dev.darkblade.mbe.api.message.MessageChannel;
 import dev.darkblade.mbe.api.message.MessagePriority;
 import dev.darkblade.mbe.api.message.PlayerMessage;
@@ -22,7 +23,7 @@ import java.util.Objects;
 
 public final class SwitchModeAction implements ToolAction {
 
-    private static final MessageKey MSG_SWITCHED = MessageKey.of("mbe", "core.tool.mode_switched");
+    private static final MessageKey MSG_SWITCHED = CoreMessageKeys.TOOL_MODE_SWITCHED;
 
     private final ToolStateResolver stateResolver;
     private final ToolRegistry toolRegistry;

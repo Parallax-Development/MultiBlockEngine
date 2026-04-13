@@ -13,11 +13,16 @@ import dev.darkblade.mbe.api.logging.LogKv;
 import dev.darkblade.mbe.api.logging.LogLevel;
 import dev.darkblade.mbe.api.logging.LogPhase;
 import dev.darkblade.mbe.api.logging.LogScope;
+import dev.darkblade.mbe.api.event.ComponentAvailabilityEvent;
+import dev.darkblade.mbe.api.event.ComponentChangeType;
+import dev.darkblade.mbe.api.event.ComponentKind;
+import dev.darkblade.mbe.api.command.MbeCommandService;
 import dev.darkblade.mbe.api.service.MBEService;
 import dev.darkblade.mbe.core.application.service.addon.crossref.AddonCrossReferenceService;
 import dev.darkblade.mbe.core.application.service.MBEServiceRegistry;
 import dev.darkblade.mbe.core.application.service.ServiceInjector;
 import dev.darkblade.mbe.core.application.service.ServiceLifecycleOrchestrator;
+import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.ServicePriority;
 
@@ -354,22 +359,56 @@ public class AddonLifecycleService {
 
     public <T> void registerCoreService(Class<T> serviceType, T service) {
         serviceRegistry.register(CORE_PROVIDER_ID, serviceType, service);
+        publishComponentAvailability(
+                CORE_PROVIDER_ID,
+                buildTypedServiceId(CORE_PROVIDER_ID, serviceType),
+                MbeCommandService.class.isAssignableFrom(serviceType) ? ComponentKind.COMMAND_SERVICE : ComponentKind.SERVICE,
+                ComponentChangeType.ADDED
+        );
     }
 
     public void registerCoreMbeService(MBEService service) {
         serviceLifecycleManager.registerService(CORE_PROVIDER_ID, service);
+        publishComponentAvailability(
+                CORE_PROVIDER_ID,
+                service.getServiceId(),
+                service instanceof MbeCommandService ? ComponentKind.COMMAND_SERVICE : ComponentKind.SERVICE,
+                ComponentChangeType.ADDED
+        );
     }
 
     public <T> T getCoreService(Class<T> serviceType) {
+        List<T> dynamic = serviceLifecycleManager.getByType(serviceType);
+        if (!dynamic.isEmpty()) {
+            return dynamic.get(0);
+        }
         return serviceRegistry.resolveIfEnabled(CORE_PROVIDER_ID, serviceType, this::getState).orElse(null);
     }
 
     public <T> T getService(Class<T> serviceType) {
-        return serviceRegistry.resolveIfEnabled(CORE_PROVIDER_ID, serviceType, this::getState).orElse(null);
+        return getCoreService(serviceType);
     }
 
     public <T> List<T> getServicesByType(Class<T> serviceType) {
         return serviceLifecycleManager.getByType(serviceType);
+    }
+
+    public <T> void registerAddonTypedService(String addonId, Class<T> serviceType, T service) {
+        publishComponentAvailability(
+                addonId,
+                buildTypedServiceId(addonId, serviceType),
+                MbeCommandService.class.isAssignableFrom(serviceType) ? ComponentKind.COMMAND_SERVICE : ComponentKind.SERVICE,
+                ComponentChangeType.ADDED
+        );
+    }
+
+    public void registerAddonMbeService(String addonId, MBEService service) {
+        publishComponentAvailability(
+                addonId,
+                service.getServiceId(),
+                service instanceof MbeCommandService ? ComponentKind.COMMAND_SERVICE : ComponentKind.SERVICE,
+                ComponentChangeType.ADDED
+        );
     }
 
     public ServiceLifecycleOrchestrator.LifecyclePhase getCurrentLifecyclePhase() {
@@ -392,7 +431,17 @@ public class AddonLifecycleService {
     }
 
     private <T> Optional<T> resolveExternalServiceByType(String ownerId, Class<T> serviceType) {
+        List<T> dynamic = serviceLifecycleManager.getByType(serviceType);
+        if (!dynamic.isEmpty()) {
+            return Optional.of(dynamic.get(0));
+        }
         return serviceRegistry.resolveIfEnabled(ownerId, serviceType, this::getState);
+    }
+
+    private static String buildTypedServiceId(String ownerAddonId, Class<?> serviceType) {
+        String owner = ownerAddonId.trim().toLowerCase(java.util.Locale.ROOT);
+        String typeName = serviceType.getName().toLowerCase(java.util.Locale.ROOT).replace('$', '.');
+        return owner + ":typed." + typeName;
     }
 
     public record AddonRuntime(String id, ClassLoader classLoader, Path dataFolder) {
@@ -603,7 +652,17 @@ public class AddonLifecycleService {
 
         ensureAddonConfigAndLogging(discovered.file(), addonId, dataFolder, addonLogger);
 
-        SimpleAddonContext context = new SimpleAddonContext(addonId, plugin, api, addonLogger, dataFolder, this, serviceRegistry, serviceLifecycleManager, crossReferenceManager);
+        SimpleAddonContext context = new SimpleAddonContext(
+                addonId,
+                plugin,
+                api,
+                addonLogger,
+                dataFolder,
+                this,
+                serviceRegistry,
+                serviceLifecycleManager,
+                crossReferenceManager
+        );
         try {
             phaseRef.set(LogPhase.LOAD);
             addon.onLoad(context);
@@ -1635,6 +1694,8 @@ public class AddonLifecycleService {
         for (ExposedService svc : services) {
             try {
                 BukkitServiceBridge.unexpose(svc.api(), svc.provider());
+                ComponentKind kind = MbeCommandService.class.isAssignableFrom(svc.api()) ? ComponentKind.COMMAND_SERVICE : ComponentKind.SERVICE;
+                publishComponentAvailability(addonId, svc.api().getName(), kind, ComponentChangeType.REMOVED);
             } catch (Throwable t) {
                 log.logInternal(new LogScope.Addon(addonId, addonVersion(addonId)), LogPhase.SERVICE_REGISTER, LogLevel.WARN,
                     "Failed to unexpose public service",
@@ -1644,6 +1705,16 @@ public class AddonLifecycleService {
                 );
             }
         }
+    }
+
+    private void publishComponentAvailability(String addonId, String componentId, ComponentKind kind, ComponentChangeType changeType) {
+        if (addonId == null || addonId.isBlank() || componentId == null || componentId.isBlank() || kind == null || changeType == null) {
+            return;
+        }
+        if (Bukkit.getServer() == null) {
+            return;
+        }
+        Bukkit.getPluginManager().callEvent(new ComponentAvailabilityEvent(addonId, componentId, kind, changeType));
     }
 
     private EngineLogger coreLogger(LogPhase phase) {

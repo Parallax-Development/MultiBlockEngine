@@ -3,6 +3,7 @@ package dev.darkblade.mbe.core.application.service.tool;
 import dev.darkblade.mbe.api.command.WrenchContext;
 import dev.darkblade.mbe.api.command.WrenchResult;
 import dev.darkblade.mbe.api.i18n.MessageKey;
+import dev.darkblade.mbe.api.i18n.message.CoreMessageKeys;
 import dev.darkblade.mbe.api.message.MessageChannel;
 import dev.darkblade.mbe.api.message.MessagePriority;
 import dev.darkblade.mbe.api.message.PlayerMessage;
@@ -18,8 +19,8 @@ import java.util.Optional;
 
 public final class DisassembleAction implements ToolAction {
 
-    private static final MessageKey MSG_DISASSEMBLED = MessageKey.of("mbe", "core.wrench.disassembled");
-    private static final MessageKey MSG_NOT_FOUND = MessageKey.of("mbe", "core.wrench.not_found");
+    private static final MessageKey MSG_DISASSEMBLED = CoreMessageKeys.WRENCH_DISASSEMBLED;
+    private static final MessageKey MSG_NOT_FOUND = CoreMessageKeys.WRENCH_NOT_FOUND;
 
     private final MultiblockRuntimeService runtimeService;
     private final PlayerMessageService messageService;

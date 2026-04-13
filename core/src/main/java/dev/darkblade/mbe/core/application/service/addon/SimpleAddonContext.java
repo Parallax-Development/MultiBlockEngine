@@ -39,7 +39,17 @@ public class SimpleAddonContext implements AddonContext {
     private final ServiceLifecycleOrchestrator serviceLifecycleManager;
     private final AddonCrossReferenceService crossReferenceManager;
 
-    public SimpleAddonContext(String addonId, MultiBlockEngine plugin, MultiblockAPI api, AddonLogger logger, Path dataFolder, AddonLifecycleService addonManager, AddonServiceRegistry services, ServiceLifecycleOrchestrator serviceLifecycleManager, AddonCrossReferenceService crossReferenceManager) {
+    public SimpleAddonContext(
+            String addonId,
+            MultiBlockEngine plugin,
+            MultiblockAPI api,
+            AddonLogger logger,
+            Path dataFolder,
+            AddonLifecycleService addonManager,
+            AddonServiceRegistry services,
+            ServiceLifecycleOrchestrator serviceLifecycleManager,
+            AddonCrossReferenceService crossReferenceManager
+    ) {
         this.addonId = addonId;
         this.addonNamespace = namespaceOf(addonId);
         this.plugin = plugin;
@@ -85,6 +95,7 @@ public class SimpleAddonContext implements AddonContext {
     @Override
     public <T> void registerService(Class<T> serviceType, T service) {
         services.register(addonId, serviceType, service);
+        addonManager.registerAddonTypedService(addonId, serviceType, service);
     }
 
     @Override // Required Services
@@ -99,6 +110,7 @@ public class SimpleAddonContext implements AddonContext {
     @Override
     public void registerService(MBEService service) {
         serviceLifecycleManager.registerService(addonId, service);
+        addonManager.registerAddonMbeService(addonId, service);
     }
 
     @Override // Optional Services

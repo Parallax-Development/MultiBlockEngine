@@ -29,7 +29,7 @@ import java.util.Map;
 import java.util.Optional;
 
 public final class AssemblyCommandService implements MbeCommandService {
-    private static final MessageKey MSG_UNKNOWN_SUBCOMMAND = MessageKey.of("mbe", "commands.error.unknown_subcommand");
+    private static final MessageKey MSG_UNKNOWN_SUBCOMMAND = CoreMessageKeys.COMMAND_UNKNOWN_SUBCOMMAND;
 
     private final AssemblyCoordinator assembly;
     private final MultiblockRuntimeService manager;
