@@ -65,19 +65,21 @@ public final class SplitNetworkMode implements ToolMode {
         UUID playerId = context.player().getUniqueId();
         Optional<Map<String, Object>> session = sessionService.get(playerId, getId());
         if (session.isEmpty()) {
-            sessionService.put(playerId, getId(), Map.of("from", serialize(current.position())));
+            sessionService.put(playerId, getId(), Map.of("from", serialize(current.position()), "type", current.type().id()));
             return WrenchResult.success(null);
         }
+        String sessionTypeStr = String.valueOf(session.get().get("type"));
+        dev.darkblade.mbe.api.wiring.NetworkType sessionType = new dev.darkblade.mbe.api.wiring.NetworkType(sessionTypeStr);
         Optional<NetworkNode> from = session.flatMap(data -> deserialize(String.valueOf(data.get("from"))))
-                .flatMap(this::nodeFromPosition);
+                .flatMap(pos -> nodeFromPosition(sessionType, pos));
         sessionService.clear(playerId, getId());
         if (from.isEmpty()) {
             return WrenchResult.fail("core.wrench.not_found");
         }
-        UUID original = networkService.getGraph(from.get()).id();
-        networkService.disconnect(from.get(), current);
-        UUID a = networkService.getGraph(from.get()).id();
-        UUID b = networkService.getGraph(current).id();
+        UUID original = networkService.getGraph(sessionType, from.get()).id();
+        networkService.disconnect(sessionType, from.get(), current);
+        UUID a = networkService.getGraph(sessionType, from.get()).id();
+        UUID b = networkService.getGraph(sessionType, current).id();
         Set<UUID> resulting = new LinkedHashSet<>();
         if (a != null) {
             resulting.add(a);
@@ -86,12 +88,12 @@ public final class SplitNetworkMode implements ToolMode {
             resulting.add(b);
         }
         if (original != null && resulting.size() > 1) {
-            Bukkit.getPluginManager().callEvent(new IONetworkSplitEvent(original, List.copyOf(resulting)));
+            Bukkit.getPluginManager().callEvent(new IONetworkSplitEvent(sessionType, original, List.copyOf(resulting)));
         }
         return WrenchResult.success(null);
     }
 
-    private Optional<NetworkNode> nodeFromPosition(BlockPos position) {
+    private Optional<NetworkNode> nodeFromPosition(dev.darkblade.mbe.api.wiring.NetworkType type, BlockPos position) {
         if (position == null) {
             return Optional.empty();
         }
@@ -100,6 +102,7 @@ public final class SplitNetworkMode implements ToolMode {
             return Optional.empty();
         }
         return Optional.ofNullable(networkService.registerNode(
+                type,
                 world.getBlockAt(position.x(), position.y(), position.z()),
                 new NodeDescriptor(Set.of(dev.darkblade.mbe.api.wiring.Direction.values()))
         ));

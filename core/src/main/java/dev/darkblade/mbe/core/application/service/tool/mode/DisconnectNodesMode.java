@@ -62,20 +62,22 @@ public final class DisconnectNodesMode implements ToolMode {
         UUID playerId = context.player().getUniqueId();
         Optional<Map<String, Object>> session = sessionService.get(playerId, getId());
         if (session.isEmpty()) {
-            sessionService.put(playerId, getId(), Map.of("from", serialize(current.position())));
+            sessionService.put(playerId, getId(), Map.of("from", serialize(current.position()), "type", current.type().id()));
             return WrenchResult.success(null);
         }
+        String sessionTypeStr = String.valueOf(session.get().get("type"));
+        dev.darkblade.mbe.api.wiring.NetworkType sessionType = new dev.darkblade.mbe.api.wiring.NetworkType(sessionTypeStr);
         Optional<NetworkNode> from = session.flatMap(data -> deserialize(String.valueOf(data.get("from"))))
-                .flatMap(this::nodeFromPosition);
+                .flatMap(pos -> nodeFromPosition(sessionType, pos));
         sessionService.clear(playerId, getId());
         if (from.isEmpty()) {
             return WrenchResult.fail("core.wrench.not_found");
         }
-        networkService.disconnect(from.get(), current);
+        networkService.disconnect(current.type(), from.get(), current);
         return WrenchResult.success(null);
     }
 
-    private Optional<NetworkNode> nodeFromPosition(BlockPos position) {
+    private Optional<NetworkNode> nodeFromPosition(dev.darkblade.mbe.api.wiring.NetworkType type, BlockPos position) {
         if (position == null) {
             return Optional.empty();
         }
@@ -84,6 +86,7 @@ public final class DisconnectNodesMode implements ToolMode {
             return Optional.empty();
         }
         return Optional.ofNullable(networkService.registerNode(
+                type,
                 world.getBlockAt(position.x(), position.y(), position.z()),
                 new NodeDescriptor(Set.of(dev.darkblade.mbe.api.wiring.Direction.values()))
         ));

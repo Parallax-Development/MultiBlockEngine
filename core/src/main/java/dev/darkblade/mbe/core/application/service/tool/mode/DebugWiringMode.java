@@ -41,13 +41,19 @@ public final class DebugWiringMode implements ToolMode {
         if (!supports(context) || !ToolModeSecurity.hasPermission(context, PERMISSION)) {
             return WrenchResult.pass();
         }
-        Optional<NetworkNode> nodeOpt = contextResolver.resolve(context, Map.of()).node();
-        if (nodeOpt.isEmpty()) {
+        
+        java.util.Collection<NetworkNode> nodes = networkService.findAllNodes(context.clickedBlock());
+        if (nodes.isEmpty()) {
             return WrenchResult.pass();
         }
-        NetworkNode node = nodeOpt.get();
+        
+        StringBuilder builder = new StringBuilder();
+        for (NetworkNode node : nodes) {
+            builder.append(node.type().id()).append(": ").append(networkService.getGraph(node.type(), node).id()).append("\n");
+        }
+        
         return WrenchResult.success("core.wrench.inspect.anchor", Map.of(
-                "anchor", networkService.getGraph(node).id().toString()
+                "anchor", builder.toString().trim()
         ));
     }
 }

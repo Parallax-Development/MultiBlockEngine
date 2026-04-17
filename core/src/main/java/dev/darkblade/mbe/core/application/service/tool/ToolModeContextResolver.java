@@ -39,10 +39,27 @@ public final class ToolModeContextResolver {
                 port = IOPortToolSupport.findClickedPort(ioService, runtimeService, wrenchContext.clickedBlock());
             }
             if (networkService != null) {
-                node = Optional.ofNullable(networkService.registerNode(
+                dev.darkblade.mbe.api.wiring.NetworkType type = null;
+                if (metadata != null && metadata.containsKey("networkType") && metadata.get("networkType") instanceof dev.darkblade.mbe.api.wiring.NetworkType nt) {
+                    type = nt;
+                } else if (port.isPresent()) {
+                    type = new dev.darkblade.mbe.api.wiring.NetworkType(port.get().getChannel().name());
+                } else {
+                    type = new dev.darkblade.mbe.api.wiring.NetworkType("DEFAULT");
+                }
+                
+                node = networkService.findNode(
+                        type,
+                        wrenchContext.clickedBlock()
+                );
+                
+                if (node.isEmpty()) {
+                    node = Optional.ofNullable(networkService.registerNode(
+                        type,
                         wrenchContext.clickedBlock(),
                         new NodeDescriptor(Set.of(Direction.values()))
-                ));
+                    ));
+                }
             }
         }
         return new ToolOperationContext(

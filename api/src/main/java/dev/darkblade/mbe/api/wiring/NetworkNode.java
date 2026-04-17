@@ -5,6 +5,8 @@ import java.util.UUID;
 
 public interface NetworkNode {
     UUID id();
+    
+    NetworkType type();
 
     BlockPos position();
 

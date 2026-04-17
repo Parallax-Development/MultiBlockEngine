@@ -203,9 +203,9 @@ public class MultiBlockEngine extends JavaPlugin {
 
         // Save default config
         saveDefaultConfig();
-        saveResource("inventories.yml", false);
-        saveResource("items.yml", false);
-        saveResource("limits.yml", false);
+        saveResourceIfNotExists("inventories.yml");
+        saveResourceIfNotExists("items.yml");
+        saveResourceIfNotExists("limits.yml");
 
         loggingManager = new LoggingService(this);
         CoreLogger log = loggingManager.core();
@@ -642,14 +642,14 @@ public class MultiBlockEngine extends JavaPlugin {
     }
 
     private void ensureDefaultLangFiles() {
-        saveResource("lang/en_us/core.yml", false);
-        saveResource("lang/en_us/commands.yml", false);
-        saveResource("lang/en_us/services.yml", false);
-        saveResource("lang/en_us/items.yml", false);
-        saveResource("lang/es_es/core.yml", false);
-        saveResource("lang/es_es/commands.yml", false);
-        saveResource("lang/es_es/services.yml", false);
-        saveResource("lang/es_es/items.yml", false);
+        saveResourceIfNotExists("lang/en_us/core.yml");
+        saveResourceIfNotExists("lang/en_us/commands.yml");
+        saveResourceIfNotExists("lang/en_us/services.yml");
+        saveResourceIfNotExists("lang/en_us/items.yml");
+        saveResourceIfNotExists("lang/es_es/core.yml");
+        saveResourceIfNotExists("lang/es_es/commands.yml");
+        saveResourceIfNotExists("lang/es_es/services.yml");
+        saveResourceIfNotExists("lang/es_es/items.yml");
     }
 
     private void ensureDefaultMultiblockFiles() {
@@ -657,15 +657,25 @@ public class MultiBlockEngine extends JavaPlugin {
         if (!defaultDir.exists()) {
             defaultDir.mkdirs();
         }
-        saveResource("multiblocks/.default/base_machine.yml", false);
-        saveResource("multiblocks/.default/mana_generator.yml", false);
-        saveResource("multiblocks/.default/example_portal.yml", false);
-        saveResource("multiblocks/.default/healer_machine.yml", false);
-        saveResource("multiblocks/.default/miner_machine.yml", false);
-        saveResource("multiblocks/.default/test_action.yml", false);
-        saveResource("multiblocks/.default/test_complex.yml", false);
-        saveResource("multiblocks/.default/test_optional.yml", false);
-        saveResource("multiblocks/.default/test_ticking.yml", false);
+        saveResourceIfNotExists("multiblocks/.default/base_machine.yml");
+        saveResourceIfNotExists("multiblocks/.default/mana_generator.yml");
+        saveResourceIfNotExists("multiblocks/.default/example_portal.yml");
+        saveResourceIfNotExists("multiblocks/.default/healer_machine.yml");
+        saveResourceIfNotExists("multiblocks/.default/miner_machine.yml");
+        saveResourceIfNotExists("multiblocks/.default/test_action.yml");
+        saveResourceIfNotExists("multiblocks/.default/test_complex.yml");
+        saveResourceIfNotExists("multiblocks/.default/test_optional.yml");
+        saveResourceIfNotExists("multiblocks/.default/test_ticking.yml");
+    }
+
+    private void saveResourceIfNotExists(String resourcePath) {
+        if (resourcePath == null || resourcePath.isBlank()) {
+            return;
+        }
+        File file = new File(getDataFolder(), resourcePath);
+        if (!file.exists()) {
+            saveResource(resourcePath, false);
+        }
     }
 
     private void loadConfiguredItems(DefaultItemService itemService, CoreLogger log) {
