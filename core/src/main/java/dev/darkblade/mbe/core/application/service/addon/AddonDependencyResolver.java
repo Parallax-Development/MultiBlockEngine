@@ -3,7 +3,6 @@ package dev.darkblade.mbe.core.application.service.addon;
 import dev.darkblade.mbe.api.addon.Version;
 import dev.darkblade.mbe.core.graph.dependency.DependencyEdge;
 import dev.darkblade.mbe.core.graph.dependency.DependencyGraphResolver;
-import dev.darkblade.mbe.core.graph.dependency.DependencyMode;
 import dev.darkblade.mbe.core.graph.dependency.DependencyNode;
 
 import java.util.ArrayList;
@@ -110,14 +109,14 @@ public final class AddonDependencyResolver {
         public AddonNode(AddonMetadata meta, Map<String, AddonMetadata> eligible) {
             this.meta = meta;
             for (String req : meta.requiredDependencies().keySet()) {
-                edges.add(new DependencyEdge(req, true, DependencyMode.LOAD_TIME));
+                edges.add(new DependencyEdge(req, true));
             }
             for (Map.Entry<String, Version> opt : meta.optionalDependencies().entrySet()) {
                 String depId = opt.getKey();
                 Version min = opt.getValue();
                 AddonMetadata found = eligible.get(depId);
                 if (found != null && found.version().isAtLeast(min)) {
-                    edges.add(new DependencyEdge(depId, false, DependencyMode.LOAD_TIME));
+                    edges.add(new DependencyEdge(depId, false));
                 }
             }
         }

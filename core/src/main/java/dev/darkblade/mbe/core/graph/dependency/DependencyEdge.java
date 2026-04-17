@@ -4,11 +4,9 @@ import java.util.Objects;
 
 public record DependencyEdge(
     String targetId,
-    boolean required,
-    DependencyMode mode
+    boolean required
 ) {
     public DependencyEdge {
         targetId = Objects.requireNonNull(targetId, "targetId").trim().toLowerCase(java.util.Locale.ROOT);
-        mode = Objects.requireNonNull(mode, "mode");
     }
 }

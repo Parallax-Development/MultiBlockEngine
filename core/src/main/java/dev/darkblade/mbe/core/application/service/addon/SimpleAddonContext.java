@@ -3,15 +3,11 @@ package dev.darkblade.mbe.core.application.service.addon;
 import dev.darkblade.mbe.core.MultiBlockEngine;
 import dev.darkblade.mbe.api.MultiblockAPI;
 import dev.darkblade.mbe.api.addon.AddonContext;
-import dev.darkblade.mbe.api.addon.crossref.CrossReferenceDeclaration;
-import dev.darkblade.mbe.api.addon.crossref.CrossReferenceHandle;
-import dev.darkblade.mbe.api.addon.crossref.CrossReferenceMetrics;
 import dev.darkblade.mbe.api.assembly.MultiblockBuilder;
 import dev.darkblade.mbe.api.compat.SchedulerCompatService;
 import dev.darkblade.mbe.api.logging.AddonLogger;
 import dev.darkblade.mbe.api.service.MBEService;
 import dev.darkblade.mbe.api.service.ServiceListener;
-import dev.darkblade.mbe.core.application.service.addon.crossref.AddonCrossReferenceService;
 import dev.darkblade.mbe.api.command.WrenchDispatcher;
 import dev.darkblade.mbe.api.command.WrenchInteractable;
 import dev.darkblade.mbe.core.application.service.ServiceLifecycleOrchestrator;
@@ -38,7 +34,6 @@ public class SimpleAddonContext implements AddonContext {
     private final AddonLifecycleService addonManager;
     private final AddonServiceRegistry services;
     private final ServiceLifecycleOrchestrator serviceLifecycleManager;
-    private final AddonCrossReferenceService crossReferenceManager;
 
     public SimpleAddonContext(
             String addonId,
@@ -48,8 +43,7 @@ public class SimpleAddonContext implements AddonContext {
             Path dataFolder,
             AddonLifecycleService addonManager,
             AddonServiceRegistry services,
-            ServiceLifecycleOrchestrator serviceLifecycleManager,
-            AddonCrossReferenceService crossReferenceManager
+            ServiceLifecycleOrchestrator serviceLifecycleManager
     ) {
         this.addonId = addonId;
         this.addonNamespace = namespaceOf(addonId);
@@ -60,7 +54,6 @@ public class SimpleAddonContext implements AddonContext {
         this.addonManager = addonManager;
         this.services = services;
         this.serviceLifecycleManager = serviceLifecycleManager;
-        this.crossReferenceManager = crossReferenceManager;
     }
 
     @Override
@@ -137,26 +130,6 @@ public class SimpleAddonContext implements AddonContext {
     @Override
     public <T> void exposeService(Class<T> api, T implementation, ServicePriority priority) {
         addonManager.queueServiceExposure(addonId, api, implementation, priority);
-    }
-
-    @Override
-    public <T> void declareCrossReference(CrossReferenceDeclaration<T> declaration) {
-        crossReferenceManager.declare(addonId, declaration);
-    }
-
-    @Override
-    public <T> Optional<T> getCrossReference(String referenceId, Class<T> type) {
-        return crossReferenceManager.resolve(referenceId, type);
-    }
-
-    @Override
-    public <T> CrossReferenceHandle<T> getCrossReferenceHandle(String referenceId, Class<T> type) {
-        return crossReferenceManager.handle(referenceId, type);
-    }
-
-    @Override
-    public CrossReferenceMetrics getCrossReferenceMetrics() {
-        return crossReferenceManager.metrics();
     }
 
     @Override
