@@ -1,14 +1,16 @@
 package dev.darkblade.mbe.core.application.service.addon;
 
 import dev.darkblade.mbe.api.addon.Version;
+import dev.darkblade.mbe.core.graph.dependency.DependencyEdge;
+import dev.darkblade.mbe.core.graph.dependency.DependencyGraphResolver;
+import dev.darkblade.mbe.core.graph.dependency.DependencyMode;
+import dev.darkblade.mbe.core.graph.dependency.DependencyNode;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.PriorityQueue;
-import java.util.Set;
 
 public final class AddonDependencyResolver {
 
@@ -32,181 +34,51 @@ public final class AddonDependencyResolver {
             }
         }
 
-        boolean progressed = true;
-        while (progressed) {
-            progressed = false;
-            for (AddonMetadata meta : List.copyOf(eligible.values())) {
-                String id = meta.id();
-
-                if (hasMissingRequiredDependency(meta, eligible, metadataById, failures)) {
-                    eligible.remove(id);
-                    progressed = true;
-                }
-            }
-        }
-
-        Map<String, Set<String>> dependents = new HashMap<>();
-        Map<String, Integer> indegree = new HashMap<>();
-
-        for (String id : eligible.keySet()) {
-            dependents.put(id, new HashSet<>());
-            indegree.put(id, 0);
-        }
-
+        List<DependencyNode<AddonMetadata>> nodes = new ArrayList<>();
         for (AddonMetadata meta : eligible.values()) {
-            for (String depId : meta.requiredDependencies().keySet()) {
-                if (!eligible.containsKey(depId)) {
-                    continue;
-                }
-                dependents.get(depId).add(meta.id());
-                indegree.put(meta.id(), indegree.get(meta.id()) + 1);
-            }
-        }
-
-        PriorityQueue<String> queue = new PriorityQueue<>();
-        for (Map.Entry<String, Integer> e : indegree.entrySet()) {
-            if (e.getValue() == 0) {
-                queue.add(e.getKey());
-            }
-        }
-
-        List<String> order = new ArrayList<>();
-        while (!queue.isEmpty()) {
-            String id = queue.poll();
-            order.add(id);
-
-            List<String> sortedDependents = new ArrayList<>(dependents.getOrDefault(id, Set.of()));
-            sortedDependents.sort(String::compareTo);
-            for (String dependent : sortedDependents) {
-                int next = indegree.computeIfPresent(dependent, (k, v) -> v - 1);
-                if (next == 0) {
-                    queue.add(dependent);
+            boolean valid = true;
+            for (Map.Entry<String, Version> dep : meta.requiredDependencies().entrySet()) {
+                String depId = dep.getKey();
+                Version min = dep.getValue();
+                AddonMetadata found = metadataById.get(depId);
+                if (found != null && !found.version().isAtLeast(min)) {
+                    failures.put(meta.id(), "Required dependency " + depId + " >=" + min + " not satisfied (found " + found.version() + ")");
+                    valid = false;
+                    break;
                 }
             }
+            if (!valid) {
+                continue;
+            }
+
+            nodes.add(new AddonNode(meta, eligible));
         }
 
-        if (order.size() != eligible.size()) {
-            Set<String> cycleNodes = new HashSet<>(eligible.keySet());
-            cycleNodes.removeAll(order);
-            for (String id : cycleNodes) {
-                failures.put(id, "Dependency cycle detected");
-            }
-        }
+        DependencyGraphResolver<AddonMetadata> resolver = new DependencyGraphResolver<>();
+        DependencyGraphResolver.ResolutionResult<AddonMetadata> result = resolver.resolve(nodes);
 
-        if (order.size() == eligible.size()) {
-            boolean stabilized = applyOptionalOrdering(order, eligible, warnings);
-            if (!stabilized) {
-                warnings.add(" Optional dependency ordering could not be fully stabilized due to an optional cycle");
-            }
+        failures.putAll(result.failures());
+        warnings.addAll(result.warnings());
+
+        List<String> loadOrder = new ArrayList<>();
+        for (DependencyNode<AddonMetadata> node : result.orderedNodes()) {
+            loadOrder.add(node.id());
         }
 
         for (AddonMetadata meta : metadataById.values()) {
             if (failures.containsKey(meta.id())) {
                 continue;
             }
-            warnings.addAll(optionalDependencyWarnings(meta, eligible, metadataById));
+            warnings.addAll(optionalDependencyWarnings(meta, metadataById, loadOrder));
         }
 
-        return new Resolution(List.copyOf(order), Map.copyOf(failures), List.copyOf(warnings));
-    }
-
-    private static boolean applyOptionalOrdering(List<String> order, Map<String, AddonMetadata> eligible, List<String> warnings) {
-        int limit = Math.max(1, order.size() * order.size());
-        int passes = 0;
-        boolean changed;
-
-        do {
-            changed = false;
-            passes++;
-
-            for (String id : List.copyOf(order)) {
-                AddonMetadata meta = eligible.get(id);
-                if (meta == null) {
-                    continue;
-                }
-
-                List<String> optionalDeps = new ArrayList<>(meta.optionalDependencies().keySet());
-                optionalDeps.sort(String::compareTo);
-
-                for (String depId : optionalDeps) {
-                    AddonMetadata depMeta = eligible.get(depId);
-                    if (depMeta == null) {
-                        continue;
-                    }
-
-                    Version min = meta.optionalDependencies().get(depId);
-                    if (min != null && !depMeta.version().isAtLeast(min)) {
-                        continue;
-                    }
-
-                    int idx = order.indexOf(id);
-                    int depIdx = order.indexOf(depId);
-                    if (depIdx < 0 || idx < 0) {
-                        continue;
-                    }
-
-                    if (depIdx > idx) {
-                        order.remove(idx);
-                        int newDepIdx = order.indexOf(depId);
-                        if (newDepIdx < 0) {
-                            order.add(id);
-                        } else {
-                            order.add(newDepIdx + 1, id);
-                        }
-                        changed = true;
-                        break;
-                    }
-                }
-
-                if (changed) {
-                    break;
-                }
-            }
-        } while (changed && passes < limit);
-
-        if (changed) {
-            String sample = String.join(", ", order.stream().limit(10).toList());
-            warnings.add(" Optional dependency ordering may be unstable; partial order sample: " + sample);
-            return false;
-        }
-
-        return true;
-    }
-
-    private static boolean hasMissingRequiredDependency(
-        AddonMetadata meta,
-        Map<String, AddonMetadata> eligible,
-        Map<String, AddonMetadata> all,
-        Map<String, String> failures
-    ) {
-        for (Map.Entry<String, Version> dep : meta.requiredDependencies().entrySet()) {
-            String depId = dep.getKey();
-            Version min = dep.getValue();
-
-            AddonMetadata found = all.get(depId);
-            if (found == null) {
-                failures.put(meta.id(), "Missing required dependency " + depId + " >=" + min);
-                return true;
-            }
-
-            if (!eligible.containsKey(depId)) {
-                failures.put(meta.id(), "Missing required dependency " + depId + " >=" + min);
-                return true;
-            }
-
-            if (!found.version().isAtLeast(min)) {
-                failures.put(meta.id(), "Required dependency " + depId + " >=" + min + " not satisfied (found " + found.version() + ")");
-                return true;
-            }
-        }
-
-        return false;
+        return new Resolution(List.copyOf(loadOrder), Map.copyOf(failures), List.copyOf(warnings));
     }
 
     private static List<String> optionalDependencyWarnings(
         AddonMetadata meta,
-        Map<String, AddonMetadata> eligible,
-        Map<String, AddonMetadata> all
+        Map<String, AddonMetadata> all,
+        List<String> loadOrder
     ) {
         List<String> warnings = new ArrayList<>();
         for (Map.Entry<String, Version> dep : meta.optionalDependencies().entrySet()) {
@@ -219,7 +91,7 @@ public final class AddonDependencyResolver {
                 continue;
             }
 
-            if (!eligible.containsKey(depId)) {
+            if (!loadOrder.contains(depId)) {
                 warnings.add(" Addon " + meta.id() + " Optional dependency " + depId + " >=" + min + " not enabled (feature disabled)");
                 continue;
             }
@@ -229,5 +101,40 @@ public final class AddonDependencyResolver {
             }
         }
         return warnings;
+    }
+
+    private static class AddonNode implements DependencyNode<AddonMetadata> {
+        private final AddonMetadata meta;
+        private final List<DependencyEdge> edges = new ArrayList<>();
+
+        public AddonNode(AddonMetadata meta, Map<String, AddonMetadata> eligible) {
+            this.meta = meta;
+            for (String req : meta.requiredDependencies().keySet()) {
+                edges.add(new DependencyEdge(req, true, DependencyMode.LOAD_TIME));
+            }
+            for (Map.Entry<String, Version> opt : meta.optionalDependencies().entrySet()) {
+                String depId = opt.getKey();
+                Version min = opt.getValue();
+                AddonMetadata found = eligible.get(depId);
+                if (found != null && found.version().isAtLeast(min)) {
+                    edges.add(new DependencyEdge(depId, false, DependencyMode.LOAD_TIME));
+                }
+            }
+        }
+
+        @Override
+        public String id() {
+            return meta.id();
+        }
+
+        @Override
+        public AddonMetadata payload() {
+            return meta;
+        }
+
+        @Override
+        public Collection<DependencyEdge> edges() {
+            return edges;
+        }
     }
 }

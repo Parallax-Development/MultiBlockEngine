@@ -6,11 +6,12 @@ import dev.darkblade.mbe.api.addon.crossref.CrossReferenceHandle;
 import dev.darkblade.mbe.api.addon.crossref.CrossReferenceMetrics;
 import dev.darkblade.mbe.api.addon.crossref.CrossReferenceMode;
 import dev.darkblade.mbe.api.addon.crossref.CrossReferenceResolver;
+import dev.darkblade.mbe.core.graph.dependency.DependencyEdge;
+import dev.darkblade.mbe.core.graph.dependency.DependencyGraphResolver;
+import dev.darkblade.mbe.core.graph.dependency.DependencyNode;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -48,8 +49,18 @@ public final class AddonCrossReferenceService {
         long compileStart = System.nanoTime();
         Map<String, List<String>> failuresByAddon = new LinkedHashMap<>();
         Set<String> failedReferences = new LinkedHashSet<>();
-        validateRequiredDependencies(failedReferences, failuresByAddon);
-        validateInvalidEagerCycles(failedReferences, failuresByAddon);
+        
+        DependencyGraphResolver<Node> resolver = new DependencyGraphResolver<>();
+        DependencyGraphResolver.ResolutionResult<Node> result = resolver.resolve(nodesByReferenceId.values());
+        
+        for (Map.Entry<String, String> failure : result.failures().entrySet()) {
+            failedReferences.add(failure.getKey());
+            Node n = nodesByReferenceId.get(failure.getKey());
+            if (n != null) {
+                failure(failuresByAddon, n.addonId, failure.getValue());
+            }
+        }
+        
         long compileNanos = Math.max(0L, System.nanoTime() - compileStart);
 
         long initializeStart = System.nanoTime();
@@ -87,63 +98,7 @@ public final class AddonCrossReferenceService {
         return metrics;
     }
 
-    private void validateRequiredDependencies(Set<String> failedReferences, Map<String, List<String>> failuresByAddon) {
-        for (Node node : nodesByReferenceId.values()) {
-            for (CrossReferenceDependency dependency : node.dependencies) {
-                if (!dependency.required()) {
-                    continue;
-                }
-                if (nodesByReferenceId.containsKey(normalizeReferenceId(dependency.targetReferenceId()))) {
-                    continue;
-                }
-                failedReferences.add(node.referenceId);
-                failure(failuresByAddon, node.addonId, "Missing required cross-reference dependency " + dependency.targetReferenceId() + " for " + node.referenceId);
-            }
-        }
-    }
-
-    private void validateInvalidEagerCycles(Set<String> failedReferences, Map<String, List<String>> failuresByAddon) {
-        Map<String, Set<String>> graph = new HashMap<>();
-        for (Node node : nodesByReferenceId.values()) {
-            graph.put(node.referenceId, new LinkedHashSet<>());
-        }
-        for (Node node : nodesByReferenceId.values()) {
-            for (CrossReferenceDependency dependency : node.dependencies) {
-                if (!dependency.required() || dependency.mode() != CrossReferenceMode.EAGER) {
-                    continue;
-                }
-                String targetId = normalizeReferenceId(dependency.targetReferenceId());
-                if (!nodesByReferenceId.containsKey(targetId)) {
-                    continue;
-                }
-                graph.get(node.referenceId).add(targetId);
-            }
-        }
-
-        List<Set<String>> components = stronglyConnectedComponents(graph);
-        for (Set<String> component : components) {
-            if (component.size() > 1) {
-                for (String referenceId : component) {
-                    Node node = nodesByReferenceId.get(referenceId);
-                    if (node != null) {
-                        failedReferences.add(node.referenceId);
-                        failure(failuresByAddon, node.addonId, "Invalid eager circular cross-reference detected for " + referenceId + " in cycle " + component);
-                    }
-                }
-                continue;
-            }
-
-            String only = component.iterator().next();
-            Set<String> edges = graph.getOrDefault(only, Set.of());
-            if (edges.contains(only)) {
-                Node node = nodesByReferenceId.get(only);
-                if (node != null) {
-                    failedReferences.add(node.referenceId);
-                    failure(failuresByAddon, node.addonId, "Invalid eager self-reference cycle detected for " + only);
-                }
-            }
-        }
-    }
+    // validateRequiredDependencies and validateInvalidEagerCycles were removed and delegated to DependencyGraphResolver
 
     private void initializeReadyReferences(Set<String> failedReferences, Map<String, List<String>> failuresByAddon) {
         boolean progressed = true;
@@ -248,60 +203,7 @@ public final class AddonCrossReferenceService {
         return normalized;
     }
 
-    private static List<Set<String>> stronglyConnectedComponents(Map<String, Set<String>> graph) {
-        Map<String, Integer> indexByNode = new HashMap<>();
-        Map<String, Integer> lowByNode = new HashMap<>();
-        ArrayDeque<String> stack = new ArrayDeque<>();
-        Set<String> onStack = new HashSet<>();
-        List<Set<String>> out = new ArrayList<>();
-        int[] index = {0};
-
-        for (String node : graph.keySet()) {
-            if (!indexByNode.containsKey(node)) {
-                sccDfs(node, graph, indexByNode, lowByNode, stack, onStack, out, index);
-            }
-        }
-        return out;
-    }
-
-    private static void sccDfs(
-        String node,
-        Map<String, Set<String>> graph,
-        Map<String, Integer> indexByNode,
-        Map<String, Integer> lowByNode,
-        ArrayDeque<String> stack,
-        Set<String> onStack,
-        List<Set<String>> out,
-        int[] index
-    ) {
-        indexByNode.put(node, index[0]);
-        lowByNode.put(node, index[0]);
-        index[0]++;
-        stack.push(node);
-        onStack.add(node);
-
-        for (String next : graph.getOrDefault(node, Set.of())) {
-            if (!indexByNode.containsKey(next)) {
-                sccDfs(next, graph, indexByNode, lowByNode, stack, onStack, out, index);
-                lowByNode.put(node, Math.min(lowByNode.get(node), lowByNode.get(next)));
-            } else if (onStack.contains(next)) {
-                lowByNode.put(node, Math.min(lowByNode.get(node), indexByNode.get(next)));
-            }
-        }
-
-        if (Objects.equals(lowByNode.get(node), indexByNode.get(node))) {
-            Set<String> component = new LinkedHashSet<>();
-            while (!stack.isEmpty()) {
-                String n = stack.pop();
-                onStack.remove(n);
-                component.add(n);
-                if (n.equals(node)) {
-                    break;
-                }
-            }
-            out.add(component);
-        }
-    }
+    // stronglyConnectedComponents and sccDfs were removed and delegated to DependencyGraphResolver
 
     public record CompilationReport(
         Map<String, List<String>> failuresByAddon,
@@ -337,12 +239,13 @@ public final class AddonCrossReferenceService {
         }
     }
 
-    private static final class Node {
+    private static final class Node implements DependencyNode<Node> {
         private final String addonId;
         private final String referenceId;
         private final Class<?> contractType;
         private final java.util.function.Function<CrossReferenceResolver, ?> factory;
         private final List<CrossReferenceDependency> dependencies;
+        private final List<DependencyEdge> edges = new ArrayList<>();
         private Object instance;
 
         private Node(String addonId, CrossReferenceDeclaration<?> declaration) {
@@ -351,6 +254,31 @@ public final class AddonCrossReferenceService {
             this.contractType = declaration.contractType();
             this.factory = declaration.factory();
             this.dependencies = declaration.dependencies() == null ? List.of() : List.copyOf(declaration.dependencies());
+            for (CrossReferenceDependency dep : this.dependencies) {
+                // CrossReferenceMode is converted to DependencyMode
+                dev.darkblade.mbe.core.graph.dependency.DependencyMode internalMode;
+                if (dep.mode() == CrossReferenceMode.EAGER) {
+                    internalMode = dev.darkblade.mbe.core.graph.dependency.DependencyMode.RUNTIME_EAGER;
+                } else {
+                    internalMode = dev.darkblade.mbe.core.graph.dependency.DependencyMode.RUNTIME_LAZY;
+                }
+                this.edges.add(new DependencyEdge(dep.targetReferenceId(), dep.required(), internalMode));
+            }
+        }
+
+        @Override
+        public String id() {
+            return referenceId;
+        }
+
+        @Override
+        public Node payload() {
+            return this;
+        }
+
+        @Override
+        public Collection<DependencyEdge> edges() {
+            return edges;
         }
     }
 }
