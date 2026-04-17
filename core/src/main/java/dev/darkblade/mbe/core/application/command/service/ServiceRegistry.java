@@ -29,9 +29,17 @@ public final class ServiceRegistry {
 
         for (String alias : service.aliases()) {
             String a = normalize(alias);
-            if (!a.isEmpty() && !aliasToId.containsKey(a)) {
-                aliasToId.put(a, id);
+            if (a.isEmpty() || a.equals(id)) {
+                continue;
             }
+            if (byId.containsKey(a)) {
+                throw new IllegalStateException("Alias conflicts with existing service id: " + a);
+            }
+            String existing = aliasToId.get(a);
+            if (existing != null && !existing.equals(id)) {
+                throw new IllegalStateException("Alias already mapped: " + a + " -> " + existing);
+            }
+            aliasToId.putIfAbsent(a, id);
         }
     }
 
@@ -68,4 +76,3 @@ public final class ServiceRegistry {
         return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
     }
 }
-

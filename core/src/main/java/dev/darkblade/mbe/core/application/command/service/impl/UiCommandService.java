@@ -22,27 +22,26 @@ import java.util.Objects;
 
 public final class UiCommandService implements MbeCommandService {
     private static final String ORIGIN = "mbe";
-    private static final MessageKey MSG_INFO_TITLE = MessageKey.of(ORIGIN, "services.ui.info.title");
-    private static final MessageKey MSG_INFO_DESCRIPTION = MessageKey.of(ORIGIN, "services.ui.info.description");
-    private static final MessageKey MSG_INFO_PANEL_SERVICE = MessageKey.of(ORIGIN, "services.ui.info.panel_service");
-    private static final MessageKey MSG_INFO_BINDINGS_COUNT = MessageKey.of(ORIGIN, "services.ui.info.bindings_count");
-    private static final MessageKey MSG_ERROR_UNKNOWN_SUBCOMMAND = MessageKey.of(ORIGIN, "services.ui.error.unknown_subcommand");
-    private static final MessageKey MSG_ERROR_PLAYER_ONLY_LINK = MessageKey.of(ORIGIN, "services.ui.error.player_only_link");
-    private static final MessageKey MSG_ERROR_SERVICES_UNAVAILABLE = MessageKey.of(ORIGIN, "services.ui.error.services_unavailable");
-    private static final MessageKey MSG_USAGE_LINK = MessageKey.of(ORIGIN, "services.ui.usage.link");
-    private static final MessageKey MSG_USAGE_CANCEL = MessageKey.of(ORIGIN, "services.ui.usage.cancel");
-    private static final MessageKey MSG_USAGE_LIST = MessageKey.of(ORIGIN, "services.ui.usage.list");
-    private static final MessageKey MSG_ERROR_RESOLVE_PANEL_SERVICE = MessageKey.of(ORIGIN, "services.ui.error.resolve_panel_service");
-    private static final MessageKey MSG_ERROR_PANEL_SERVICE_UNAVAILABLE = MessageKey.of(ORIGIN, "services.ui.error.panel_service_unavailable");
-    private static final MessageKey MSG_ERROR_PANEL_NOT_FOUND = MessageKey.of(ORIGIN, "services.ui.error.panel_not_found");
-    private static final MessageKey MSG_ERROR_PANEL_VALIDATION_FAILED = MessageKey.of(ORIGIN, "services.ui.error.panel_validation_failed");
-    private static final MessageKey MSG_LINK_STARTED = MessageKey.of(ORIGIN, "services.ui.link.started");
-    private static final MessageKey MSG_LINK_CANCEL_HINT = MessageKey.of(ORIGIN, "services.ui.link.cancel_hint");
-    private static final MessageKey MSG_ERROR_PLAYER_ONLY_CANCEL = MessageKey.of(ORIGIN, "services.ui.error.player_only_cancel");
-    private static final MessageKey MSG_ERROR_EDITOR_UNAVAILABLE = MessageKey.of(ORIGIN, "services.ui.error.editor_unavailable");
-    private static final MessageKey MSG_ERROR_BINDING_UNAVAILABLE = MessageKey.of(ORIGIN, "services.ui.error.binding_unavailable");
-    private static final MessageKey MSG_LIST_TITLE = MessageKey.of(ORIGIN, "services.ui.list.title");
-    private static final MessageKey MSG_LIST_ENTRY = MessageKey.of(ORIGIN, "services.ui.list.entry");
+    private static final MessageKey MSG_INFO_TITLE = MessageKey.of(ORIGIN, "services.ui_bindings.info.title");
+    private static final MessageKey MSG_INFO_DESCRIPTION = MessageKey.of(ORIGIN, "services.ui_bindings.info.description");
+    private static final MessageKey MSG_INFO_PANEL_SERVICE = MessageKey.of(ORIGIN, "services.ui_bindings.info.panel_service");
+    private static final MessageKey MSG_INFO_BINDINGS_COUNT = MessageKey.of(ORIGIN, "services.ui_bindings.info.bindings_count");
+    private static final MessageKey MSG_ERROR_UNKNOWN_SUBCOMMAND = MessageKey.of(ORIGIN, "services.ui_bindings.error.unknown_subcommand");
+    private static final MessageKey MSG_ERROR_PLAYER_ONLY_LINK = MessageKey.of(ORIGIN, "services.ui_bindings.error.player_only_link");
+    private static final MessageKey MSG_ERROR_SERVICES_UNAVAILABLE = MessageKey.of(ORIGIN, "services.ui_bindings.error.services_unavailable");
+    private static final MessageKey MSG_USAGE_LINK = MessageKey.of(ORIGIN, "services.ui_bindings.usage.link");
+    private static final MessageKey MSG_USAGE_CANCEL = MessageKey.of(ORIGIN, "services.ui_bindings.usage.cancel");
+    private static final MessageKey MSG_USAGE_LIST = MessageKey.of(ORIGIN, "services.ui_bindings.usage.list");
+    private static final MessageKey MSG_ERROR_PANEL_SERVICE_UNAVAILABLE = MessageKey.of(ORIGIN, "services.ui_bindings.error.panel_service_unavailable");
+    private static final MessageKey MSG_ERROR_PANEL_NOT_FOUND = MessageKey.of(ORIGIN, "services.ui_bindings.error.panel_not_found");
+    private static final MessageKey MSG_ERROR_PANEL_VALIDATION_FAILED = MessageKey.of(ORIGIN, "services.ui_bindings.error.panel_validation_failed");
+    private static final MessageKey MSG_LINK_STARTED = MessageKey.of(ORIGIN, "services.ui_bindings.link.started");
+    private static final MessageKey MSG_LINK_CANCEL_HINT = MessageKey.of(ORIGIN, "services.ui_bindings.link.cancel_hint");
+    private static final MessageKey MSG_ERROR_PLAYER_ONLY_CANCEL = MessageKey.of(ORIGIN, "services.ui_bindings.error.player_only_cancel");
+    private static final MessageKey MSG_ERROR_EDITOR_UNAVAILABLE = MessageKey.of(ORIGIN, "services.ui_bindings.error.editor_unavailable");
+    private static final MessageKey MSG_ERROR_BINDING_UNAVAILABLE = MessageKey.of(ORIGIN, "services.ui_bindings.error.binding_unavailable");
+    private static final MessageKey MSG_LIST_TITLE = MessageKey.of(ORIGIN, "services.ui_bindings.list.title");
+    private static final MessageKey MSG_LIST_ENTRY = MessageKey.of(ORIGIN, "services.ui_bindings.list.entry");
 
     private final EditorSessionManager sessions;
     private final PanelBindingService bindings;
@@ -63,25 +62,25 @@ public final class UiCommandService implements MbeCommandService {
 
     @Override
     public String id() {
-        return "ui";
+        return "ui-bindings";
     }
 
     @Override
     public String description() {
-        return "Binding entre paneles UI y controllers de multiblocks";
+        return "Binding between UI and controllers of multiblocks";
     }
 
     @Override
     public List<String> infoUsage() {
-        return List.of("/mbe services call ui info");
+        return List.of("/mbe services call ui-bindings info");
     }
 
     @Override
     public List<String> executeUsage() {
         return List.of(
-                "/mbe services call ui execute link <panelId>",
-                "/mbe services call ui execute cancel",
-                "/mbe services call ui execute list"
+                "/mbe services call ui-bindings execute link <panelId>",
+                "/mbe services call ui-bindings execute cancel",
+                "/mbe services call ui-bindings execute list"
         );
     }
 

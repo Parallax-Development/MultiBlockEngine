@@ -43,16 +43,16 @@ services:
       service_unavailable: "&cBlueprintService no disponible."
       player_only: "&cSolo jugadores pueden abrir el catálogo."
       invalid_subcommand: "&cSubcomando inválido. Usa: catalog"
-  ui:
+  ui_bindings:
     info:
-      title: "&eServicio: ui"
+      title: "&eServicio: ui-bindings"
       description: "&7Binding entre paneles UI y controllers de multiblocks"
       panel_service: "&7PanelViewService: {status}"
       bindings_count: "&7Bindings registrados: {count}"
     usage:
-      link: "&7/mbe services call ui execute link <panelId>"
-      cancel: "&7/mbe services call ui execute cancel"
-      list: "&7/mbe services call ui execute list"
+      link: "&7/mbe services call ui-bindings execute link <panelId>"
+      cancel: "&7/mbe services call ui-bindings execute cancel"
+      list: "&7/mbe services call ui-bindings execute list"
     error:
       unknown_subcommand: "&cSubcomando desconocido: {action}"
       player_only_link: "&cSolo jugadores pueden iniciar sesiones de link."
@@ -66,7 +66,7 @@ services:
       binding_unavailable: "&cPanelBindingService no disponible."
     link:
       started: "&aSesión iniciada. Haz click en el controller_block del multiblock."
-      cancel_hint: "&7Usa /mbe services call ui execute cancel para cancelar."
+      cancel_hint: "&7Usa /mbe services call ui-bindings execute cancel para cancelar."
     list:
       title: "&eBindings: {count}"
       entry: "&7{panel} @ {world}:{x},{y},{z} [{trigger}]"

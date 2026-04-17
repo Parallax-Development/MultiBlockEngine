@@ -14,6 +14,10 @@ import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.LocaleProvider;
 import dev.darkblade.mbe.api.message.PlayerMessageService;
 import dev.darkblade.mbe.api.blueprint.BlueprintService;
+import dev.darkblade.mbe.api.compat.DisplayCompatService;
+import dev.darkblade.mbe.api.compat.InventoryCompatService;
+import dev.darkblade.mbe.api.compat.SchedulerCompatService;
+import dev.darkblade.mbe.api.compat.ServerVersionService;
 import dev.darkblade.mbe.api.service.InspectionPipelineService;
 import dev.darkblade.mbe.api.service.interaction.InteractionPipelineService;
 import dev.darkblade.mbe.api.tick.Tickable;
@@ -81,6 +85,10 @@ import dev.darkblade.mbe.core.infrastructure.config.item.ItemConfigLoader;
 import dev.darkblade.mbe.core.infrastructure.config.parser.item.ItemConfigParser;
 import dev.darkblade.mbe.core.infrastructure.logging.LoggingService;
 import dev.darkblade.mbe.core.infrastructure.bridge.item.ItemStackBridge;
+import dev.darkblade.mbe.core.infrastructure.compat.BukkitDisplayCompatService;
+import dev.darkblade.mbe.core.infrastructure.compat.BukkitInventoryCompatService;
+import dev.darkblade.mbe.core.infrastructure.compat.BukkitSchedulerCompatService;
+import dev.darkblade.mbe.core.infrastructure.compat.BukkitServerVersionService;
 import dev.darkblade.mbe.core.application.service.item.DefaultItemService;
 import dev.darkblade.mbe.core.application.service.port.DefaultPortResolutionService;
 import dev.darkblade.mbe.core.application.service.io.DefaultIOService;
@@ -181,6 +189,8 @@ public class MultiBlockEngine extends JavaPlugin {
     private Tickable ioTickable;
     private DefaultUIRuntimeRegistry uiRuntimeRegistry;
     private PanelViewServiceImpl panelViewService;
+    private BukkitInventoryCompatService inventoryCompatService;
+    private BukkitSchedulerCompatService schedulerCompatService;
 
     @Override
     public void onEnable() {
@@ -225,6 +235,21 @@ public class MultiBlockEngine extends JavaPlugin {
         addonManager.registerCoreService(PanelViewService.class, panelViewService);
         addonManager.registerCoreMbeService(uiRuntimeRegistry);
         addonManager.registerCoreMbeService(panelViewService);
+        BukkitServerVersionService serverVersionService = new BukkitServerVersionService();
+        inventoryCompatService = new BukkitInventoryCompatService();
+        schedulerCompatService = new BukkitSchedulerCompatService(this);
+        BukkitDisplayCompatService displayCompatService = new BukkitDisplayCompatService(
+                getServer().getPluginManager(),
+                () -> addonManager == null ? null : addonManager.getCoreService(DisplayEntityRenderer.class)
+        );
+        addonManager.registerCoreService(ServerVersionService.class, serverVersionService);
+        addonManager.registerCoreService(InventoryCompatService.class, inventoryCompatService);
+        addonManager.registerCoreService(SchedulerCompatService.class, schedulerCompatService);
+        addonManager.registerCoreService(DisplayCompatService.class, displayCompatService);
+        addonManager.registerCoreMbeService(serverVersionService);
+        addonManager.registerCoreMbeService(inventoryCompatService);
+        addonManager.registerCoreMbeService(schedulerCompatService);
+        addonManager.registerCoreMbeService(displayCompatService);
 
         StorageExceptionHandler storageExceptionHandler = (storageService, error) -> {
             if (error == null) {
@@ -481,7 +506,7 @@ public class MultiBlockEngine extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new PreviewPlacementController(blueprintController), this);
         getServer().getPluginManager().registerEvents(new PreviewBlockPlaceListener(structurePreviewService, buildContextService), this);
         getServer().getPluginManager().registerEvents(new StructurePreviewRequestListener(structurePreviewService), this);
-        getServer().getPluginManager().registerEvents(new InventoryUIListener(inventorySessions, blueprintService), this);
+        getServer().getPluginManager().registerEvents(new InventoryUIListener(inventorySessions, blueprintService, inventoryCompatService), this);
         getServer().getPluginManager().registerEvents(new CatalogListener(
                 blueprintService,
                 itemStackBridge

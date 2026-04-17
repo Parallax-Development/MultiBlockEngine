@@ -21,18 +21,20 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.server.ServiceRegisterEvent;
 import org.bukkit.event.server.ServiceUnregisterEvent;
 import org.bukkit.plugin.RegisteredServiceProvider;
-import org.bukkit.plugin.ServicePriority;
+import org.bukkit.plugin.Plugin;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Collectors;
+import java.util.Set;
 
 public final class ServicesCommandRouter implements Listener {
     private static final String ORIGIN = "mbe";
@@ -167,7 +169,7 @@ public final class ServicesCommandRouter implements Listener {
         }
 
         ServiceCallParser.ParseResult parsed = parser.parseServicesCall(safeArgs);
-        if (parsed instanceof ServiceCallParser.ParseResult.Error err) {
+        if (parsed instanceof ServiceCallParser.ParseResult.Error) {
             sendError(sender, MSG_ERROR_GENERIC, Map.of(), List.of(Map.entry(MSG_HINT_USE_SERVICES_LIST, Map.of("label", label))));
             return true;
         }
@@ -256,7 +258,7 @@ public final class ServicesCommandRouter implements Listener {
         List<String> out = new ArrayList<>(registry.ids());
         out.addAll(externalRegistry.ids());
         out.sort(String::compareToIgnoreCase);
-        return List.copyOf(out);
+        return List.copyOf(new LinkedHashSet<>(out));
     }
 
     public synchronized void refreshExternalCommandServices() {
@@ -290,20 +292,12 @@ public final class ServicesCommandRouter implements Listener {
     }
 
     private List<MbeCommandService> loadExternalCommandServices() {
-        Map<String, RegisteredServiceProvider<MbeCommandService>> byId = loadExternalServiceProvidersSnapshot();
-        return byId.values().stream()
-                .map(RegisteredServiceProvider::getProvider)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toUnmodifiableList());
-    }
-
-    private Map<String, RegisteredServiceProvider<MbeCommandService>> loadExternalServiceProvidersSnapshot() {
         var regs = Bukkit.getServicesManager().getRegistrations(MbeCommandService.class);
-        Map<String, RegisteredServiceProvider<MbeCommandService>> byId = new HashMap<>();
-        if (regs == null) {
-            return Map.of();
+        if (regs == null || regs.isEmpty()) {
+            return List.of();
         }
 
+        Map<String, List<RegisteredServiceProvider<MbeCommandService>>> byId = new HashMap<>();
         for (RegisteredServiceProvider<MbeCommandService> rsp : regs) {
             if (rsp == null) {
                 continue;
@@ -313,24 +307,117 @@ public final class ServicesCommandRouter implements Listener {
                 continue;
             }
             String id = svc.id().trim().toLowerCase(Locale.ROOT);
-            if (registry.resolve(id).isPresent()) {
+            byId.computeIfAbsent(id, ignored -> new ArrayList<>()).add(rsp);
+        }
+
+        List<MbeCommandService> resolved = new ArrayList<>();
+        for (Map.Entry<String, List<RegisteredServiceProvider<MbeCommandService>>> entry : byId.entrySet()) {
+            String id = entry.getKey();
+            List<RegisteredServiceProvider<MbeCommandService>> providers = new ArrayList<>(entry.getValue());
+            providers.sort((a, b) -> Integer.compare(b.getPriority().ordinal(), a.getPriority().ordinal()));
+
+            boolean collidesWithInternal = registry.resolve(id).isPresent();
+            boolean ambiguousExternal = providers.size() > 1;
+
+            if (!collidesWithInternal && !ambiguousExternal) {
+                MbeCommandService single = providers.getFirst().getProvider();
+                if (single != null) {
+                    resolved.add(single);
+                }
                 continue;
             }
 
-            RegisteredServiceProvider<MbeCommandService> existing = byId.get(id);
-            if (existing == null) {
-                byId.put(id, rsp);
-                continue;
-            }
-
-            ServicePriority prev = existing.getPriority();
-            ServicePriority next = rsp.getPriority();
-            if (next.ordinal() > prev.ordinal()) {
-                byId.put(id, rsp);
+            Set<String> usedQualifiedIds = new HashSet<>();
+            for (RegisteredServiceProvider<MbeCommandService> provider : providers) {
+                MbeCommandService service = provider.getProvider();
+                if (service == null) {
+                    continue;
+                }
+                String qualifiedId = buildQualifiedExternalId(provider, id, usedQualifiedIds);
+                resolved.add(new QualifiedExternalCommandService(qualifiedId, service));
             }
         }
 
-        return Map.copyOf(byId);
+        return List.copyOf(resolved);
+    }
+
+    private static String buildQualifiedExternalId(RegisteredServiceProvider<MbeCommandService> provider, String shortId, Set<String> usedQualifiedIds) {
+        Plugin plugin = provider == null ? null : provider.getPlugin();
+        String pluginName = plugin == null ? "external" : plugin.getName();
+        String namespace = normalizeNamespace(pluginName);
+        String base = namespace + ":" + shortId;
+        String candidate = base;
+        int suffix = 2;
+        while (usedQualifiedIds.contains(candidate)) {
+            candidate = base + "-" + suffix++;
+        }
+        usedQualifiedIds.add(candidate);
+        return candidate;
+    }
+
+    private static String normalizeNamespace(String raw) {
+        String lower = raw == null ? "" : raw.trim().toLowerCase(Locale.ROOT);
+        if (lower.isBlank()) {
+            return "external";
+        }
+        String sanitized = lower.replaceAll("[^a-z0-9_.-]", "-");
+        if (sanitized.isBlank()) {
+            return "external";
+        }
+        if (sanitized.startsWith("-")) {
+            sanitized = "external" + sanitized;
+        }
+        return sanitized;
+    }
+
+    private static final class QualifiedExternalCommandService implements MbeCommandService {
+        private final String id;
+        private final MbeCommandService delegate;
+
+        private QualifiedExternalCommandService(String id, MbeCommandService delegate) {
+            this.id = id;
+            this.delegate = delegate;
+        }
+
+        @Override
+        public String id() {
+            return id;
+        }
+
+        @Override
+        public String description() {
+            return delegate.description();
+        }
+
+        @Override
+        public List<String> infoUsage() {
+            return delegate.infoUsage();
+        }
+
+        @Override
+        public List<String> executeUsage() {
+            return delegate.executeUsage();
+        }
+
+        @Override
+        public void info(CommandSender sender, List<String> args) {
+            delegate.info(sender, args);
+        }
+
+        @Override
+        public void execute(CommandSender sender, List<String> args) {
+            delegate.execute(sender, args);
+        }
+
+        @Override
+        public List<String> tabComplete(CommandSender sender, String mode, List<String> args) {
+            return delegate.tabComplete(sender, mode, args);
+        }
+
+        @Override
+        public List<String> aliases() {
+            return List.of();
+        }
     }
 
     private void sendHelp(CommandSender sender, String label) {
@@ -370,7 +457,6 @@ public final class ServicesCommandRouter implements Listener {
     }
 
     private void audit(CommandSender sender, String label, MbeCommandService svc, ServiceCallParser.CallMode mode, List<String> args, boolean ok, Throwable error) {
-        String senderType = sender == null ? "?" : sender.getClass().getSimpleName();
         String senderName = sender == null ? "?" : sender.getName();
         String joined = args == null || args.isEmpty() ? "" : String.join(" ", args);
 
