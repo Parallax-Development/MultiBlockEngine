@@ -5,7 +5,6 @@ import dev.darkblade.mbe.api.MultiblockAPI;
 import dev.darkblade.mbe.api.addon.AddonException;
 import dev.darkblade.mbe.api.addon.MultiblockAddon;
 import dev.darkblade.mbe.api.addon.Version;
-import dev.darkblade.mbe.api.addon.crossref.CrossReferenceMetrics;
 import dev.darkblade.mbe.api.logging.AddonLogger;
 import dev.darkblade.mbe.api.logging.CoreLogger;
 import dev.darkblade.mbe.api.logging.EngineLogger;

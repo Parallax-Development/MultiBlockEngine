@@ -2,16 +2,23 @@ package dev.darkblade.mbe.api.wiring;
 
 import org.bukkit.block.Block;
 
+import java.util.Collection;
+import java.util.Optional;
+
 public interface NetworkService {
 
-    NetworkNode registerNode(Block block, NodeDescriptor descriptor);
+    NetworkNode registerNode(NetworkType type, Block block, NodeDescriptor descriptor);
 
-    void unregisterNode(NetworkNode node);
+    void unregisterNode(NetworkType type, NetworkNode node);
 
-    boolean connect(NetworkNode a, NetworkNode b);
+    boolean connect(NetworkType type, NetworkNode a, NetworkNode b);
 
-    void disconnect(NetworkNode a, NetworkNode b);
+    void disconnect(NetworkType type, NetworkNode a, NetworkNode b);
 
-    NetworkGraph getGraph(NetworkNode node);
+    NetworkGraph getGraph(NetworkType type, NetworkNode node);
+    
+    Optional<NetworkNode> findNode(NetworkType type, Block block);
+    
+    Collection<NetworkNode> findAllNodes(Block block);
 }
 
