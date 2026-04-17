@@ -548,7 +548,7 @@ public class MultiblockParser {
         }
 
         String fallback = AssemblyTriggerType.WRENCH_USE.id();
-        log.logInternal(new LogScope.Core(), LogPhase.LOAD, LogLevel.WARN, "Missing assembly trigger (defaulting)", null, new LogKv[] {
+        log.logInternal(new LogScope.Core(), LogPhase.LOAD, LogLevel.TRACE, "Missing assembly trigger (defaulting)", null, new LogKv[] {
                 LogKv.kv("id", id),
                 LogKv.kv("default", fallback)
         }, Set.of());
