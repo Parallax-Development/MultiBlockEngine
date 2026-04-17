@@ -5,10 +5,7 @@ import dev.darkblade.mbe.api.logging.LogKv;
 import dev.darkblade.mbe.api.logging.LogLevel;
 import dev.darkblade.mbe.api.logging.LogPhase;
 import dev.darkblade.mbe.api.logging.LogScope;
-import dev.darkblade.mbe.api.addon.crossref.CrossReferenceHandle;
-import dev.darkblade.mbe.api.addon.crossref.InjectCrossReference;
 import dev.darkblade.mbe.api.service.InjectService;
-import dev.darkblade.mbe.core.application.service.addon.crossref.AddonCrossReferenceService;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
@@ -21,21 +18,15 @@ import java.util.function.BiFunction;
 public final class ServiceInjector {
     private static final BiFunction<String, Class<?>, Optional<?>> NO_EXTERNAL_RESOLVER = (ownerId, type) -> Optional.empty();
     private final MBEServiceRegistry registry;
-    private final AddonCrossReferenceService crossReferenceManager;
     private final BiFunction<String, Class<?>, Optional<?>> externalResolver;
     private final CoreLogger log;
 
     public ServiceInjector(MBEServiceRegistry registry, CoreLogger log) {
-        this(registry, null, log, NO_EXTERNAL_RESOLVER);
+        this(registry, log, NO_EXTERNAL_RESOLVER);
     }
 
-    public ServiceInjector(MBEServiceRegistry registry, AddonCrossReferenceService crossReferenceManager, CoreLogger log) {
-        this(registry, crossReferenceManager, log, NO_EXTERNAL_RESOLVER);
-    }
-
-    public ServiceInjector(MBEServiceRegistry registry, AddonCrossReferenceService crossReferenceManager, CoreLogger log, BiFunction<String, Class<?>, Optional<?>> externalResolver) {
+    public ServiceInjector(MBEServiceRegistry registry, CoreLogger log, BiFunction<String, Class<?>, Optional<?>> externalResolver) {
         this.registry = Objects.requireNonNull(registry, "registry");
-        this.crossReferenceManager = crossReferenceManager;
         this.externalResolver = externalResolver == null ? NO_EXTERNAL_RESOLVER : externalResolver;
         this.log = Objects.requireNonNull(log, "log");
     }
@@ -48,10 +39,6 @@ public final class ServiceInjector {
             InjectService marker = field.getAnnotation(InjectService.class);
             if (marker != null) {
                 injectField(target, field, marker.value(), ownerId);
-            }
-            InjectCrossReference crossReference = field.getAnnotation(InjectCrossReference.class);
-            if (crossReference != null) {
-                injectCrossReference(target, field, crossReference, ownerId);
             }
         }
     }
@@ -174,41 +161,7 @@ public final class ServiceInjector {
         }
     }
 
-    private void injectCrossReference(Object target, Field field, InjectCrossReference marker, String ownerId) {
-        if (crossReferenceManager == null) {
-            warn(ownerId, "Cross-reference injection skipped: manager unavailable", field, marker.value(), field.getType());
-            return;
-        }
-        field.setAccessible(true);
-        try {
-            if (CrossReferenceHandle.class.equals(field.getType())) {
-                Class<?> wrappedType = optionalFieldType(field);
-                if (wrappedType == null) {
-                    warn(ownerId, "Cross-reference injection skipped: CrossReferenceHandle field without concrete generic type", field, marker.value(), null);
-                    field.set(target, CrossReferenceHandle.unresolved());
-                    return;
-                }
-                field.set(target, crossReferenceManager.handle(marker.value(), wrappedType));
-                return;
-            }
 
-            Optional<?> resolved = crossReferenceManager.resolve(marker.value(), field.getType());
-            if (resolved.isPresent()) {
-                field.set(target, resolved.get());
-                return;
-            }
-            if (marker.required()) {
-                warn(ownerId, "Required cross-reference not available for injection", field, marker.value(), field.getType());
-            }
-        } catch (Throwable t) {
-            log.logInternal(scope(ownerId), LogPhase.SERVICE_RESOLVE, LogLevel.WARN, "Cross-reference injection failed", t, new LogKv[] {
-                LogKv.kv("owner", ownerId == null ? "unknown" : ownerId),
-                LogKv.kv("targetType", target.getClass().getName()),
-                LogKv.kv("field", field.getName()),
-                LogKv.kv("crossReferenceId", marker.value())
-            }, Set.of());
-        }
-    }
 
     private static Class<?> optionalFieldType(Field field) {
         Type type = field.getGenericType();

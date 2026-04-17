@@ -57,7 +57,7 @@ public final class DependencyGraphResolver<T> {
 
         for (DependencyNode<T> node : eligible.values()) {
             for (DependencyEdge edge : node.edges()) {
-                if (edge.required() && edge.mode() != DependencyMode.RUNTIME_LAZY) {
+                if (edge.required()) {
                     if (eligible.containsKey(edge.targetId())) {
                         graph.get(node.id()).add(edge.targetId());
                     }
@@ -111,7 +111,7 @@ public final class DependencyGraphResolver<T> {
 
         for (DependencyNode<T> node : eligible.values()) {
             for (DependencyEdge edge : node.edges()) {
-                if (edge.required() && edge.mode() != DependencyMode.RUNTIME_LAZY) {
+                if (edge.required()) {
                     if (eligible.containsKey(edge.targetId())) {
                         reverseGraph.get(edge.targetId()).add(node.id()); // Reverse mapping: Dependency -> Dependent
                         indegree.put(node.id(), indegree.get(node.id()) + 1);
@@ -162,7 +162,7 @@ public final class DependencyGraphResolver<T> {
             for (DependencyNode<T> node : List.copyOf(order)) {
                 List<String> optionalDeps = new ArrayList<>();
                 for (DependencyEdge edge : node.edges()) {
-                    if (!edge.required() && edge.mode() == DependencyMode.LOAD_TIME) {
+                    if (!edge.required()) {
                         optionalDeps.add(edge.targetId());
                     }
                 }

@@ -4,13 +4,9 @@ import dev.darkblade.mbe.api.logging.CoreLogger;
 import dev.darkblade.mbe.api.logging.LogBackend;
 import dev.darkblade.mbe.api.logging.LogLevel;
 import dev.darkblade.mbe.api.logging.LoggingConfig;
-import dev.darkblade.mbe.api.addon.crossref.CrossReferenceDeclaration;
-import dev.darkblade.mbe.api.addon.crossref.CrossReferenceHandle;
-import dev.darkblade.mbe.api.addon.crossref.InjectCrossReference;
 import dev.darkblade.mbe.api.service.InjectService;
 import dev.darkblade.mbe.api.service.MBEService;
 import dev.darkblade.mbe.api.service.EnergyProvider;
-import dev.darkblade.mbe.core.application.service.addon.crossref.AddonCrossReferenceService;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
@@ -82,23 +78,6 @@ class ServiceLifecycleManagerTest {
         assertFalse(lifecycle.get("mbe:test.energy.consumer", MBEService.class).isPresent());
     }
 
-    @Test
-    void injectorSupportsCrossReferenceInjectionWithoutStrongCoupling() {
-        CoreLogger logger = testLogger();
-        MBEServiceRegistry registry = new MBEServiceRegistry();
-        AddonCrossReferenceService crossReferenceManager = new AddonCrossReferenceService();
-        crossReferenceManager.declare("mbe", CrossReferenceDeclaration.builder("mbe:cross.alpha", String.class, resolver -> "alpha").build());
-        crossReferenceManager.compileAndInitialize();
-
-        ServiceInjector injector = new ServiceInjector(registry, crossReferenceManager, logger);
-        CrossReferenceTarget target = new CrossReferenceTarget();
-        injector.inject(target, "mbe:test");
-
-        assertTrue(target.direct != null && target.direct.equals("alpha"));
-        assertNotNull(target.handle);
-        assertTrue(target.handle.resolve().isPresent());
-        assertEquals("alpha", target.handle.resolve().orElseThrow());
-    }
 
     private static CoreLogger testLogger() {
         LogBackend backend = entry -> {
@@ -115,13 +94,6 @@ class ServiceLifecycleManagerTest {
         private Optional<ProducerService> optional = Optional.empty();
     }
 
-    private static final class CrossReferenceTarget {
-        @InjectCrossReference("mbe:cross.alpha")
-        private String direct;
-
-        @InjectCrossReference("mbe:cross.alpha")
-        private CrossReferenceHandle<String> handle = CrossReferenceHandle.unresolved();
-    }
 
     private static final class ProducerService implements MBEService, EnergyProvider {
         private final String serviceId;

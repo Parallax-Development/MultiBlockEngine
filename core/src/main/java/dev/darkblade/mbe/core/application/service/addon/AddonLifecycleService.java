@@ -18,7 +18,6 @@ import dev.darkblade.mbe.api.event.ComponentChangeType;
 import dev.darkblade.mbe.api.event.ComponentKind;
 import dev.darkblade.mbe.api.command.MbeCommandService;
 import dev.darkblade.mbe.api.service.MBEService;
-import dev.darkblade.mbe.core.application.service.addon.crossref.AddonCrossReferenceService;
 import dev.darkblade.mbe.core.application.service.MBEServiceRegistry;
 import dev.darkblade.mbe.core.application.service.ServiceInjector;
 import dev.darkblade.mbe.core.application.service.ServiceLifecycleOrchestrator;
@@ -78,48 +77,55 @@ public class AddonLifecycleService {
         DISABLED
     }
 
-    private record DiscoveredAddon(File file, AddonMetadata metadata) {}
+    private record DiscoveredAddon(File file, AddonMetadata metadata) {
+    }
 
     private record LoadedAddon(
-        AddonMetadata metadata,
-        MultiblockAddon addon,
-        AddonClassLoader classLoader,
-        AddonLogger logger,
-        AtomicReference<LogPhase> phase,
-        Path dataFolder
-    ) {}
+            AddonMetadata metadata,
+            MultiblockAddon addon,
+            AddonClassLoader classLoader,
+            AddonLogger logger,
+            AtomicReference<LogPhase> phase,
+            Path dataFolder) {
+    }
 
-    private record PendingExposure(Class<?> api, Object implementation, ServicePriority priority) {}
+    private record PendingExposure(Class<?> api, Object implementation, ServicePriority priority) {
+    }
 
-    private record ExposedService(Class<?> api, Object provider) {}
+    private record ExposedService(Class<?> api, Object provider) {
+    }
 
     private record AddonAuditIndex(
-        String addonId,
-        String fileName,
-        String mainClass,
-        String rootPrefixInternal,
-        List<String> classEntries,
-        Set<String> classInternalNames,
-        Set<String> apiClasses,
-        Set<String> apiContractClasses,
-        Set<String> embeddedCoreApiClasses,
-        Set<String> embeddedJars
-    ) {}
+            String addonId,
+            String fileName,
+            String mainClass,
+            String rootPrefixInternal,
+            List<String> classEntries,
+            Set<String> classInternalNames,
+            Set<String> apiClasses,
+            Set<String> apiContractClasses,
+            Set<String> embeddedCoreApiClasses,
+            Set<String> embeddedJars) {
+    }
 
     private record AddonAuditReport(
-        String addonId,
-        String fileName,
-        Set<String> sharedApis,
-        Set<String> declaredAddonRefs,
-        Set<String> undeclaredAddonRefs,
-        Set<String> nonApiAccessRefs,
-        Set<String> embeddedJars,
-        List<String> violations,
-        boolean fatal
-    ) {}
+            String addonId,
+            String fileName,
+            Set<String> sharedApis,
+            Set<String> declaredAddonRefs,
+            Set<String> undeclaredAddonRefs,
+            Set<String> nonApiAccessRefs,
+            Set<String> embeddedJars,
+            List<String> violations,
+            boolean fatal) {
+    }
 
-    private record AddonReferenceHit(String targetAddonId, String ownerClass, String targetClass) {}
-    private record ClassFileInspection(String ownerInternalName, Set<String> referencedClassNames, Set<String> classAnnotationDescriptors) {}
+    private record AddonReferenceHit(String targetAddonId, String ownerClass, String targetClass) {
+    }
+
+    private record ClassFileInspection(String ownerInternalName, Set<String> referencedClassNames,
+            Set<String> classAnnotationDescriptors) {
+    }
 
     private final MultiBlockEngine plugin;
     private final MultiblockAPI api;
@@ -128,7 +134,6 @@ public class AddonLifecycleService {
     private final AddonDataDirectorySystem dataDirectorySystem;
     private final AddonServiceRegistry serviceRegistry;
     private final ServiceLifecycleOrchestrator serviceLifecycleManager;
-    private final AddonCrossReferenceService crossReferenceManager;
     private final AddonDependencyResolver dependencyResolver;
     private final ConcurrentHashMap<String, AddonLoggingSettings> addonLogging = new ConcurrentHashMap<>();
     private final Map<String, DiscoveredAddon> discoveredAddons = new HashMap<>();
@@ -149,8 +154,8 @@ public class AddonLifecycleService {
         this.dataDirectorySystem = new AddonDataDirectorySystem(this.log, this.addonFolder.toPath());
         this.serviceRegistry = new AddonServiceRegistry(this.log);
         MBEServiceRegistry mbeServiceRegistry = new MBEServiceRegistry();
-        this.crossReferenceManager = new AddonCrossReferenceService();
-        ServiceInjector serviceInjector = new ServiceInjector(mbeServiceRegistry, this.crossReferenceManager, this.log, this::resolveExternalService);
+        ServiceInjector serviceInjector = new ServiceInjector(mbeServiceRegistry, this.log,
+                this::resolveExternalService);
         this.serviceLifecycleManager = new ServiceLifecycleOrchestrator(mbeServiceRegistry, serviceInjector, this.log);
         this.dependencyResolver = new AddonDependencyResolver();
 
@@ -190,7 +195,8 @@ public class AddonLifecycleService {
         }
 
         File[] files = addonFolder.listFiles((dir, name) -> name.endsWith(".jar"));
-        if (files == null) return;
+        if (files == null)
+            return;
 
         Arrays.sort(files, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
 
@@ -210,7 +216,8 @@ public class AddonLifecycleService {
                     auditIndexesByFile.put(file, auditIndex);
                 }
 
-                candidates.computeIfAbsent(metadata.id(), k -> new ArrayList<>()).add(new DiscoveredAddon(file, metadata));
+                candidates.computeIfAbsent(metadata.id(), k -> new ArrayList<>())
+                        .add(new DiscoveredAddon(file, metadata));
             } catch (Exception e) {
                 core.error("Failed to load addon from file", e, LogKv.kv("file", file.getName()));
             }
@@ -224,7 +231,6 @@ public class AddonLifecycleService {
         pendingExposures.clear();
         exposedServices.clear();
         serviceLifecycleManager.clear();
-        crossReferenceManager.clear();
         resolvedOrder = List.of();
 
         for (Map.Entry<String, List<DiscoveredAddon>> entry : candidates.entrySet()) {
@@ -233,10 +239,12 @@ public class AddonLifecycleService {
             if (list.size() > 1) {
                 StringBuilder sb = new StringBuilder();
                 for (DiscoveredAddon d : list) {
-                    if (!sb.isEmpty()) sb.append(", ");
+                    if (!sb.isEmpty())
+                        sb.append(", ");
                     sb.append(d.file().getName()).append("@").append(d.metadata().version());
                 }
-                core.error("Addon failed: multiple versions detected", LogKv.kv("id", id), LogKv.kv("duplicates", sb.toString()));
+                core.error("Addon failed: multiple versions detected", LogKv.kv("id", id),
+                        LogKv.kv("duplicates", sb.toString()));
                 states.put(id, AddonState.FAILED);
                 continue;
             }
@@ -253,36 +261,49 @@ public class AddonLifecycleService {
         core.info("Addon contracts enforcement mode", LogKv.kv("mode", contractsMode.name()));
         core.info("Addon service api type enforcement mode", LogKv.kv("mode", this.serviceApiTypeMode.name()));
 
-        Map<String, AddonAuditReport> auditReports = auditDiscoveredAddons(discoveredAddons, auditIndexesByFile, strictContracts);
+        Map<String, AddonAuditReport> auditReports = auditDiscoveredAddons(discoveredAddons, auditIndexesByFile,
+                strictContracts);
         for (AddonAuditReport report : auditReports.values()) {
             if (!report.violations().isEmpty()) {
                 String violations = joinLimited(report.violations(), 10);
                 if (report.fatal()) {
                     states.put(report.addonId(), AddonState.FAILED);
-                    core.error("Addon failed audit", LogKv.kv("id", report.addonId()), LogKv.kv("file", report.fileName()), LogKv.kv("violations", violations));
+                    core.error("Addon failed audit", LogKv.kv("id", report.addonId()),
+                            LogKv.kv("file", report.fileName()), LogKv.kv("violations", violations));
                 } else {
-                    core.warn("Addon audit warnings", LogKv.kv("id", report.addonId()), LogKv.kv("file", report.fileName()), LogKv.kv("violations", violations));
+                    core.warn("Addon audit warnings", LogKv.kv("id", report.addonId()),
+                            LogKv.kv("file", report.fileName()), LogKv.kv("violations", violations));
                 }
             }
 
             if (!report.sharedApis().isEmpty()) {
-                core.warn("Addon shared APIs detected", LogKv.kv("id", report.addonId()), LogKv.kv("shared", joinLimited(new ArrayList<>(report.sharedApis()), 30)), LogKv.kv("count", report.sharedApis().size()));
+                core.warn("Addon shared APIs detected", LogKv.kv("id", report.addonId()),
+                        LogKv.kv("shared", joinLimited(new ArrayList<>(report.sharedApis()), 30)),
+                        LogKv.kv("count", report.sharedApis().size()));
             }
 
             if (!report.declaredAddonRefs().isEmpty()) {
-                core.info("Addon cross-addon references validated", LogKv.kv("id", report.addonId()), LogKv.kv("refs", joinLimited(new ArrayList<>(report.declaredAddonRefs()), 30)), LogKv.kv("count", report.declaredAddonRefs().size()));
+                core.info("Addon cross-addon references validated", LogKv.kv("id", report.addonId()),
+                        LogKv.kv("refs", joinLimited(new ArrayList<>(report.declaredAddonRefs()), 30)),
+                        LogKv.kv("count", report.declaredAddonRefs().size()));
             }
 
             if (!report.undeclaredAddonRefs().isEmpty()) {
-                core.warn("Addon undeclared cross-addon references detected", LogKv.kv("id", report.addonId()), LogKv.kv("refs", joinLimited(new ArrayList<>(report.undeclaredAddonRefs()), 30)), LogKv.kv("count", report.undeclaredAddonRefs().size()));
+                core.warn("Addon undeclared cross-addon references detected", LogKv.kv("id", report.addonId()),
+                        LogKv.kv("refs", joinLimited(new ArrayList<>(report.undeclaredAddonRefs()), 30)),
+                        LogKv.kv("count", report.undeclaredAddonRefs().size()));
             }
 
             if (!report.nonApiAccessRefs().isEmpty()) {
-                core.warn("Addon cross-addon internal access detected", LogKv.kv("id", report.addonId()), LogKv.kv("refs", joinLimited(new ArrayList<>(report.nonApiAccessRefs()), 30)), LogKv.kv("count", report.nonApiAccessRefs().size()));
+                core.warn("Addon cross-addon internal access detected", LogKv.kv("id", report.addonId()),
+                        LogKv.kv("refs", joinLimited(new ArrayList<>(report.nonApiAccessRefs()), 30)),
+                        LogKv.kv("count", report.nonApiAccessRefs().size()));
             }
 
             if (!report.embeddedJars().isEmpty()) {
-                core.warn("Addon embeds nested jar libraries", LogKv.kv("id", report.addonId()), LogKv.kv("jars", joinLimited(new ArrayList<>(report.embeddedJars()), 20)), LogKv.kv("count", report.embeddedJars().size()));
+                core.warn("Addon embeds nested jar libraries", LogKv.kv("id", report.addonId()),
+                        LogKv.kv("jars", joinLimited(new ArrayList<>(report.embeddedJars()), 20)),
+                        LogKv.kv("count", report.embeddedJars().size()));
             }
         }
 
@@ -291,14 +312,14 @@ public class AddonLifecycleService {
             metadataById.put(e.getKey(), e.getValue().metadata());
         }
 
-        AddonDependencyResolver.Resolution resolution = dependencyResolver.resolve(MultiBlockEngine.getApiVersion(), metadataById);
+        AddonDependencyResolver.Resolution resolution = dependencyResolver.resolve(MultiBlockEngine.getApiVersion(),
+                metadataById);
 
         core.info("Addon dependency resolution complete",
-            LogKv.kv("candidates", metadataById.size()),
-            LogKv.kv("eligible", resolution.loadOrder().size()),
-            LogKv.kv("failed", resolution.failures().size()),
-            LogKv.kv("warnings", resolution.warnings().size())
-        );
+                LogKv.kv("candidates", metadataById.size()),
+                LogKv.kv("eligible", resolution.loadOrder().size()),
+                LogKv.kv("failed", resolution.failures().size()),
+                LogKv.kv("warnings", resolution.warnings().size()));
 
         for (String warning : resolution.warnings()) {
             core.warn("Addon dependency warning", LogKv.kv("warning", warning));
@@ -311,7 +332,8 @@ public class AddonLifecycleService {
         resolvedOrder = resolution.loadOrder();
 
         if (!resolvedOrder.isEmpty()) {
-            core.info("Addon load order", LogKv.kv("order", joinLimited(resolvedOrder, 30)), LogKv.kv("count", resolvedOrder.size()));
+            core.info("Addon load order", LogKv.kv("order", joinLimited(resolvedOrder, 30)),
+                    LogKv.kv("count", resolvedOrder.size()));
         }
 
         for (String id : resolvedOrder) {
@@ -330,24 +352,6 @@ public class AddonLifecycleService {
                 failAddon(id, AddonException.Phase.LOAD, "Unhandled exception during addon load", e, true);
             }
         }
-
-        AddonCrossReferenceService.CompilationReport crossReferenceCompilation = crossReferenceManager.compileAndInitialize();
-        CrossReferenceMetrics crossReferenceMetrics = crossReferenceCompilation.metrics();
-        core.info("Addon cross-reference compile complete",
-            LogKv.kv("declared", crossReferenceMetrics.declaredReferences()),
-            LogKv.kv("initialized", crossReferenceMetrics.initializedReferences()),
-            LogKv.kv("failedReferences", crossReferenceMetrics.failedReferences()),
-            LogKv.kv("compileMillis", crossReferenceMetrics.compileNanos() / 1_000_000L),
-            LogKv.kv("initializeMillis", crossReferenceMetrics.initializeNanos() / 1_000_000L),
-            LogKv.kv("totalMillis", crossReferenceMetrics.totalNanos() / 1_000_000L)
-        );
-
-        for (Map.Entry<String, List<String>> failure : crossReferenceCompilation.failuresByAddon().entrySet()) {
-            String addonId = failure.getKey();
-            String reason = joinLimited(failure.getValue(), 10);
-            states.put(addonId, AddonState.FAILED);
-            core.error("Addon cross-reference failure", LogKv.kv("id", addonId), LogKv.kv("reason", reason));
-        }
     }
 
     public AddonState getState(String addonId) {
@@ -362,9 +366,9 @@ public class AddonLifecycleService {
         publishComponentAvailability(
                 CORE_PROVIDER_ID,
                 buildTypedServiceId(CORE_PROVIDER_ID, serviceType),
-                MbeCommandService.class.isAssignableFrom(serviceType) ? ComponentKind.COMMAND_SERVICE : ComponentKind.SERVICE,
-                ComponentChangeType.ADDED
-        );
+                MbeCommandService.class.isAssignableFrom(serviceType) ? ComponentKind.COMMAND_SERVICE
+                        : ComponentKind.SERVICE,
+                ComponentChangeType.ADDED);
     }
 
     public void registerCoreMbeService(MBEService service) {
@@ -373,8 +377,7 @@ public class AddonLifecycleService {
                 CORE_PROVIDER_ID,
                 service.getServiceId(),
                 service instanceof MbeCommandService ? ComponentKind.COMMAND_SERVICE : ComponentKind.SERVICE,
-                ComponentChangeType.ADDED
-        );
+                ComponentChangeType.ADDED);
     }
 
     public <T> T getCoreService(Class<T> serviceType) {
@@ -397,9 +400,9 @@ public class AddonLifecycleService {
         publishComponentAvailability(
                 addonId,
                 buildTypedServiceId(addonId, serviceType),
-                MbeCommandService.class.isAssignableFrom(serviceType) ? ComponentKind.COMMAND_SERVICE : ComponentKind.SERVICE,
-                ComponentChangeType.ADDED
-        );
+                MbeCommandService.class.isAssignableFrom(serviceType) ? ComponentKind.COMMAND_SERVICE
+                        : ComponentKind.SERVICE,
+                ComponentChangeType.ADDED);
     }
 
     public void registerAddonMbeService(String addonId, MBEService service) {
@@ -407,8 +410,7 @@ public class AddonLifecycleService {
                 addonId,
                 service.getServiceId(),
                 service instanceof MbeCommandService ? ComponentKind.COMMAND_SERVICE : ComponentKind.SERVICE,
-                ComponentChangeType.ADDED
-        );
+                ComponentChangeType.ADDED);
     }
 
     public ServiceLifecycleOrchestrator.LifecyclePhase getCurrentLifecyclePhase() {
@@ -488,15 +490,15 @@ public class AddonLifecycleService {
         try {
             provider = BukkitServiceBridge.exposeProviderRaw(plugin, api, implementation, priority);
         } catch (Throwable t) {
-            log.logInternal(new LogScope.Addon(addonId, addonVersion(addonId)), LogPhase.SERVICE_REGISTER, LogLevel.ERROR,
-                "Failed to expose public service",
-                t,
-                new LogKv[] {
-                    LogKv.kv("service", api.getName()),
-                    LogKv.kv("priority", priority.name())
-                },
-                Set.of()
-            );
+            log.logInternal(new LogScope.Addon(addonId, addonVersion(addonId)), LogPhase.SERVICE_REGISTER,
+                    LogLevel.ERROR,
+                    "Failed to expose public service",
+                    t,
+                    new LogKv[] {
+                            LogKv.kv("service", api.getName()),
+                            LogKv.kv("priority", priority.name())
+                    },
+                    Set.of());
             if (t instanceof RuntimeException rt) {
                 throw rt;
             }
@@ -506,14 +508,13 @@ public class AddonLifecycleService {
         trackExposedService(addonId, api, provider);
 
         log.logInternal(new LogScope.Addon(addonId, addonVersion(addonId)), LogPhase.SERVICE_REGISTER, LogLevel.INFO,
-            "Public service exposed",
-            null,
-            new LogKv[] {
-                LogKv.kv("service", api.getName()),
-                LogKv.kv("priority", priority.name())
-            },
-            Set.of()
-        );
+                "Public service exposed",
+                null,
+                new LogKv[] {
+                        LogKv.kv("service", api.getName()),
+                        LogKv.kv("priority", priority.name())
+                },
+                Set.of());
     }
 
     private void validateApiType(String addonId, Class<?> apiType) {
@@ -525,22 +526,20 @@ public class AddonLifecycleService {
         AddonServiceRegistry.ApiTypeEnforcementMode mode = this.serviceApiTypeMode;
         LogLevel level = mode == AddonServiceRegistry.ApiTypeEnforcementMode.ERROR ? LogLevel.FATAL : LogLevel.WARN;
         log.logInternal(new LogScope.Addon(addonId, addonVersion(addonId)), LogPhase.LOAD, level,
-            "Service exposure type is not part of api",
-            null,
-            new LogKv[] {
-                LogKv.kv("mode", mode.name()),
-                LogKv.kv("service", apiType.getName()),
-                LogKv.kv("serviceCl", cl == null ? "bootstrap" : cl.toString()),
-                LogKv.kv("apiCl", apiClassLoader == null ? "bootstrap" : apiClassLoader.toString())
-            },
-            Set.of()
-        );
+                "Service exposure type is not part of api",
+                null,
+                new LogKv[] {
+                        LogKv.kv("mode", mode.name()),
+                        LogKv.kv("service", apiType.getName()),
+                        LogKv.kv("serviceCl", cl == null ? "bootstrap" : cl.toString()),
+                        LogKv.kv("apiCl", apiClassLoader == null ? "bootstrap" : apiClassLoader.toString())
+                },
+                Set.of());
 
         if (mode == AddonServiceRegistry.ApiTypeEnforcementMode.ERROR) {
             throw new IllegalArgumentException(
-                "Invalid service exposure: Service type " + apiType.getName() + " is not part of api. " +
-                    "Move the service interface/DTOs to api and depend on it as compileOnly."
-            );
+                    "Invalid service exposure: Service type " + apiType.getName() + " is not part of api. " +
+                            "Move the service interface/DTOs to api and depend on it as compileOnly.");
         }
     }
 
@@ -551,11 +550,12 @@ public class AddonLifecycleService {
 
         LogPhase logPhase = phaseToLogPhase(phase);
         LogLevel level = fatal ? LogLevel.FATAL : LogLevel.ERROR;
-        log.logInternal(new LogScope.Addon(addonId, addonVersion(addonId)), logPhase, level, message, cause, new LogKv[] {
-            LogKv.kv("addonId", addonId),
-            LogKv.kv("phase", phase == null ? "" : phase.name()),
-            LogKv.kv("fatal", fatal)
-        }, Set.of());
+        log.logInternal(new LogScope.Addon(addonId, addonVersion(addonId)), logPhase, level, message, cause,
+                new LogKv[] {
+                        LogKv.kv("addonId", addonId),
+                        LogKv.kv("phase", phase == null ? "" : phase.name()),
+                        LogKv.kv("fatal", fatal)
+                }, Set.of());
 
         boolean markFailed = fatal || phase == AddonException.Phase.LOAD || phase == AddonException.Phase.ENABLE;
         if (markFailed) {
@@ -570,7 +570,8 @@ public class AddonLifecycleService {
                 loaded.addon().onDisable();
                 serviceLifecycleManager.disableServices(addonId);
             } catch (Throwable t) {
-                log.logInternal(new LogScope.Addon(addonId, addonVersion(addonId)), LogPhase.DISABLE, LogLevel.ERROR, "Error during disable after failure", t, null, Set.of());
+                log.logInternal(new LogScope.Addon(addonId, addonVersion(addonId)), LogPhase.DISABLE, LogLevel.ERROR,
+                        "Error during disable after failure", t, null, Set.of());
             }
         }
     }
@@ -582,9 +583,10 @@ public class AddonLifecycleService {
             return;
         }
 
-        URL[] urls = {discovered.file().toURI().toURL()};
+        URL[] urls = { discovered.file().toURI().toURL() };
         List<AddonClassLoader> dependencyLoaders = dependencyClassLoaders(metadata);
-        AddonClassLoader loader = new AddonClassLoader(addonId, urls, plugin.getClass().getClassLoader(), dependencyLoaders);
+        AddonClassLoader loader = new AddonClassLoader(addonId, urls, plugin.getClass().getClassLoader(),
+                dependencyLoaders);
         AtomicReference<LogPhase> phaseRef = new AtomicReference<>(LogPhase.LOAD);
         AddonLogger addonLogger = log.forAddon(addonId, metadata.version().toString(), phaseRef::get);
 
@@ -592,13 +594,17 @@ public class AddonLifecycleService {
         try {
             Class<?> clazz = loader.loadClass(metadata.mainClass());
             if (!MultiblockAddon.class.isAssignableFrom(clazz)) {
-                failAddon(addonId, AddonException.Phase.LOAD, "Main class does not implement MultiblockAddon (possible shaded api / classloader conflict): " + metadata.mainClass(), null, true);
+                failAddon(addonId, AddonException.Phase.LOAD,
+                        "Main class does not implement MultiblockAddon (possible shaded api / classloader conflict): "
+                                + metadata.mainClass(),
+                        null, true);
                 close(loader);
                 return;
             }
             addon = (MultiblockAddon) clazz.getDeclaredConstructor().newInstance();
         } catch (Throwable t) {
-            failAddon(addonId, AddonException.Phase.LOAD, "Failed to instantiate addon main class: " + metadata.mainClass(), t, true);
+            failAddon(addonId, AddonException.Phase.LOAD,
+                    "Failed to instantiate addon main class: " + metadata.mainClass(), t, true);
             close(loader);
             return;
         }
@@ -613,7 +619,8 @@ public class AddonLifecycleService {
         }
 
         if (!reportedId.equals(addonId)) {
-            failAddon(addonId, AddonException.Phase.LOAD, "Addon id mismatch. addon.yml=" + addonId + " getId()=" + reportedId, null, true);
+            failAddon(addonId, AddonException.Phase.LOAD,
+                    "Addon id mismatch. addon.yml=" + addonId + " getId()=" + reportedId, null, true);
             close(loader);
             return;
         }
@@ -628,7 +635,8 @@ public class AddonLifecycleService {
         }
 
         if (!reportedVersion.trim().equals(metadata.version().raw())) {
-            failAddon(addonId, AddonException.Phase.LOAD, "Addon version mismatch. addon.yml=" + metadata.version().raw() + " getVersion()=" + reportedVersion.trim(), null, true);
+            failAddon(addonId, AddonException.Phase.LOAD, "Addon version mismatch. addon.yml="
+                    + metadata.version().raw() + " getVersion()=" + reportedVersion.trim(), null, true);
             close(loader);
             return;
         }
@@ -660,9 +668,7 @@ public class AddonLifecycleService {
                 dataFolder,
                 this,
                 serviceRegistry,
-                serviceLifecycleManager,
-                crossReferenceManager
-        );
+                serviceLifecycleManager);
         try {
             phaseRef.set(LogPhase.LOAD);
             addon.onLoad(context);
@@ -740,15 +746,18 @@ public class AddonLifecycleService {
 
             if (Files.exists(configPath)) {
                 YamlConfiguration yaml = YamlConfiguration.loadConfiguration(configPath.toFile());
-                boolean suppressNonCritical = yaml.getBoolean("logging.suppressNonCritical", yaml.getBoolean("logging.suppress", false));
-                String minStr = yaml.getString("logging.minLevelWhenSuppressed", yaml.getString("logging.minLevel", "ERROR"));
+                boolean suppressNonCritical = yaml.getBoolean("logging.suppressNonCritical",
+                        yaml.getBoolean("logging.suppress", false));
+                String minStr = yaml.getString("logging.minLevelWhenSuppressed",
+                        yaml.getString("logging.minLevel", "ERROR"));
                 LogLevel min = parseLevel(minStr, LogLevel.ERROR);
                 addonLogging.put(key, new AddonLoggingSettings(suppressNonCritical, min));
             }
         } catch (Throwable t) {
             addonLogging.remove(key);
             if (addonLogger != null) {
-                addonLogger.withPhase(LogPhase.LOAD).warn("Failed to load addon config.yml logging settings", LogKv.kv("addon", addonId));
+                addonLogger.withPhase(LogPhase.LOAD).warn("Failed to load addon config.yml logging settings",
+                        LogKv.kv("addon", addonId));
             }
         }
     }
@@ -778,7 +787,7 @@ public class AddonLifecycleService {
 
             YamlConfiguration yaml;
             try (InputStream in = jar.getInputStream(entry);
-                 InputStreamReader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
+                    InputStreamReader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
                 yaml = YamlConfiguration.loadConfiguration(reader);
             }
 
@@ -794,12 +803,14 @@ public class AddonLifecycleService {
             }
 
             if (id == null || versionStr == null || main == null) {
-                coreLogger(LogPhase.LOAD).warn("Skipping addon: addon.yml requires id, version, main", LogKv.kv("file", file.getName()));
+                coreLogger(LogPhase.LOAD).warn("Skipping addon: addon.yml requires id, version, main",
+                        LogKv.kv("file", file.getName()));
                 return null;
             }
 
             if (!id.matches("[a-z0-9][a-z0-9_\\-]*(?::[a-z0-9][a-z0-9_\\-]*)?")) {
-                coreLogger(LogPhase.LOAD).warn("Skipping addon: invalid id", LogKv.kv("file", file.getName()), LogKv.kv("id", id));
+                coreLogger(LogPhase.LOAD).warn("Skipping addon: invalid id", LogKv.kv("file", file.getName()),
+                        LogKv.kv("id", id));
                 return null;
             }
 
@@ -807,19 +818,23 @@ public class AddonLifecycleService {
             try {
                 version = Version.parse(versionStr);
             } catch (IllegalArgumentException e) {
-                coreLogger(LogPhase.LOAD).warn("Skipping addon: invalid version", LogKv.kv("file", file.getName()), LogKv.kv("version", versionStr));
+                coreLogger(LogPhase.LOAD).warn("Skipping addon: invalid version", LogKv.kv("file", file.getName()),
+                        LogKv.kv("version", versionStr));
                 return null;
             }
 
             int apiVersion = parseAddonApiVersion(yaml, file.getName());
 
-            Map<String, Version> required = parseYamlDependencies(yaml.get("dependencies"), id, file.getName(), "dependencies");
-            Map<String, Version> optional = parseYamlDependencies(yaml.get("soft-dependencies"), id, file.getName(), "soft-dependencies");
+            Map<String, Version> required = parseYamlDependencies(yaml.get("dependencies"), id, file.getName(),
+                    "dependencies");
+            Map<String, Version> optional = parseYamlDependencies(yaml.get("soft-dependencies"), id, file.getName(),
+                    "soft-dependencies");
 
             if (!required.isEmpty() && !optional.isEmpty()) {
                 for (String depId : required.keySet()) {
                     if (optional.containsKey(depId)) {
-                        coreLogger(LogPhase.LOAD).warn("Optional dependency overridden by required", LogKv.kv("owner", id), LogKv.kv("dep", depId));
+                        coreLogger(LogPhase.LOAD).warn("Optional dependency overridden by required",
+                                LogKv.kv("owner", id), LogKv.kv("dep", depId));
                     }
                 }
                 Map<String, Version> filteredOpt = new LinkedHashMap<>(optional);
@@ -831,7 +846,8 @@ public class AddonLifecycleService {
             dependsIds.addAll(optional.keySet());
             dependsIds = List.copyOf(dependsIds);
 
-            return new AddonMetadata(id, version, apiVersion, main, Map.copyOf(required), Map.copyOf(optional), dependsIds);
+            return new AddonMetadata(id, version, apiVersion, main, Map.copyOf(required), Map.copyOf(optional),
+                    dependsIds);
         }
     }
 
@@ -867,7 +883,8 @@ public class AddonLifecycleService {
                     apiClasses.add(fqcn);
                 }
 
-                if (name.startsWith("com/darkbladedev/engine/api/") || name.startsWith("com/darkbladedev/engine/model/")) {
+                if (name.startsWith("com/darkbladedev/engine/api/")
+                        || name.startsWith("com/darkbladedev/engine/model/")) {
                     embeddedCoreApiClasses.add(fqcn);
                 }
 
@@ -881,23 +898,23 @@ public class AddonLifecycleService {
             });
 
             return new AddonAuditIndex(
-                metadata.id(),
-                file.getName(),
-                metadata.mainClass(),
-                rootPrefixInternal,
-                List.copyOf(classEntries),
-                Set.copyOf(classInternalNames),
-                Set.copyOf(apiClasses),
-                Set.copyOf(apiContractClasses),
-                Set.copyOf(embeddedCoreApiClasses),
-                Set.copyOf(embeddedJars)
-            );
+                    metadata.id(),
+                    file.getName(),
+                    metadata.mainClass(),
+                    rootPrefixInternal,
+                    List.copyOf(classEntries),
+                    Set.copyOf(classInternalNames),
+                    Set.copyOf(apiClasses),
+                    Set.copyOf(apiContractClasses),
+                    Set.copyOf(embeddedCoreApiClasses),
+                    Set.copyOf(embeddedJars));
         } catch (Exception ignored) {
             return null;
         }
     }
 
-    private Map<String, AddonAuditReport> auditDiscoveredAddons(Map<String, DiscoveredAddon> discovered, Map<File, AddonAuditIndex> byFile, boolean strictContracts) {
+    private Map<String, AddonAuditReport> auditDiscoveredAddons(Map<String, DiscoveredAddon> discovered,
+            Map<File, AddonAuditIndex> byFile, boolean strictContracts) {
         Map<String, AddonAuditIndex> indexes = new LinkedHashMap<>();
         for (DiscoveredAddon d : discovered.values()) {
             AddonAuditIndex idx = byFile.get(d.file());
@@ -915,7 +932,8 @@ public class AddonLifecycleService {
 
         Map<String, Set<String>> sharedApisByAddon = new LinkedHashMap<>();
         for (Map.Entry<String, List<String>> e : apiOwners.entrySet()) {
-            if (e.getValue().size() <= 1) continue;
+            if (e.getValue().size() <= 1)
+                continue;
             for (String owner : e.getValue()) {
                 sharedApisByAddon.computeIfAbsent(owner, k -> new LinkedHashSet<>()).add(e.getKey());
             }
@@ -939,8 +957,10 @@ public class AddonLifecycleService {
 
         for (AddonAuditIndex idx : indexes.values()) {
             DiscoveredAddon discoveredAddon = discovered.get(idx.addonId());
-            if (discoveredAddon == null) continue;
-            Set<AddonReferenceHit> refs = scanCrossAddonReferences(discoveredAddon.file(), idx.classEntries(), classOwnerByInternal, idx.addonId());
+            if (discoveredAddon == null)
+                continue;
+            Set<AddonReferenceHit> refs = scanCrossAddonReferences(discoveredAddon.file(), idx.classEntries(),
+                    classOwnerByInternal, idx.addonId());
             if (refs.isEmpty()) {
                 continue;
             }
@@ -1006,7 +1026,8 @@ public class AddonLifecycleService {
                         undeclaredTargets.add(target);
                     }
                 }
-                violations.add("references classes from addons without declared dependency: " + joinLimited(undeclaredTargets, 10));
+                violations.add("references classes from addons without declared dependency: "
+                        + joinLimited(undeclaredTargets, 10));
                 fatal = true;
             }
 
@@ -1021,13 +1042,15 @@ public class AddonLifecycleService {
                 }
             }
 
-            out.put(idx.addonId(), new AddonAuditReport(idx.addonId(), idx.fileName(), shared, declaredRefs, undeclaredRefs, nonApiRefs, idx.embeddedJars(), List.copyOf(violations), fatal));
+            out.put(idx.addonId(), new AddonAuditReport(idx.addonId(), idx.fileName(), shared, declaredRefs,
+                    undeclaredRefs, nonApiRefs, idx.embeddedJars(), List.copyOf(violations), fatal));
         }
 
         return out;
     }
 
-    private Set<AddonReferenceHit> scanCrossAddonReferences(File addonJar, List<String> classEntries, Map<String, String> classOwnerByInternal, String selfId) {
+    private Set<AddonReferenceHit> scanCrossAddonReferences(File addonJar, List<String> classEntries,
+            Map<String, String> classOwnerByInternal, String selfId) {
         if (classEntries == null || classEntries.isEmpty()) {
             return Set.of();
         }
@@ -1039,7 +1062,8 @@ public class AddonLifecycleService {
         try (JarFile jar = new JarFile(addonJar)) {
             for (String entryName : classEntries) {
                 JarEntry entry = jar.getJarEntry(entryName);
-                if (entry == null) continue;
+                if (entry == null)
+                    continue;
                 try (InputStream in = jar.getInputStream(entry)) {
                     Set<AddonReferenceHit> foundInClass = scanClassReferences(in, classOwnerByInternal, selfId);
                     if (!foundInClass.isEmpty()) {
@@ -1057,7 +1081,8 @@ public class AddonLifecycleService {
         return Set.copyOf(hits);
     }
 
-    private Set<AddonReferenceHit> scanClassReferences(InputStream rawIn, Map<String, String> classOwnerByInternal, String selfId) throws IOException {
+    private Set<AddonReferenceHit> scanClassReferences(InputStream rawIn, Map<String, String> classOwnerByInternal,
+            String selfId) throws IOException {
         ClassFileInspection inspection = inspectClassFile(rawIn);
         if (inspection.ownerInternalName() == null || inspection.ownerInternalName().isBlank()) {
             return Set.of();
@@ -1093,7 +1118,8 @@ public class AddonLifecycleService {
         }
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < take; i++) {
-            if (i > 0) sb.append('/');
+            if (i > 0)
+                sb.append('/');
             sb.append(parts[i]);
         }
         return sb.toString();
@@ -1228,7 +1254,8 @@ public class AddonLifecycleService {
                 if (length <= 0L) {
                     continue;
                 }
-                if (ATTR_RUNTIME_VISIBLE_ANNOTATIONS.equals(attributeName) || ATTR_RUNTIME_INVISIBLE_ANNOTATIONS.equals(attributeName)) {
+                if (ATTR_RUNTIME_VISIBLE_ANNOTATIONS.equals(attributeName)
+                        || ATTR_RUNTIME_INVISIBLE_ANNOTATIONS.equals(attributeName)) {
                     byte[] data = in.readNBytes((int) length);
                     collectAnnotationDescriptors(data, utf8, classAnnotations);
                     continue;
@@ -1351,20 +1378,21 @@ public class AddonLifecycleService {
                 String depId = trimToNull(entry.getKey() == null ? null : String.valueOf(entry.getKey()));
                 validateDependencyId(ownerId, depId, fileName, fieldName);
                 Version min = parseDependencyVersionConstraint(
-                    ownerId,
-                    depId,
-                    entry.getValue() == null ? null : String.valueOf(entry.getValue()),
-                    fileName,
-                    fieldName
-                );
+                        ownerId,
+                        depId,
+                        entry.getValue() == null ? null : String.valueOf(entry.getValue()),
+                        fileName,
+                        fieldName);
                 putDependency(out, depId, min, ownerId, fileName, fieldName);
             }
             return Map.copyOf(out);
         }
-        throw new IllegalArgumentException("Invalid addon.yml in " + fileName + ": " + fieldName + " must be a list or map");
+        throw new IllegalArgumentException(
+                "Invalid addon.yml in " + fileName + ": " + fieldName + " must be a list or map");
     }
 
-    private void parseYamlDependencyEntry(Map<String, Version> out, Object entry, String ownerId, String fileName, String fieldName) {
+    private void parseYamlDependencyEntry(Map<String, Version> out, Object entry, String ownerId, String fileName,
+            String fieldName) {
         if (entry == null) {
             return;
         }
@@ -1375,7 +1403,8 @@ public class AddonLifecycleService {
             return;
         }
         if (!(entry instanceof Map<?, ?> map)) {
-            throw new IllegalArgumentException("Invalid addon.yml in " + fileName + ": " + fieldName + " entries must be strings or maps");
+            throw new IllegalArgumentException(
+                    "Invalid addon.yml in " + fileName + ": " + fieldName + " entries must be strings or maps");
         }
         String depId = trimToNull(map.get("id") == null ? null : String.valueOf(map.get("id")));
         validateDependencyId(ownerId, depId, fileName, fieldName);
@@ -1386,14 +1415,17 @@ public class AddonLifecycleService {
 
     private void validateDependencyId(String ownerId, String depId, String fileName, String fieldName) {
         if (depId == null || !depId.matches("[a-z0-9][a-z0-9_\\-]*(?::[a-z0-9][a-z0-9_\\-]*)?")) {
-            throw new IllegalArgumentException("Invalid addon.yml in " + fileName + ": Invalid dependency id in " + fieldName + ": " + depId);
+            throw new IllegalArgumentException(
+                    "Invalid addon.yml in " + fileName + ": Invalid dependency id in " + fieldName + ": " + depId);
         }
         if (depId.equals(ownerId)) {
-            throw new IllegalArgumentException("Invalid addon.yml in " + fileName + ": Self dependency not allowed in " + fieldName);
+            throw new IllegalArgumentException(
+                    "Invalid addon.yml in " + fileName + ": Self dependency not allowed in " + fieldName);
         }
     }
 
-    private Version parseDependencyVersionConstraint(String ownerId, String depId, String rawConstraint, String fileName, String fieldName) {
+    private Version parseDependencyVersionConstraint(String ownerId, String depId, String rawConstraint,
+            String fileName, String fieldName) {
         String constraint = trimToNull(rawConstraint);
         if (constraint == null) {
             return MIN_DEPENDENCY_VERSION;
@@ -1420,26 +1452,27 @@ public class AddonLifecycleService {
             return Version.parse(candidate);
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException(
-                "Invalid addon.yml in " + fileName + ": Invalid dependency version in " + fieldName + ": " + depId + " (" + constraint + ")"
-            );
+                    "Invalid addon.yml in " + fileName + ": Invalid dependency version in " + fieldName + ": " + depId
+                            + " (" + constraint + ")");
         }
     }
 
-    private void putDependency(Map<String, Version> out, String depId, Version min, String ownerId, String fileName, String fieldName) {
+    private void putDependency(Map<String, Version> out, String depId, Version min, String ownerId, String fileName,
+            String fieldName) {
         if (out.containsKey(depId)) {
             coreLogger(LogPhase.LOAD).warn(
-                "Duplicate dependency declaration (last one wins)",
-                LogKv.kv("owner", ownerId),
-                LogKv.kv("dep", depId),
-                LogKv.kv("field", fieldName),
-                LogKv.kv("file", fileName)
-            );
+                    "Duplicate dependency declaration (last one wins)",
+                    LogKv.kv("owner", ownerId),
+                    LogKv.kv("dep", depId),
+                    LogKv.kv("field", fieldName),
+                    LogKv.kv("file", fileName));
         }
         out.put(depId, min == null ? MIN_DEPENDENCY_VERSION : min);
     }
 
     private static String trimToNull(String s) {
-        if (s == null) return null;
+        if (s == null)
+            return null;
         String t = s.trim();
         return t.isEmpty() ? null : t;
     }
@@ -1531,14 +1564,14 @@ public class AddonLifecycleService {
                 return true;
             }
             return name.startsWith("java.")
-                || name.startsWith("javax.")
-                || name.startsWith("jdk.")
-                || name.startsWith("sun.")
-                || name.startsWith("com.sun.")
-                || name.startsWith("org.bukkit.")
-                || name.startsWith("io.papermc.")
-                || name.startsWith("net.minecraft.")
-                || name.startsWith("com.destroystokyo.paper.");
+                    || name.startsWith("javax.")
+                    || name.startsWith("jdk.")
+                    || name.startsWith("sun.")
+                    || name.startsWith("com.sun.")
+                    || name.startsWith("org.bukkit.")
+                    || name.startsWith("io.papermc.")
+                    || name.startsWith("net.minecraft.")
+                    || name.startsWith("com.destroystokyo.paper.");
         }
 
         @Override
@@ -1555,8 +1588,10 @@ public class AddonLifecycleService {
 
         for (String id : resolvedOrder) {
             LoadedAddon loaded = loadedAddons.get(id);
-            if (loaded == null) continue;
-            if (states.getOrDefault(id, AddonState.DISABLED) != AddonState.LOADED) continue;
+            if (loaded == null)
+                continue;
+            if (states.getOrDefault(id, AddonState.DISABLED) != AddonState.LOADED)
+                continue;
             serviceLifecycleManager.injectAddon(id, loaded.addon());
             serviceLifecycleManager.injectServices(id);
         }
@@ -1565,8 +1600,10 @@ public class AddonLifecycleService {
         List<String> contentRegistrationOrder = new ArrayList<>();
         for (String id : resolvedOrder) {
             LoadedAddon loaded = loadedAddons.get(id);
-            if (loaded == null) continue;
-            if (states.getOrDefault(id, AddonState.DISABLED) != AddonState.LOADED) continue;
+            if (loaded == null)
+                continue;
+            if (states.getOrDefault(id, AddonState.DISABLED) != AddonState.LOADED)
+                continue;
 
             String missing = missingRequiredEnabledDependencies(loaded.metadata());
             if (missing != null) {
@@ -1594,19 +1631,21 @@ public class AddonLifecycleService {
                 boolean exposureFailed = false;
                 for (PendingExposure exposure : exposures) {
                     try {
-                        Object provider = BukkitServiceBridge.exposeProviderRaw(plugin, exposure.api(), exposure.implementation(), exposure.priority());
+                        Object provider = BukkitServiceBridge.exposeProviderRaw(plugin, exposure.api(),
+                                exposure.implementation(), exposure.priority());
                         trackExposedService(id, exposure.api(), provider);
-                        log.logInternal(new LogScope.Addon(id, addonVersion(id)), LogPhase.SERVICE_REGISTER, LogLevel.INFO,
-                            "Public service exposed",
-                            null,
-                            new LogKv[] {
-                                LogKv.kv("service", exposure.api().getName()),
-                                LogKv.kv("priority", exposure.priority().name())
-                            },
-                            Set.of()
-                        );
+                        log.logInternal(new LogScope.Addon(id, addonVersion(id)), LogPhase.SERVICE_REGISTER,
+                                LogLevel.INFO,
+                                "Public service exposed",
+                                null,
+                                new LogKv[] {
+                                        LogKv.kv("service", exposure.api().getName()),
+                                        LogKv.kv("priority", exposure.priority().name())
+                                },
+                                Set.of());
                     } catch (Throwable t) {
-                        failAddon(id, AddonException.Phase.ENABLE, "Failed to expose public service: " + exposure.api().getName(), t, true);
+                        failAddon(id, AddonException.Phase.ENABLE,
+                                "Failed to expose public service: " + exposure.api().getName(), t, true);
                         exposureFailed = true;
                         break;
                     }
@@ -1642,7 +1681,8 @@ public class AddonLifecycleService {
         while (!enableOrder.isEmpty()) {
             String id = enableOrder.removeLast();
             LoadedAddon loaded = loadedAddons.get(id);
-            if (loaded == null) continue;
+            if (loaded == null)
+                continue;
 
             try {
                 unexposeAddonServices(id);
@@ -1670,7 +1710,6 @@ public class AddonLifecycleService {
         serviceLifecycleManager.disableServices(CORE_PROVIDER_ID);
         exposedServices.clear();
         serviceLifecycleManager.clear();
-        crossReferenceManager.clear();
     }
 
     private void trackExposedService(String addonId, Class<?> api, Object provider) {
@@ -1694,21 +1733,24 @@ public class AddonLifecycleService {
         for (ExposedService svc : services) {
             try {
                 BukkitServiceBridge.unexpose(svc.api(), svc.provider());
-                ComponentKind kind = MbeCommandService.class.isAssignableFrom(svc.api()) ? ComponentKind.COMMAND_SERVICE : ComponentKind.SERVICE;
+                ComponentKind kind = MbeCommandService.class.isAssignableFrom(svc.api()) ? ComponentKind.COMMAND_SERVICE
+                        : ComponentKind.SERVICE;
                 publishComponentAvailability(addonId, svc.api().getName(), kind, ComponentChangeType.REMOVED);
             } catch (Throwable t) {
-                log.logInternal(new LogScope.Addon(addonId, addonVersion(addonId)), LogPhase.SERVICE_REGISTER, LogLevel.WARN,
-                    "Failed to unexpose public service",
-                    t,
-                    new LogKv[] { LogKv.kv("service", svc.api().getName()) },
-                    Set.of()
-                );
+                log.logInternal(new LogScope.Addon(addonId, addonVersion(addonId)), LogPhase.SERVICE_REGISTER,
+                        LogLevel.WARN,
+                        "Failed to unexpose public service",
+                        t,
+                        new LogKv[] { LogKv.kv("service", svc.api().getName()) },
+                        Set.of());
             }
         }
     }
 
-    private void publishComponentAvailability(String addonId, String componentId, ComponentKind kind, ComponentChangeType changeType) {
-        if (addonId == null || addonId.isBlank() || componentId == null || componentId.isBlank() || kind == null || changeType == null) {
+    private void publishComponentAvailability(String addonId, String componentId, ComponentKind kind,
+            ComponentChangeType changeType) {
+        if (addonId == null || addonId.isBlank() || componentId == null || componentId.isBlank() || kind == null
+                || changeType == null) {
             return;
         }
         if (Bukkit.getServer() == null) {
@@ -1718,7 +1760,8 @@ public class AddonLifecycleService {
     }
 
     private EngineLogger coreLogger(LogPhase phase) {
-        return (level, message, throwable, fields) -> log.logInternal(new LogScope.Core(), phase, level, message, throwable, fields, Set.of());
+        return (level, message, throwable, fields) -> log.logInternal(new LogScope.Core(), phase, level, message,
+                throwable, fields, Set.of());
     }
 
     private String addonVersion(String addonId) {
@@ -1758,7 +1801,8 @@ public class AddonLifecycleService {
     }
 
     private static LogPhase phaseToLogPhase(AddonException.Phase phase) {
-        if (phase == null) return LogPhase.RUNTIME;
+        if (phase == null)
+            return LogPhase.RUNTIME;
         return switch (phase) {
             case LOAD -> LogPhase.LOAD;
             case ENABLE -> LogPhase.ENABLE;

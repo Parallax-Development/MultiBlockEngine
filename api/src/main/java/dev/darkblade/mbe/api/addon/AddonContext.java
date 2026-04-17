@@ -1,9 +1,6 @@
 package dev.darkblade.mbe.api.addon;
 
 import dev.darkblade.mbe.api.MultiblockAPI;
-import dev.darkblade.mbe.api.addon.crossref.CrossReferenceDeclaration;
-import dev.darkblade.mbe.api.addon.crossref.CrossReferenceHandle;
-import dev.darkblade.mbe.api.addon.crossref.CrossReferenceMetrics;
 import dev.darkblade.mbe.api.assembly.MultiblockBuilder;
 import dev.darkblade.mbe.api.logging.AddonLogger;
 import dev.darkblade.mbe.api.service.MBEService;
@@ -56,21 +53,6 @@ public interface AddonContext {
         exposeService(api, implementation, ServicePriority.Normal);
     }
 
-    default <T> void declareCrossReference(CrossReferenceDeclaration<T> declaration) {
-        throw new UnsupportedOperationException("Cross-reference declaration is not available");
-    }
-
-    default <T> Optional<T> getCrossReference(String referenceId, Class<T> type) {
-        return Optional.empty();
-    }
-
-    default <T> CrossReferenceHandle<T> getCrossReferenceHandle(String referenceId, Class<T> type) {
-        return CrossReferenceHandle.unresolved();
-    }
-
-    default CrossReferenceMetrics getCrossReferenceMetrics() {
-        return new CrossReferenceMetrics(0, 0, 0, 0L, 0L);
-    }
     
     void registerAction(String key, Function<Map<String, Object>, Action> factory);
     void registerCondition(String key, Function<Map<String, Object>, Condition> factory);
