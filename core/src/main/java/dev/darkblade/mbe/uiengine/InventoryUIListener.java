@@ -1,5 +1,6 @@
 package dev.darkblade.mbe.uiengine;
 
+import dev.darkblade.mbe.api.compat.InventoryCompatService;
 import dev.darkblade.mbe.api.blueprint.BlueprintService;
 import dev.darkblade.mbe.preview.MultiblockDefinition;
 import org.bukkit.entity.Player;
@@ -8,16 +9,19 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.inventory.Inventory;
 
 import java.util.Objects;
 
 public final class InventoryUIListener implements Listener {
     private final InventorySessionStore sessions;
     private final BlueprintService blueprintService;
+    private final InventoryCompatService compat;
 
-    public InventoryUIListener(InventorySessionStore sessions, BlueprintService blueprintService) {
+    public InventoryUIListener(InventorySessionStore sessions, BlueprintService blueprintService, InventoryCompatService compat) {
         this.sessions = Objects.requireNonNull(sessions, "sessions");
         this.blueprintService = Objects.requireNonNull(blueprintService, "blueprintService");
+        this.compat = Objects.requireNonNull(compat, "compat");
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -29,11 +33,12 @@ public final class InventoryUIListener implements Listener {
         if (session == null) {
             return;
         }
-        if (session.inventory() != event.getView().getTopInventory()) {
+        Inventory topInventory = compat.topInventory(event);
+        if (session.inventory() != topInventory) {
             return;
         }
         int rawSlot = event.getRawSlot();
-        if (rawSlot < 0 || rawSlot >= event.getView().getTopInventory().getSize()) {
+        if (rawSlot < 0 || rawSlot >= topInventory.getSize()) {
             return;
         }
         event.setCancelled(true);

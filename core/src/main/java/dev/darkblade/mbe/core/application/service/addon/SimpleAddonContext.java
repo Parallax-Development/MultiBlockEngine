@@ -7,6 +7,7 @@ import dev.darkblade.mbe.api.addon.crossref.CrossReferenceDeclaration;
 import dev.darkblade.mbe.api.addon.crossref.CrossReferenceHandle;
 import dev.darkblade.mbe.api.addon.crossref.CrossReferenceMetrics;
 import dev.darkblade.mbe.api.assembly.MultiblockBuilder;
+import dev.darkblade.mbe.api.compat.SchedulerCompatService;
 import dev.darkblade.mbe.api.logging.AddonLogger;
 import dev.darkblade.mbe.api.service.MBEService;
 import dev.darkblade.mbe.api.service.ServiceListener;
@@ -231,11 +232,21 @@ public class SimpleAddonContext implements AddonContext {
 
     @Override
     public void runTask(Runnable task) {
+        SchedulerCompatService scheduler = addonManager.getCoreService(SchedulerCompatService.class);
+        if (scheduler != null) {
+            scheduler.runSync(task);
+            return;
+        }
         MultiBlockEngine.getInstance().getServer().getScheduler().runTask(MultiBlockEngine.getInstance(), task);
     }
 
     @Override
     public void runTaskAsync(Runnable task) {
+        SchedulerCompatService scheduler = addonManager.getCoreService(SchedulerCompatService.class);
+        if (scheduler != null) {
+            scheduler.runAsync(task);
+            return;
+        }
         MultiBlockEngine.getInstance().getServer().getScheduler().runTaskAsynchronously(MultiBlockEngine.getInstance(), task);
     }
 }
