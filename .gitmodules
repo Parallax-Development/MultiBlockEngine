@@ -4,3 +4,6 @@
 [submodule "addons/mbe-ui"]
 	path = addons/mbe-ui
 	url = git@github.com:Parallax-Development/MBE-UI.git
+[submodule "addons/mbe-wiring"]
+	path = addons/mbe-wiring
+	url = git@github.com:Parallax-Development/MBE-Wiring.git
