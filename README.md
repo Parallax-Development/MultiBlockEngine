@@ -6,7 +6,7 @@
 
 [![PaperMC](https://img.shields.io/badge/PaperMC-1.19.4%20|%201.21.1-lightgrey.svg)](https://papermc.io/)
 [![Architecture](https://img.shields.io/badge/Architecture-Service%20Oriented-blue)](#)
-[![License](https://img.shields.io/badge/License-MBE--L-green.svg)]([https://opensource.org/licenses/MIT](https://github.com/Parallax-Development/MultiBlockEngine/blob/main/LICENSE))
+[![License](https://img.shields.io/badge/License-MBE--L-green.svg)](https://github.com/Parallax-Development/MultiBlockEngine/blob/main/LICENSE)
 
 </div>
 
