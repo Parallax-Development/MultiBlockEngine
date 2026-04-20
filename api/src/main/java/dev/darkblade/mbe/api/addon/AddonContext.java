@@ -64,4 +64,5 @@ public interface AddonContext {
     
     void runTask(Runnable task);
     void runTaskAsync(Runnable task);
+    void registerCommand(String name, org.bukkit.command.CommandExecutor executor, String... aliases);
 }
