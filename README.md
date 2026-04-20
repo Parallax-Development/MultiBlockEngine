@@ -1,239 +1,128 @@
-# MultiBlockEngine
+<div align="center">
 
-**MultiBlockEngine** is a high-performance, extensible, and maintainable multi-block structure system designed for Minecraft servers (Paper/Spigot).
+# ⚙️ MultiBlockEngine (MBE)
 
----
+*A high-performance, modular, and service-oriented ecosystem for multi-block structures in Minecraft.*
 
-## 🎯 Key Objectives
+[![PaperMC](https://img.shields.io/badge/PaperMC-1.19.4%20|%201.21.1-lightgrey.svg)](https://papermc.io/)
+[![Architecture](https://img.shields.io/badge/Architecture-Service%20Oriented-blue)](#)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
-- **Event-Driven Detection**: Detects structures based on events rather than periodic scans.
-- **YAML Definitions**: Define multi-block structures using external YAML files.
-- **Immutable Models**: Compiles definitions into an internal immutable model for thread safety and performance.
-- **Efficient Lifecycle**: Creates live instances only when valid and maintains state with fast invalidation.
-- **Separation of Concerns**: Strict separation between definition, instance, and behavior.
+</div>
 
 ---
 
-## 🧠 Design Philosophy
+## 🚀 Overview
 
-> "The plugin does not search for structures; it recognizes them when they are born and maintains them while they exist."
+**MultiBlockEngine (MBE)** is not just a plugin for detecting custom structures; it's a comprehensive **runtime ecosystem**. Multi-blocks in MBE are living entities with robust state management, behaviors, and deep integrations with customized energy networks, UI systems, and wiring.
 
-**Core Principles:**
-- **Immutability**: Definitions cannot be changed at runtime, ensuring stability.
-- **Early Validation**: Fail fast during parsing to prevent runtime errors.
-- **Lightweight Runtime**: Minimal overhead during gameplay.
-- **Extensibility**: Designed to grow without breaking existing implementations.
+Built with an **API-First Design**, extreme modularity via Addons, and a Service-Oriented Architecture (SOA), MBE acts as a solid, unopinionated platform for driving complex gameplay mechanics on your server.
 
 ---
 
-## 🧱 Configuration (YAML)
+## ✨ Features
 
-Structures are defined in `plugins/MultiBlockEngine/multiblocks/`.
+- **Event-Driven Detection**: No costly periodic world scans. Structures are assembled organically using smart, event-based `AssemblyTrigger`s.
+- **Declarative YAML Definitions**: Easily define multi-block patterns, controllers, constraints, and initial states without touching Java code.
+- **Service-Oriented Architecture**: Extreme decoupling. Everything from Persistence to Wiring is an injected `MBEService`.
+- **First-Class Addon System**: Addons are core expansion modules, managing their own isolated logic, components, and lifecycles without direct class coupling.
+- **Built-in Ecosystem Systems**:
+  - ⚡ **Energy**: Full abstractions for producers, consumers, storage modules, and isolated networks.
+  - 🔌 **Wiring**: Multi-topological generic graphs to connect elements securely (items, liquids, data, energy).
+  - 🖥️ **UI System**: Decoupled, reflection-safe UI rendering with dynamic bindings and zero `InventoryView` versioning headaches across 1.19.4-1.21+.
+  - 🛠️ **World Crafting**: Autonomous, chunk-based world crafting simulation and dynamic condition-based recipe execution.
+  - 🏗️ **Blueprints & Tooling**: In-game visual `BlockDisplay` previews, blueprint-guided builds, and wrench interactions.
+- **Reliable Persistence**: Robust SQLite/MySQL state saving, snapshots, and recovery mechanisms to keep instances safe across restarts.
 
-### Basic Example
+---
+
+## 🧠 Architectural Philosophy
+
+> "The engine does not just search for structures; it builds an ecosystem for them to thrive in."
+
+MBE is structurally divided to avoid tight coupling:
+
+1. **API (`api/`)**: The source of truth. Contains interfaces, domain models, and service contracts. Nothing concrete lives here.
+2. **Core (`core/`)**: The inner orchestration layer. Handles service registries, the addon lifecycle, cataloging, and YAML compilation.
+3. **Addons (`addons/`)**: Where the actual gameplay features, tooling, and integrations live.
+
+> [!WARNING]
+> We enforce strict boundaries. No monolithic God Classes. No hardcoded logic in events. MBE relies purely on event-driven flows and Domain-Driven Design (DDD).
+
+---
+
+## 🏗️ Architecture Diagram
+
+```mermaid
+graph TD
+    subgraph MultiBlockEngine Platform
+        A(API layer <br/> Contracts & Services) --- B{Core Orchestrator}
+        B --- |Injects Services| C(ServiceRegistry)
+        B --- |Manages| D(Addon Lifecycle)
+    end
+    
+    subgraph Addons Ecosystem
+        D --> E[mbe-energy]
+        D --> F[mbe-wiring]
+        D --> G[mbe-crafting]
+        D --> H[mbe-ui]
+        D --> I[mbe-blueprints]
+    end
+    
+    C -.-> E
+    C -.-> F
+    C -.-> G
+    C -.-> H
+```
+
+---
+
+## 🔧 Sub-System Highlights
+
+| System | Capabilities | Example Use Case |
+| :--- | :--- | :--- |
+| **Wiring & Topology** | Generic multi-graph topologies preventing mixed network collisions while maintaining spatial constraints. | Running isolated Item logistics pipelines vs. Energy cables in the same room. |
+| **World Crafting** | Chunk-based scanners that evaluate world conditions (temperature, nearby blocks) to autonomously process recipes in-world. | A Blast Furnace that operates autonomously based on nearby lava, tracked by a real-time UI. |
+| **Blueprints & Previews** | Interactive placement previews. Allows players to see holograms (`BlockDisplay`) of multi-blocks before confirming placement. | Guided, error-free construction of massive multiblock factories. |
+| **Persistence** | Snapshotting and metrics with complete state recovery. Handles chunk-loads asynchronously. | Safely recovering a 500-instance server economy after a crash, without data loss. |
+
+---
+
+## 🧱 Example: YAML Structure Definition
+
+Structures are defined via rich configurations inside `plugins/MultiBlockEngine/multiblocks/`:
 
 ```yaml
-id: simple_core
-version: 1.0
+id: simple_furnace
+version: "1.0.0"
 
 # The anchor block that triggers detection
-controller: DIAMOND_BLOCK
+controller: BLAST_FURNACE
 
 pattern:
-  # Relative offsets from the controller (x, y, z)
   - offset: [0, -1, 0]
-    match: OBSIDIAN
-  
+    match: MAGMA_BLOCK
   - offset: [1, 0, 0]
-    match: "#logs"  # Minecraft Tag support
-
+    match: "#minecraft:stone_bricks"  # Native Tag Support!
 ```
-
-### Matcher Types
-
-The engine compiles YAML patterns into efficient `BlockMatcher` instances:
-
-- **Exact Material**: Matches a specific `Material`.
-- **Tag Matcher**: Matches a block tag (e.g., `#logs`, `#wool`).
-- **AnyOf**: Matches any from a list of matchers.
-- **Air**: Explicitly matches air blocks.
 
 ---
 
-## ⚙️ Execution Flow
+## 💡 Developer Guidelines (Definition of Done)
 
-1.  **Startup**:
-    - Load YAML definitions.
-    - Validate and compile into `MultiblockType`.
-    - Restore persisted instances from database.
-2.  **Runtime**:
-    - Listen for `BlockPlaceEvent` and `PlayerInteractEvent`.
-    - Check if the block is a known **Controller**.
-    - Validate the surrounding pattern candidates.
-    - If valid, create and register a `MultiblockInstance`.
-3.  **Invalidation**:
-    - Listen for `BlockBreakEvent`.
-    - Check if the block belongs to an active instance (O(1) lookup).
-    - Destroy the instance and clean up resources.
+When building addons or modifying the core, adherence to the strict design rules is required:
+- **Contract Isolation**: Keep implementation details strictly out of the `api` layer.
+- **Decoupled Services**: Use `@InjectService` instead of rigid singletons or direct coupling.
+- **No Circular Dependencies**: Ensure Addons communicate exclusively through events and standard `MBEServices`.
+- **Reflection Safety**: Always use compat wrappers (like `InventoryCompatService`) to ensure smooth native cross-version support (1.19.4–1.21+).
+- **Non-Blocking operations**: Block updates and persistence MUST be thread-safe or properly scheduled away from the main thread lock-ups.
 
 ---
 
-## 💾 Persistence
+## 📚 Acknowledgements
 
-- **State Management**: Active instances are tracked in memory for fast access.
-- **Shutdown**: Instances are serialized and saved to the database (SQLite via HikariCP).
-- **Startup**: Instances are restored and lazily re-validated.
+Built with passion for next-level Minecraft server engineering. Thanks to the open-source projects making this possible:
 
----
-
-## 📚 References
-
-- [PaperMC](https://papermc.io/) - High performance Minecraft server software.
-- [HikariCP](https://github.com/brettwooldridge/HikariCP) - A "zero-overhead" production ready JDBC connection pool.
-- [PlaceholderAPI](https://github.com/PlaceholderAPI/PlaceholderAPI) - Placeholder expansion for Bukkit plugins.
-
----
-
-## 🔁 Addon Cross-Reference System
-
-The addon runtime now includes a dedicated cross-reference graph with dynamic resolution, lazy edges, and cycle validation before addon enable.
-
-### API
-
-- `CrossReferenceDeclaration<T>`: Declarative node definition (`referenceId`, `contractType`, factory, dependencies).
-- `CrossReferenceDependency`: Dependency edge with `required` + `mode` (`EAGER` or `LAZY`).
-- `CrossReferenceHandle<T>`: Late-bound handle used to break hard coupling between addons/classes.
-- `InjectCrossReference`: Field injection annotation for direct or handle-based cross-reference access.
-- `AddonContext` extensions:
-  - `declareCrossReference(...)`
-  - `getCrossReference(...)`
-  - `getCrossReferenceHandle(...)`
-  - `getCrossReferenceMetrics()`
-
-### Architecture Diagram
-
-```mermaid
-flowchart LR
-    A[Addon A onLoad] --> C[AddonContext.declareCrossReference]
-    B[Addon B onLoad] --> C
-    C --> D[AddonCrossReferenceManager]
-    D --> E[Compile Graph]
-    E --> F[Validate Missing Required Dependencies]
-    E --> G[Validate Invalid EAGER Cycles]
-    E --> H[Initialize Nodes with Ready EAGER Dependencies]
-    H --> I[Runtime Resolution]
-    I --> J[InjectCrossReference on services/addons]
-```
-
-### Validation Model
-
-- Required missing dependency: compilation failure for the owner addon.
-- EAGER cycle (A↔B or self-loop): invalid, compilation failure.
-- LAZY cycle: valid, resolved through handles without classloader-level hard coupling.
-- Factory type mismatch/null return: initialization failure and addon marked as failed.
-
-### Load Lifecycle
-
-```mermaid
-sequenceDiagram
-    participant AM as AddonManager
-    participant AX as Addon A
-    participant BX as Addon B
-    participant CRM as CrossReferenceManager
-    AM->>AX: onLoad(context)
-    AX->>CRM: declare node(s)
-    AM->>BX: onLoad(context)
-    BX->>CRM: declare node(s)
-    AM->>CRM: compileAndInitialize()
-    CRM-->>AM: failures + metrics
-    AM->>AM: mark failed addons
-    AM->>AM: enable only valid addons
-```
-
-### Usage Example
-
-```java
-public final class EnergyAddon implements MultiblockAddon {
-    private AddonContext context;
-
-    @Override
-    public String getId() {
-        return "energy";
-    }
-
-    @Override
-    public String getVersion() {
-        return "1.0.0";
-    }
-
-    @Override
-    public void onLoad(AddonContext context) {
-        this.context = context;
-        context.declareCrossReference(
-            CrossReferenceDeclaration.builder("energy:grid", EnergyGridApi.class, resolver -> new EnergyGridService(
-                resolver.handle("machines:controller", MachineControllerApi.class)
-            ))
-                .dependsOnRequiredLazy("machines:controller")
-                .build()
-        );
-    }
-
-    @Override
-    public void onEnable() {
-        EnergyGridApi grid = context.getCrossReference("energy:grid", EnergyGridApi.class).orElseThrow();
-        grid.start();
-    }
-
-    @Override
-    public void onDisable() {
-    }
-}
-```
-
-### Injection Example
-
-```java
-public final class MachineService implements MBEService {
-    @InjectCrossReference("energy:grid")
-    private CrossReferenceHandle<EnergyGridApi> energyGrid;
-
-    @Override
-    public String getServiceId() {
-        return "machines:service";
-    }
-
-    @Override
-    public void onEnable() {
-        energyGrid.resolve().ifPresent(EnergyGridApi::warmup);
-    }
-}
-```
-
-### Performance Metrics
-
-The runtime reports:
-
-- Declared references
-- Initialized references
-- Failed references
-- Compile time (ns/ms)
-- Initialization time (ns/ms)
-- Total graph build cost
-
-Current implementation is validated with tests that compile and initialize 1000 declarations under a bounded runtime budget, ensuring no significant startup degradation under typical addon counts.
-
-### Migration Guide for Addon Developers
-
-- Keep existing `@InjectService` usage unchanged for service DI.
-- Introduce cross-addon class coupling through `CrossReferenceDeclaration` instead of direct class imports between addon jars.
-- Replace hard direct links with `CrossReferenceHandle<T>` when both sides need bidirectional integration.
-- Use `dependsOnRequiredEager(...)` only when strict initialization order is necessary.
-- Use `dependsOnRequiredLazy(...)` for bidirectional or deferred-runtime linking.
-- Query metrics through `AddonContext.getCrossReferenceMetrics()` for startup diagnostics.
-- Backward compatibility: addons that do not use cross-reference API continue to work without changes.
-
-### Legacy Compatibility Notes
-
-- Existing addon service lifecycle (`registerService`, `getService`, `@InjectService`) remains intact.
-- New cross-reference injection is additive and optional.
-- Addon load/enable order still respects addon-level dependency resolver.
+- [PaperMC](https://papermc.io/) - High-performance Minecraft server software.
+- [HikariCP](https://github.com/brettwooldridge/HikariCP) - "Zero-overhead" JDBC connection pool.
+- [ProtocolLib](https://github.com/dmulloy2/ProtocolLib) - Protocol manipulation library.
