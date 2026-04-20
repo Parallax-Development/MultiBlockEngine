@@ -222,4 +222,25 @@ public class SimpleAddonContext implements AddonContext {
         }
         MultiBlockEngine.getInstance().getServer().getScheduler().runTaskAsynchronously(MultiBlockEngine.getInstance(), task);
     }
+
+    @Override
+    public void registerCommand(String name, org.bukkit.command.CommandExecutor executor, String... aliases) {
+        try {
+            final java.lang.reflect.Field f = plugin.getServer().getClass().getDeclaredField("commandMap");
+            f.setAccessible(true);
+            org.bukkit.command.CommandMap commandMap = (org.bukkit.command.CommandMap) f.get(plugin.getServer());
+            org.bukkit.command.Command cmd = new org.bukkit.command.Command(name) {
+                @Override
+                public boolean execute(org.bukkit.command.CommandSender sender, String commandLabel, String[] args) {
+                    return executor.onCommand(sender, this, commandLabel, args);
+                }
+            };
+            if (aliases != null && aliases.length > 0) {
+                cmd.setAliases(java.util.Arrays.asList(aliases));
+            }
+            commandMap.register(addonNamespace, cmd);
+        } catch (Exception e) {
+            logger.error("Failed to register command " + name + " for addon " + addonId, e);
+        }
+    }
 }
