@@ -48,3 +48,6 @@ placeholder:
 metadata:
   placeholder-cache-ttl-ms: 1000
   placeholder-context-max-distance: 12.0
+
+features:
+  blueprint_table: true

@@ -40,7 +40,6 @@ import dev.darkblade.mbe.blueprint.BlueprintServiceImpl;
 import dev.darkblade.mbe.blueprint.BuildContextService;
 import dev.darkblade.mbe.blueprint.InMemoryBuildContextService;
 import dev.darkblade.mbe.blueprint.PreviewPlacementController;
-import dev.darkblade.mbe.catalog.CatalogListener;
 import dev.darkblade.mbe.catalog.PreviewOriginResolver;
 import dev.darkblade.mbe.catalog.RaycastPreviewOriginResolver;
 import dev.darkblade.mbe.catalog.StructureCatalogService;
@@ -134,6 +133,12 @@ import dev.darkblade.mbe.uiengine.InventorySessionStore;
 import dev.darkblade.mbe.uiengine.InventoryUIListener;
 import dev.darkblade.mbe.uiengine.InventoryUIService;
 import dev.darkblade.mbe.uiengine.InventoryUIServiceImpl;
+import dev.darkblade.mbe.api.block.BlockRegistry;
+import dev.darkblade.mbe.core.block.DefaultBlockRegistry;
+import dev.darkblade.mbe.core.block.BlockItemService;
+import dev.darkblade.mbe.core.block.BlockPlacementListener;
+import dev.darkblade.mbe.core.infrastructure.config.block.BuiltinBlockLoader;
+
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.event.Listener;
@@ -432,11 +437,21 @@ public class MultiBlockEngine extends JavaPlugin {
         ensureDefaultMultiblockFiles();
         i18n.reload();
         
-        // Ensure directory exists
         File multiblockDir = new File(getDataFolder(), "multiblocks");
         if (!multiblockDir.exists()) {
             multiblockDir.mkdirs();
         }
+
+        BlockRegistry blockRegistry = new DefaultBlockRegistry(manager);
+        addonManager.registerCoreService(BlockRegistry.class, blockRegistry);
+        BlockItemService blockItemService = new BlockItemService(this, blockRegistry);
+        addonManager.registerCoreService(BlockItemService.class, blockItemService);
+        getServer().getPluginManager().registerEvents(new BlockPlacementListener(blockItemService, blockRegistry, manager, assemblyCoordinator), this);
+
+        File builtinDir = new File(multiblockDir, ".builtin");
+        if (!builtinDir.exists()) builtinDir.mkdirs();
+        BuiltinBlockLoader blockLoader = new BuiltinBlockLoader(blockRegistry, log);
+        blockLoader.loadFromDirectory(builtinDir);
         
         // Load definitions
         log.setCorePhase(LogPhase.LOAD);
@@ -507,10 +522,6 @@ public class MultiBlockEngine extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new PreviewBlockPlaceListener(structurePreviewService, buildContextService), this);
         getServer().getPluginManager().registerEvents(new StructurePreviewRequestListener(structurePreviewService), this);
         getServer().getPluginManager().registerEvents(new InventoryUIListener(inventorySessions, blueprintService, inventoryCompatService), this);
-        getServer().getPluginManager().registerEvents(new CatalogListener(
-                blueprintService,
-                itemStackBridge
-        ), this);
         getServer().getPluginManager().registerEvents(new PlaceholderCacheInvalidationListener(playerMultiblockQueryService), this);
         getServer().getPluginManager().registerEvents(new MetadataInvalidationListener(metadataService), this);
         getServer().getPluginManager().registerEvents(new IOPortLifecycleListener(ioService, portResolutionService), this);
@@ -658,6 +669,11 @@ public class MultiBlockEngine extends JavaPlugin {
             defaultDir.mkdirs();
         }
         saveResourceIfNotExists("multiblocks/.default/base_machine.yml");
+        File builtinDir = getDataFolder().toPath().resolve("multiblocks").resolve(".builtin").toFile();
+        if (!builtinDir.exists()) {
+            builtinDir.mkdirs();
+        }
+        saveResourceIfNotExists("multiblocks/.builtin/blueprint_table.yml");
         saveResourceIfNotExists("multiblocks/.default/mana_generator.yml");
         saveResourceIfNotExists("multiblocks/.default/example_portal.yml");
         saveResourceIfNotExists("multiblocks/.default/healer_machine.yml");
