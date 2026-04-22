@@ -100,7 +100,7 @@ public class MultiblockListener implements Listener {
                 eventCaller,
                 assembly,
                 i18n,
-                new DefaultInteractionPipelineService(assembly, wrenchDispatcher, new InteractionRouter(), null),
+                new DefaultInteractionPipelineService(assembly, wrenchDispatcher, new InteractionRouter(), null, manager),
                 new BukkitInteractionIntentFactory()
         );
     }
@@ -181,6 +181,8 @@ public class MultiblockListener implements Listener {
         }
         if (interactionPipeline.handle(intent)) {
             event.setCancelled(true);
+            event.setUseInteractedBlock(org.bukkit.event.Event.Result.DENY);
+            event.setUseItemInHand(org.bukkit.event.Event.Result.DENY);
         }
     }
 

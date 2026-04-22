@@ -1,5 +1,6 @@
 package dev.darkblade.mbe.core.application.service.interaction;
 
+import dev.darkblade.mbe.api.assembly.AssemblyReport;
 import dev.darkblade.mbe.api.command.WrenchContext;
 import dev.darkblade.mbe.api.command.WrenchDispatcher;
 import dev.darkblade.mbe.api.command.WrenchResult;
@@ -10,13 +11,17 @@ import dev.darkblade.mbe.api.service.interaction.InteractionIntent;
 import dev.darkblade.mbe.api.service.interaction.InteractionPipelineService;
 import dev.darkblade.mbe.api.service.interaction.InteractionSource;
 import dev.darkblade.mbe.api.service.interaction.InteractionType;
+import dev.darkblade.mbe.core.application.service.MultiblockRuntimeService;
 import dev.darkblade.mbe.core.application.service.ui.InteractionRouter;
 import dev.darkblade.mbe.core.application.service.wrench.DefaultWrenchDispatcher;
+import dev.darkblade.mbe.core.domain.MultiblockInstance;
 import dev.darkblade.mbe.core.domain.assembly.AssemblyCoordinator;
 import dev.darkblade.mbe.core.infrastructure.bridge.item.ItemStackBridge;
+import org.bukkit.block.TileState;
 import org.bukkit.event.block.Action;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public final class DefaultInteractionPipelineService implements InteractionPipelineService {
@@ -25,18 +30,21 @@ public final class DefaultInteractionPipelineService implements InteractionPipel
     private final WrenchDispatcher wrenchDispatcher;
     private final InteractionRouter interactionRouter;
     private final ItemStackBridge itemStackBridge;
+    private final MultiblockRuntimeService multiblockRuntimeService;
     private final List<InteractionHandler> handlers = new CopyOnWriteArrayList<>();
 
     public DefaultInteractionPipelineService(
             AssemblyCoordinator assemblyCoordinator,
             WrenchDispatcher wrenchDispatcher,
             InteractionRouter interactionRouter,
-            ItemStackBridge itemStackBridge
+            ItemStackBridge itemStackBridge,
+            MultiblockRuntimeService multiblockRuntimeService
     ) {
         this.assemblyCoordinator = assemblyCoordinator;
         this.wrenchDispatcher = wrenchDispatcher;
         this.interactionRouter = interactionRouter;
         this.itemStackBridge = itemStackBridge;
+        this.multiblockRuntimeService = multiblockRuntimeService;
     }
 
     @Override
@@ -66,11 +74,24 @@ public final class DefaultInteractionPipelineService implements InteractionPipel
         }
 
         if (assemblyCoordinator != null && effectiveIntent.type() != InteractionType.WRENCH_USE) {
-            assemblyCoordinator.tryAssemble(effectiveIntent);
+            AssemblyReport report = assemblyCoordinator.tryAssemble(effectiveIntent);
+            if (report != null && report.success()) {
+                cancelVanilla = true;
+            }
         }
 
         if (!cancelVanilla && interactionRouter != null) {
             cancelVanilla = interactionRouter.route(intent);
+        }
+
+        if (!cancelVanilla && multiblockRuntimeService != null && effectiveIntent.targetBlock() != null) {
+            Optional<MultiblockInstance> instanceOpt = multiblockRuntimeService.getInstanceAt(effectiveIntent.targetBlock().getLocation());
+            if (instanceOpt.isPresent()) {
+                MultiblockInstance instance = instanceOpt.get();
+                if (instance.type().pattern().isEmpty() && effectiveIntent.targetBlock().getState() instanceof TileState) {
+                    cancelVanilla = true;
+                }
+            }
         }
 
         for (InteractionHandler handler : handlers) {

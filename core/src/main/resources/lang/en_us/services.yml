@@ -90,3 +90,20 @@ services:
     list:
       title: "&eAvailable services ({count}):"
       entry: "&7- {id} : {description}"
+  crafting:
+    ui:
+      title: "Blueprint Crafting Table"
+      empty: " "
+      blueprint:
+        name: "&b{id}"
+        click_to_select: "&aClick to select this blueprint"
+      input:
+        name: "&ePaper Slot"
+        hint: "&7Place a paper here to craft a blueprint"
+      btn:
+        prev_page: "Previous Page"
+        next_page: "Next Page"
+        close: "Close"
+      feedback:
+        no_paper: "&cYou need a paper in the input slot to craft a blueprint."
+        output_occupied: "&eTake the blueprint from the output slot first."

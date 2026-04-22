@@ -111,6 +111,7 @@ pattern:
 ## 💡 Developer Guidelines (Definition of Done)
 
 When building addons or modifying the core, adherence to the strict design rules is required:
+
 - **Contract Isolation**: Keep implementation details strictly out of the `api` layer.
 - **Decoupled Services**: Use `@InjectService` instead of rigid singletons or direct coupling.
 - **No Circular Dependencies**: Ensure Addons communicate exclusively through events and standard `MBEServices`.
@@ -126,3 +127,4 @@ Built with passion for next-level Minecraft server engineering. Thanks to the op
 - [PaperMC](https://papermc.io/) - High-performance Minecraft server software.
 - [HikariCP](https://github.com/brettwooldridge/HikariCP) - "Zero-overhead" JDBC connection pool.
 - [ProtocolLib](https://github.com/dmulloy2/ProtocolLib) - Protocol manipulation library.
+- [PlaceholderAPI](https://placeholderapi.com) - PlaceholderAPI integration.

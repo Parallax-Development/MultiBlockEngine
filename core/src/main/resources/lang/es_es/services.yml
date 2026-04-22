@@ -90,3 +90,20 @@ services:
     list:
       title: "&eServicios disponibles ({count}):"
       entry: "&7- {id} : {description}"
+  crafting:
+    ui:
+      title: "Mesa de Crafteo de Blueprints"
+      empty: " "
+      blueprint:
+        name: "&b{id}"
+        click_to_select: "&aHaz clic para seleccionar este blueprint"
+      input:
+        name: "&eRanura de Papel"
+        hint: "&7Coloca un papel aquí para craftear un blueprint"
+      btn:
+        prev_page: "Página Anterior"
+        next_page: "Página Siguiente"
+        close: "Cerrar"
+      feedback:
+        no_paper: "&cNecesitas un papel en la ranura de entrada para craftear un blueprint."
+        output_occupied: "&ePrimero toma el blueprint de la ranura de salida."

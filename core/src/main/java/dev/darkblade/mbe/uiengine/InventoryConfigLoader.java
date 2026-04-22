@@ -49,7 +49,8 @@ public final class InventoryConfigLoader {
         List<String> layout = section.getStringList("layout");
         Map<Character, InventoryItemDefinition> items = parseItems(section.getConfigurationSection("items"));
         List<DynamicSection> dynamicSections = parseDynamicSections(section.getConfigurationSection("dynamic_sections"));
-        return new InventoryViewDefinition(viewId, title, size, layout, items, dynamicSections);
+        Map<Integer, SlotRole> slotRoles = parseSlotRoles(section.getConfigurationSection("slot_roles"));
+        return new InventoryViewDefinition(viewId, title, size, layout, items, dynamicSections, slotRoles);
     }
 
     private Map<Character, InventoryItemDefinition> parseItems(ConfigurationSection itemsSection) {
@@ -96,4 +97,30 @@ public final class InventoryConfigLoader {
         }
         return List.copyOf(out);
     }
+
+    private Map<Integer, SlotRole> parseSlotRoles(ConfigurationSection slotRolesSection) {
+        if (slotRolesSection == null) {
+            return Map.of();
+        }
+        Map<Integer, SlotRole> out = new LinkedHashMap<>();
+        for (String key : slotRolesSection.getKeys(false)) {
+            int slot;
+            try {
+                slot = Integer.parseInt(key);
+            } catch (NumberFormatException e) {
+                continue;
+            }
+            String roleName = slotRolesSection.getString(key, "").trim().toUpperCase(Locale.ROOT);
+            if (roleName.isBlank()) {
+                continue;
+            }
+            try {
+                out.put(slot, SlotRole.valueOf(roleName));
+            } catch (IllegalArgumentException e) {
+                // Unknown role — skip silently to allow forward compatibility
+            }
+        }
+        return Map.copyOf(out);
+    }
 }
+

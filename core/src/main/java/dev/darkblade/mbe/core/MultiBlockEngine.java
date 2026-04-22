@@ -133,6 +133,11 @@ import dev.darkblade.mbe.uiengine.InventorySessionStore;
 import dev.darkblade.mbe.uiengine.InventoryUIListener;
 import dev.darkblade.mbe.uiengine.InventoryUIService;
 import dev.darkblade.mbe.uiengine.InventoryUIServiceImpl;
+import dev.darkblade.mbe.uiengine.blueprint.BlueprintCraftingPanelListener;
+import dev.darkblade.mbe.uiengine.blueprint.BlueprintCraftingPanelRenderer;
+import dev.darkblade.mbe.uiengine.blueprint.BlueprintCraftingSessionStore;
+import dev.darkblade.mbe.blueprint.BlueprintCraftingServiceImpl;
+import dev.darkblade.mbe.api.blueprint.BlueprintCraftingService;
 import dev.darkblade.mbe.api.block.BlockRegistry;
 import dev.darkblade.mbe.core.block.DefaultBlockRegistry;
 import dev.darkblade.mbe.core.block.BlockItemService;
@@ -390,6 +395,20 @@ public class MultiBlockEngine extends JavaPlugin {
                 inventorySessions
         );
         addonManager.registerCoreService(InventoryUIService.class, inventoryUIService);
+        // Blueprint crafting table panel components
+        BlueprintCraftingSessionStore craftingSessionStore = new BlueprintCraftingSessionStore();
+        BlueprintCraftingPanelRenderer craftingPanelRenderer = new BlueprintCraftingPanelRenderer(
+                structureCatalogService,
+                craftingSessionStore,
+                addonManager.getCoreService(I18nService.class),
+                addonManager.getCoreService(ItemService.class),
+                itemStackBridge
+        );
+        BlueprintCraftingServiceImpl craftingService = new BlueprintCraftingServiceImpl(
+                craftingSessionStore,
+                addonManager.getCoreService(ItemService.class),
+                itemStackBridge
+        );
         PreviewOriginResolver previewOriginResolver = new RaycastPreviewOriginResolver(getConfig().getInt("preview.raycastDistance", 8));
         BlueprintController blueprintController = new BlueprintController(
                 buildContextService,
@@ -398,16 +417,18 @@ public class MultiBlockEngine extends JavaPlugin {
                 previewOriginResolver,
                 new BlueprintHeldItemResolver(itemStackBridge)
         );
-        BlueprintServiceImpl blueprintService = new BlueprintServiceImpl(blueprintController, inventoryUIService);
+        BlueprintServiceImpl blueprintService = new BlueprintServiceImpl(blueprintController, inventoryUIService,
+                craftingPanelRenderer);
         addonManager.registerCoreService(BlueprintService.class, blueprintService);
         addonManager.registerCoreMbeService(blueprintService);
         Bukkit.getServicesManager().register(BlueprintService.class, blueprintService, this, ServicePriority.Normal);
+        addonManager.registerCoreService(BlueprintCraftingService.class, craftingService);
         BlueprintInputListener blueprintInputListener = new BlueprintInputListener(blueprintController);
 
         editorSessions = new EditorSessionManager();
         interactionRouter = new InteractionRouter();
         interactionRouter.setPanelViewService(panelViewService);
-        InteractionPipelineService pipelineService = new DefaultInteractionPipelineService(assemblyCoordinator, null, interactionRouter, itemStackBridge);
+        InteractionPipelineService pipelineService = new DefaultInteractionPipelineService(assemblyCoordinator, null, interactionRouter, itemStackBridge, manager);
         addonManager.registerCoreService(InteractionPipelineService.class, pipelineService);
         panelBindings = new PanelBindingService(new File(getDataFolder(), "panel-bindings.yml"), interactionRouter);
         coreServiceLifecycleCoordinator.register(panelBindings);
@@ -522,6 +543,13 @@ public class MultiBlockEngine extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new PreviewBlockPlaceListener(structurePreviewService, buildContextService), this);
         getServer().getPluginManager().registerEvents(new StructurePreviewRequestListener(structurePreviewService), this);
         getServer().getPluginManager().registerEvents(new InventoryUIListener(inventorySessions, blueprintService, inventoryCompatService), this);
+        getServer().getPluginManager().registerEvents(
+                new BlueprintCraftingPanelListener(
+                        craftingSessionStore,
+                        craftingPanelRenderer,
+                        craftingService,
+                        addonManager.getCoreService(dev.darkblade.mbe.api.message.PlayerMessageService.class)
+                ), this);
         getServer().getPluginManager().registerEvents(new PlaceholderCacheInvalidationListener(playerMultiblockQueryService), this);
         getServer().getPluginManager().registerEvents(new MetadataInvalidationListener(metadataService), this);
         getServer().getPluginManager().registerEvents(new IOPortLifecycleListener(ioService, portResolutionService), this);
