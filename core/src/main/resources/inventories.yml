@@ -23,3 +23,58 @@ views:
       blueprints:
         symbol: "B"
         provider: "blueprints"
+
+  blueprint_crafting_table:
+    title: "{services.crafting.ui.title}"
+    size: 54
+    # Layout (6 rows x 9 cols):
+    #  Row 0 (slots  0- 8): all decorative border
+    #  Row 1 (slots  9-17): G B B B B G P G G  (P = input paper, slot 15)
+    #  Row 2 (slots 18-26): G B B B B G T O G  (T = crafting table deco slot 24, O = output slot 25)
+    #  Row 3 (slots 27-35): G B B B B G G G G
+    #  Row 4 (slots 36-44): G B B B B G p n G  (p = prev slot 42, n = next slot 43)
+    #  Row 5 (slots 45-53): X G G G G G G G G  (X = close slot 45)
+    # Note: B slots (blueprint catalog) are rendered programmatically by the renderer.
+    #       Only static items are declared here.
+    layout:
+      - "GGGGGGGGG"
+      - "GBBBBGPgG"
+      - "GBBBBGTOg"
+      - "GBBBBGGGg"
+      - "GBBBBGpnG"
+      - "XGGGGGGGG"
+    items:
+      "G":
+        material: LIGHT_GRAY_STAINED_GLASS_PANE
+        name: "{services.crafting.ui.empty}"
+      "g":
+        material: LIGHT_GRAY_STAINED_GLASS_PANE
+        name: "{services.crafting.ui.empty}"
+      "P":
+        material: PAPER
+        name: "{services.crafting.ui.input.name}"
+        lore:
+          - "{services.crafting.ui.input.hint}"
+      "T":
+        material: CRAFTING_TABLE
+        name: "{services.crafting.ui.empty}"
+      "p":
+        material: WHITE_STAINED_GLASS_PANE
+        name: "&f{services.crafting.ui.btn.prev_page}"
+      "n":
+        material: WHITE_STAINED_GLASS_PANE
+        name: "&f{services.crafting.ui.btn.next_page}"
+      "X":
+        material: RED_STAINED_GLASS_PANE
+        name: "&c{services.crafting.ui.btn.close}"
+    slot_roles:
+      15: INPUT
+      25: OUTPUT
+      42: ACTION_PREV
+      43: ACTION_NEXT
+      45: ACTION_CLOSE
+    dynamic_sections:
+      blueprints:
+        symbol: "B"
+        provider: "blueprints_paged"
+

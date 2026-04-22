@@ -9,7 +9,8 @@ public record InventoryViewDefinition(
         int size,
         List<String> layout,
         Map<Character, InventoryItemDefinition> items,
-        List<DynamicSection> dynamicSections
+        List<DynamicSection> dynamicSections,
+        Map<Integer, SlotRole> slotRoles
 ) {
     public InventoryViewDefinition {
         id = id == null ? "" : id.trim().toLowerCase(java.util.Locale.ROOT);
@@ -18,6 +19,7 @@ public record InventoryViewDefinition(
         layout = layout == null ? List.of() : List.copyOf(layout);
         items = items == null ? Map.of() : Map.copyOf(items);
         dynamicSections = dynamicSections == null ? List.of() : List.copyOf(dynamicSections);
+        slotRoles = slotRoles == null ? Map.of() : Map.copyOf(slotRoles);
     }
 
     private static int normalizeSize(int raw) {
@@ -26,3 +28,4 @@ public record InventoryViewDefinition(
         return mod == 0 ? clamped : clamped + (9 - mod);
     }
 }
+
