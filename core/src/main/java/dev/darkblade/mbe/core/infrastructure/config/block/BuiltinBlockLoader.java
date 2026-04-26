@@ -55,6 +55,18 @@ public class BuiltinBlockLoader {
                     builder.assemblyTrigger(config.getString("assembly_trigger"));
                 }
 
+                if (config.contains("on_interact")) {
+                    for (Object obj : config.getList("on_interact")) {
+                        if (obj instanceof java.util.Map<?, ?> map) {
+                            String action = (String) map.get("action");
+                            if ("open_panel".equals(action)) {
+                                String panelId = (String) map.get("panel");
+                                builder.onInteract(new dev.darkblade.mbe.core.domain.action.OpenPanelAction(panelId));
+                            }
+                        }
+                    }
+                }
+
                 BlockDefinition def = builder.build();
                 registry.register(def);
 

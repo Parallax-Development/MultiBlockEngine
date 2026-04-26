@@ -4,4 +4,4 @@ material: CRAFTING_TABLE
 assembly_trigger: auto
 on_interact:
   - action: "open_panel"
-    panel: "mbe.core.blueprint_table"
+    panel: "blueprint_crafting_table"

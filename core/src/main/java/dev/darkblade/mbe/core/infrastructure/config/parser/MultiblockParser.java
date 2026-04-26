@@ -161,6 +161,14 @@ public class MultiblockParser {
             }
             return new TagMatcher(tag);
         });
+
+        api.registerAction("open_panel", map -> {
+            String panelId = (String) map.get("panel");
+            if (panelId == null || panelId.isBlank()) {
+                throw new IllegalArgumentException("Missing 'panel' for open_panel action");
+            }
+            return new dev.darkblade.mbe.core.domain.action.OpenPanelAction(panelId);
+        });
     }
 
     private MessageKey messageKey(Map<String, Object> map, String preferredField, String legacyField) {
