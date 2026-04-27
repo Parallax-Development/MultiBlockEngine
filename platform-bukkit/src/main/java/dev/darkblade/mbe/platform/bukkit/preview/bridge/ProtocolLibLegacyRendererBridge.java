@@ -47,7 +47,7 @@ public final class ProtocolLibLegacyRendererBridge implements DisplayEntityRende
         byVersion.put(ProtocolVersion.V1_21_4, renderer_1_21_2);
         byVersion.put(ProtocolVersion.V1_21_5, renderer_1_21_2);
         byVersion.put(ProtocolVersion.V1_21_6, renderer_1_21_2);
-        byVersion.put(ProtocolVersion.V1_21_7, renderer_1_21_2);
+        byVersion.put(ProtocolVersion.V1_21_7_OR_8, renderer_1_21_2);
         byVersion.put(ProtocolVersion.V1_21_9, renderer_1_21_2);
         byVersion.put(ProtocolVersion.V1_21_11, renderer_1_21_2);
         this.renderer = new VersionedRenderer(new VersionResolver(), byVersion, new FallbackRenderer());

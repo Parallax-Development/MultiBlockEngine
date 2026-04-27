@@ -88,8 +88,30 @@ public final class DefaultInteractionPipelineService implements InteractionPipel
             Optional<MultiblockInstance> instanceOpt = multiblockRuntimeService.getInstanceAt(effectiveIntent.targetBlock().getLocation());
             if (instanceOpt.isPresent()) {
                 MultiblockInstance instance = instanceOpt.get();
-                if (instance.type().pattern().isEmpty() && effectiveIntent.targetBlock().getState() instanceof TileState) {
+                if (instance.type().pattern().isEmpty() && effectiveIntent.targetBlock().getState() instanceof org.bukkit.block.TileState) {
                     cancelVanilla = true;
+                }
+                
+                org.bukkit.event.block.Action bukkitAction = toBukkitAction(effectiveIntent.type());
+                if (bukkitAction != null && effectiveIntent.player() != null) {
+                    dev.darkblade.mbe.api.event.MultiblockInteractEvent mbEvent = new dev.darkblade.mbe.api.event.MultiblockInteractEvent(instance, effectiveIntent.player(), bukkitAction, effectiveIntent.targetBlock());
+                    org.bukkit.Bukkit.getPluginManager().callEvent(mbEvent);
+                    if (mbEvent.isCancelled()) {
+                        cancelVanilla = true;
+                    } else {
+                        for (dev.darkblade.mbe.core.domain.action.Action a : instance.type().onInteractActions()) {
+                            if (a != null && a.shouldExecuteOnInteract(bukkitAction)) {
+                                if (a.cancelsVanillaOnInteract(bukkitAction)) {
+                                    cancelVanilla = true;
+                                }
+                                try {
+                                    a.execute(instance, effectiveIntent.player());
+                                } catch (Throwable t) {
+                                    org.bukkit.Bukkit.getLogger().log(java.util.logging.Level.SEVERE, "Failed to execute interact action", t);
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -99,7 +121,8 @@ public final class DefaultInteractionPipelineService implements InteractionPipel
                 continue;
             }
             try {
-                if (handler.handle(effectiveIntent)) {
+                boolean result = handler.handle(effectiveIntent);
+                if (result) {
                     cancelVanilla = true;
                 }
             } catch (Throwable ignored) {

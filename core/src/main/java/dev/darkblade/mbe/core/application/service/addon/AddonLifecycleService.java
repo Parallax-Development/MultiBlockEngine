@@ -229,7 +229,7 @@ public class AddonLifecycleService {
         enableOrder.clear();
         pendingExposures.clear();
         exposedServices.clear();
-        serviceLifecycleManager.clear();
+        serviceLifecycleManager.clearAddons();
         resolvedOrder = List.of();
 
         for (Map.Entry<String, List<DiscoveredAddon>> entry : candidates.entrySet()) {

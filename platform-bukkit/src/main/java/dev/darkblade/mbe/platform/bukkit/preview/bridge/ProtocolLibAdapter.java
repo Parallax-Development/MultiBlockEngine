@@ -6,6 +6,9 @@ import com.comphenix.protocol.ProtocolManager;
 import com.comphenix.protocol.events.PacketContainer;
 import com.comphenix.protocol.wrappers.WrappedBlockData;
 import com.comphenix.protocol.wrappers.WrappedDataWatcher;
+
+import dev.darkblade.mbe.core.MultiBlockEngine;
+
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.data.BlockData;
@@ -68,7 +71,9 @@ public final class ProtocolLibAdapter {
             } else {
                 blockData = material.createBlockData();
             }
-        } catch (RuntimeException ignored) {
+        } catch (RuntimeException ex) {
+            MultiBlockEngine.getInstance().getLoggingService().core()
+                    .warn("BlockData creation failed for " + namespacedId + ": " + ex.getMessage());
             blockData = material.createBlockData();
         }
         WrappedBlockData wrapped = WrappedBlockData.createData(blockData);
@@ -86,7 +91,10 @@ public final class ProtocolLibAdapter {
             Method writeMethod = modifier.getClass().getMethod("write", int.class, Object.class);
             writeMethod.invoke(modifier, 0, new ArrayList<>(packets));
             return true;
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            Bukkit.getLogger().log(Level.WARNING,
+                    "[MBE Preview] Could not write bundle packets (this is normal on versions < 1.20.2): "
+                            + t.getMessage());
             return false;
         }
     }
@@ -94,7 +102,9 @@ public final class ProtocolLibAdapter {
     private PacketType resolveBundlePacketType() {
         try {
             return (PacketType) PacketType.Play.Server.class.getField("BUNDLE").get(null);
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            Bukkit.getLogger().log(Level.INFO,
+                    "[MBE Preview] BUNDLE packet type not available on this server version.");
             return null;
         }
     }

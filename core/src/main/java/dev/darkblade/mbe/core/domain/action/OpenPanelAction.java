@@ -18,9 +18,29 @@ public class OpenPanelAction implements dev.darkblade.mbe.core.domain.action.Act
         if (player == null) return;
         MultiBlockEngine plugin = MultiBlockEngine.getInstance();
         if (plugin != null && plugin.getAddonLifecycleService() != null) {
+            // Support opening the special Blueprint Crafting Table panel
+            if ("blueprint_crafting_table".equals(panelId)) {
+                dev.darkblade.mbe.api.blueprint.BlueprintService blueprintService = plugin.getAddonLifecycleService().getCoreService(dev.darkblade.mbe.api.blueprint.BlueprintService.class);
+                if (blueprintService != null) {
+                    blueprintService.openCraftingTable(player);
+                    return;
+                }
+            }
+
+            // Fallback to Addon PanelViewService
             PanelViewService panelService = plugin.getAddonLifecycleService().getCoreService(PanelViewService.class);
-            if (panelService != null) {
+            if (panelService != null && panelService.getPanel(dev.darkblade.mbe.api.ui.runtime.PanelId.of(panelId)).isPresent()) {
                 panelService.openPanel(player, panelId);
+                return;
+            }
+
+            // Fallback to Core InventoryUIService
+            dev.darkblade.mbe.uiengine.InventoryUIService inventoryUIService = plugin.getAddonLifecycleService().getCoreService(dev.darkblade.mbe.uiengine.InventoryUIService.class);
+            if (inventoryUIService != null) {
+                try {
+                    inventoryUIService.open(player, panelId);
+                } catch (Exception ignored) {
+                }
             }
         }
     }

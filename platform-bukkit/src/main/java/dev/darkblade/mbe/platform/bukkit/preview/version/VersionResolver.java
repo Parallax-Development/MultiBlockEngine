@@ -18,7 +18,8 @@ public final class VersionResolver {
         try {
             int protocolId = protocolManager.getProtocolVersion(player);
             return map(protocolId);
-        } catch (RuntimeException ignored) {
+        } catch (RuntimeException ex) {
+            org.bukkit.Bukkit.getLogger().log(java.util.logging.Level.WARNING, "[MBE Preview] Protocol resolution failed: " + ex.getMessage());
             return ProtocolVersion.UNKNOWN;
         }
     }
@@ -35,7 +36,7 @@ public final class VersionResolver {
             case 769 -> ProtocolVersion.V1_21_4;
             case 770 -> ProtocolVersion.V1_21_5;
             case 771 -> ProtocolVersion.V1_21_6;
-            case 772 -> ProtocolVersion.V1_21_7;
+            case 772 -> ProtocolVersion.V1_21_7_OR_8;
             case 773 -> ProtocolVersion.V1_21_9;
             case 774 -> ProtocolVersion.V1_21_11;
             default -> protocolId > 774 ? ProtocolVersion.V1_21_11 : ProtocolVersion.UNKNOWN;
