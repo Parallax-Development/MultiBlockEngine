@@ -14,7 +14,7 @@ import java.util.regex.Pattern;
 
 public final class MBEServiceRegistry {
     private static final Pattern SERVICE_ID_PATTERN = Pattern.compile("^[a-z0-9][a-z0-9_\\-]*:[a-z0-9][a-z0-9_.\\-]*$");
-    private static final Logger LOGGER = Logger.getLogger(MBEServiceRegistry.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(MBEServiceRegistry.class.getSimpleName());
 
     private final ConcurrentHashMap<String, MBEService> services = new ConcurrentHashMap<>();
     private final CopyOnWriteArrayList<ServiceListener> listeners = new CopyOnWriteArrayList<>();
@@ -51,9 +51,9 @@ public final class MBEServiceRegistry {
     public <T> List<T> getByType(Class<T> type) {
         Objects.requireNonNull(type, "type");
         return services.values().stream()
-            .filter(type::isInstance)
-            .map(type::cast)
-            .toList();
+                .filter(type::isInstance)
+                .map(type::cast)
+                .toList();
     }
 
     public Optional<MBEService> unregister(String id) {

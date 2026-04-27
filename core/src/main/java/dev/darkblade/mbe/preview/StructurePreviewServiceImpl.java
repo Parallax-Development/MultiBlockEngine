@@ -227,6 +227,7 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
         if (session.definition() == null || session.definition().blocks() == null) {
             return;
         }
+        int count = 0;
         for (PreviewBlock block : session.definition().blocks()) {
             if (block == null || block.localPosition() == null || block.blockData() == null) {
                 continue;
@@ -243,6 +244,7 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
                 worldLocation.getBlockZ()
             );
             renderQueue.offer(new RenderTask(player, session, renderVersion, position, worldLocation, block.blockData()));
+            count++;
         }
         session.touch();
     }
@@ -254,6 +256,9 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
     }
 
     private void processQueue() {
+        if (renderQueue.isEmpty()) {
+            return;
+        }
         int processed = 0;
         while (processed < batchSize) {
             RenderTask task = renderQueue.poll();

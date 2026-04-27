@@ -74,7 +74,8 @@ public class MultiblockListener implements Listener {
         this(manager, eventCaller, null, null, null);
     }
 
-    public MultiblockListener(MultiblockRuntimeService manager, Consumer<Event> eventCaller, WrenchDispatcher wrenchDispatcher) {
+    public MultiblockListener(MultiblockRuntimeService manager, Consumer<Event> eventCaller,
+            WrenchDispatcher wrenchDispatcher) {
         this(manager, eventCaller, wrenchDispatcher, null, null);
     }
 
@@ -82,27 +83,31 @@ public class MultiblockListener implements Listener {
         this(manager, Bukkit.getPluginManager()::callEvent, wrenchDispatcher, null, null);
     }
 
-    public MultiblockListener(MultiblockRuntimeService manager, WrenchDispatcher wrenchDispatcher, AssemblyCoordinator assembly) {
+    public MultiblockListener(MultiblockRuntimeService manager, WrenchDispatcher wrenchDispatcher,
+            AssemblyCoordinator assembly) {
         this(manager, Bukkit.getPluginManager()::callEvent, wrenchDispatcher, assembly, null);
     }
 
-    public MultiblockListener(MultiblockRuntimeService manager, WrenchDispatcher wrenchDispatcher, AssemblyCoordinator assembly, I18nService i18n) {
+    public MultiblockListener(MultiblockRuntimeService manager, WrenchDispatcher wrenchDispatcher,
+            AssemblyCoordinator assembly, I18nService i18n) {
         this(manager, Bukkit.getPluginManager()::callEvent, wrenchDispatcher, assembly, i18n);
     }
 
-    public MultiblockListener(MultiblockRuntimeService manager, Consumer<Event> eventCaller, WrenchDispatcher wrenchDispatcher, AssemblyCoordinator assembly) {
+    public MultiblockListener(MultiblockRuntimeService manager, Consumer<Event> eventCaller,
+            WrenchDispatcher wrenchDispatcher, AssemblyCoordinator assembly) {
         this(manager, eventCaller, wrenchDispatcher, assembly, null);
     }
 
-    public MultiblockListener(MultiblockRuntimeService manager, Consumer<Event> eventCaller, WrenchDispatcher wrenchDispatcher, AssemblyCoordinator assembly, I18nService i18n) {
+    public MultiblockListener(MultiblockRuntimeService manager, Consumer<Event> eventCaller,
+            WrenchDispatcher wrenchDispatcher, AssemblyCoordinator assembly, I18nService i18n) {
         this(
                 manager,
                 eventCaller,
                 assembly,
                 i18n,
-                new DefaultInteractionPipelineService(assembly, wrenchDispatcher, new InteractionRouter(), null, manager),
-                new BukkitInteractionIntentFactory()
-        );
+                new DefaultInteractionPipelineService(assembly, wrenchDispatcher, new InteractionRouter(), null,
+                        manager),
+                new BukkitInteractionIntentFactory());
     }
 
     public MultiblockListener(
@@ -111,8 +116,7 @@ public class MultiblockListener implements Listener {
             AssemblyCoordinator assembly,
             I18nService i18n,
             InteractionPipelineService interactionPipeline,
-            BukkitInteractionIntentFactory intentFactory
-    ) {
+            BukkitInteractionIntentFactory intentFactory) {
         this.manager = manager;
         this.eventCaller = eventCaller;
         this.assembly = assembly;
@@ -132,18 +136,18 @@ public class MultiblockListener implements Listener {
         AssemblyContext ctx = new AssemblyContext(
                 event.getPlayer(),
                 event.getBlockPlaced(),
-                null
-        );
+                null);
         assembly.tryAssembleFromPlacedBlock(event.getBlockPlaced(), ctx);
     }
-    
+
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onInteract(PlayerInteractEvent event) {
         if (event.getHand() != EquipmentSlot.HAND) {
             return;
         }
         event.setUseInteractedBlock(Event.Result.ALLOW);
-        if ((event.getAction() == org.bukkit.event.block.Action.LEFT_CLICK_BLOCK || event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK)
+        if ((event.getAction() == org.bukkit.event.block.Action.LEFT_CLICK_BLOCK
+                || event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK)
                 && event.getClickedBlock() != null
                 && isToolItem(event.getItem())) {
             ToolDispatcher dispatcher = resolveToolDispatcher();
@@ -155,8 +159,7 @@ public class MultiblockListener implements Listener {
                     event.getClickedBlock(),
                     event.getAction(),
                     event.getItem(),
-                    event.getHand()
-            );
+                    event.getHand());
             dispatcher.dispatch(context, resolveTrigger(event));
             event.setCancelled(true);
             return;
@@ -179,7 +182,8 @@ public class MultiblockListener implements Listener {
             }
             return;
         }
-        if (interactionPipeline.handle(intent)) {
+        boolean cancelled = interactionPipeline.handle(intent);
+        if (cancelled) {
             event.setCancelled(true);
             event.setUseInteractedBlock(org.bukkit.event.Event.Result.DENY);
             event.setUseItemInHand(org.bukkit.event.Event.Result.DENY);
@@ -214,7 +218,8 @@ public class MultiblockListener implements Listener {
         } catch (Throwable t) {
             return false;
         }
-        if (instance == null || instance.definition() == null || instance.definition().key() == null || instance.definition().key().id() == null) {
+        if (instance == null || instance.definition() == null || instance.definition().key() == null
+                || instance.definition().key().id() == null) {
             return false;
         }
         String inferredToolId = instance.definition().key().id().key();
@@ -270,7 +275,7 @@ public class MultiblockListener implements Listener {
                 event.setCancelled(true);
                 return;
             }
-            
+
             for (dev.darkblade.mbe.core.domain.action.Action action : instance.type().onBreakActions()) {
                 executeActionSafely("BREAK", action, instance, null);
             }
@@ -291,8 +296,7 @@ public class MultiblockListener implements Listener {
                     MSG_DISASSEMBLED,
                     MessageChannel.CHAT,
                     MessagePriority.NORMAL,
-                    Map.of("type", typeId)
-            ));
+                    Map.of("type", typeId)));
             return;
         }
         I18nService service = resolveI18n();
@@ -379,7 +383,8 @@ public class MultiblockListener implements Listener {
         }
     }
 
-    private void executeActionSafely(String runtimePhase, dev.darkblade.mbe.core.domain.action.Action action, MultiblockInstance instance, Player player) {
+    private void executeActionSafely(String runtimePhase, dev.darkblade.mbe.core.domain.action.Action action,
+            MultiblockInstance instance, Player player) {
         try {
             if (player != null) {
                 action.execute(instance, player);
@@ -399,20 +404,26 @@ public class MultiblockListener implements Listener {
             }
 
             Object counter = instance != null ? instance.getVariable("counter") : null;
-            String msg = "[" + runtimePhase + "] Action '" + actionName + "' failed Context: counter=" + counter + " Multiblock=" + (instance != null ? instance.type().id() : "unknown") + " Execution continued";
+            String msg = "[" + runtimePhase + "] Action '" + actionName + "' failed Context: counter=" + counter
+                    + " Multiblock=" + (instance != null ? instance.type().id() : "unknown") + " Execution continued";
 
-            if (ownerId != null && !ownerId.isBlank() && MultiBlockEngine.getInstance().getAddonLifecycleService() != null) {
-                MultiBlockEngine.getInstance().getAddonLifecycleService().failAddon(ownerId, AddonException.Phase.RUNTIME, msg, t, false);
+            if (ownerId != null && !ownerId.isBlank()
+                    && MultiBlockEngine.getInstance().getAddonLifecycleService() != null) {
+                MultiBlockEngine.getInstance().getAddonLifecycleService().failAddon(ownerId,
+                        AddonException.Phase.RUNTIME, msg, t, false);
             } else {
-                CoreLogger core = MultiBlockEngine.getInstance().getLoggingService() != null ? MultiBlockEngine.getInstance().getLoggingService().core() : null;
+                CoreLogger core = MultiBlockEngine.getInstance().getLoggingService() != null
+                        ? MultiBlockEngine.getInstance().getLoggingService().core()
+                        : null;
                 if (core != null) {
                     core.logInternal(new LogScope.Core(), LogPhase.RUNTIME, LogLevel.ERROR, msg, t, new LogKv[] {
-                        LogKv.kv("phase", runtimePhase),
-                        LogKv.kv("multiblock", instance != null ? instance.type().id() : "unknown"),
-                        LogKv.kv("action", actionName)
+                            LogKv.kv("phase", runtimePhase),
+                            LogKv.kv("multiblock", instance != null ? instance.type().id() : "unknown"),
+                            LogKv.kv("action", actionName)
                     }, Set.of());
                 } else {
-                    MultiBlockEngine.getInstance().getLogger().log(java.util.logging.Level.SEVERE, "[Runtime] " + msg + " Cause: " + t.getClass().getSimpleName() + ": " + t.getMessage(), t);
+                    MultiBlockEngine.getInstance().getLogger().log(java.util.logging.Level.SEVERE,
+                            "[Runtime] " + msg + " Cause: " + t.getClass().getSimpleName() + ": " + t.getMessage(), t);
                 }
             }
         }
