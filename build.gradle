@@ -2,7 +2,9 @@ plugins {
     id 'base'
 }
 
+def buildNumber = System.getenv('BUILD_NUMBER') ?: System.getenv('GITHUB_RUN_NUMBER') ?: 'LOCAL'
 def releaseVersion = System.getenv('RELEASE_VERSION')
+def baseVersion = (releaseVersion != null && !releaseVersion.isBlank()) ? releaseVersion : project.findProperty('projectVersion') ?: '1.0.0'
 def requestedTasks = gradle.startParameter.taskNames.collect { it.toLowerCase(Locale.ROOT) }
 def hasReleaseVersion = releaseVersion != null && !releaseVersion.isBlank()
 def isReleaseBuild = hasReleaseVersion || requestedTasks.any { it.contains('publish') || it.contains('release') }
@@ -10,7 +12,7 @@ def artifactBaseName = 'MultiblockEngine'
 
 allprojects {
     group = 'com.mbe'
-    version = releaseVersion != null && !releaseVersion.isBlank() ? releaseVersion : 'dev'
+    version = "${baseVersion}-${buildNumber}"
 }
 
 subprojects {
@@ -30,7 +32,7 @@ subprojects {
     }
 }
 
-def artifactVersionSuffix = isReleaseBuild ? rootProject.version.toString() : 'dev'
+def artifactVersionSuffix = rootProject.version.toString()
 def expectedArtifactDir = layout.buildDirectory.dir('libs').get().asFile
 def expectedArtifactFile = new File(expectedArtifactDir, "${artifactBaseName}-${artifactVersionSuffix}.jar")
 
@@ -44,8 +46,12 @@ tasks.register('validateRootArtifact') {
         if (!expectedArtifactFile.exists()) {
             throw new GradleException("No se generó el artifact esperado: ${expectedArtifactFile.absolutePath}")
         }
-        if (!expectedArtifactFile.name.matches(/^${artifactBaseName}-(dev|.+)\.jar$/)) {
-            throw new GradleException("El nombre del artifact no cumple el formato esperado: ${expectedArtifactFile.name}")
+        // Updated regex to support the new format: Name-Major.Minor.Patch-BuildNumber.jar
+        if (!expectedArtifactFile.name.matches(/^${artifactBaseName}-.+\..+\..+-.+\.jar$/)) {
+             // Fallback for dev/LOCAL if needed, but the new version string should generally match if based on projectVersion
+             if (!expectedArtifactFile.name.matches(/^${artifactBaseName}-.+\.jar$/)) {
+                throw new GradleException("El nombre del artifact no cumple el formato esperado: ${expectedArtifactFile.name}")
+             }
         }
     }
 }
