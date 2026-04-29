@@ -66,11 +66,7 @@ processResources {
     }
 }
 
-def requestedTasks = gradle.startParameter.taskNames.collect { it.toLowerCase(Locale.ROOT) }
-def releaseVersion = System.getenv('RELEASE_VERSION')
-def hasReleaseVersion = releaseVersion != null && !releaseVersion.isBlank()
-def isReleaseBuild = hasReleaseVersion || requestedTasks.any { it.contains('publish') || it.contains('release') }
-def artifactVersionSuffix = isReleaseBuild ? rootProject.version.toString() : 'dev'
+def artifactVersionSuffix = rootProject.version.toString()
 def platformBukkitJar = project(':platform-bukkit').tasks.named('jar')
 
 shadowJar {
