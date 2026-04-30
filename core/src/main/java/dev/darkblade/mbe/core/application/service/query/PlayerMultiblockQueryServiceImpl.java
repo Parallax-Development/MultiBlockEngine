@@ -130,6 +130,7 @@ public final class PlayerMultiblockQueryServiceImpl implements PlayerMultiblockQ
         instancesCache.clear();
         valuesCache.clear();
         aggregateCache.clear();
+        ownerByAnchor.clear();
     }
 
     @Override

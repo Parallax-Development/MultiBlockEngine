@@ -19,25 +19,31 @@ import java.util.concurrent.ConcurrentHashMap;
 public class HologramService {
     
     private final Map<MultiblockInstance, Entity> holograms = new ConcurrentHashMap<>();
+    private final Set<MultiblockInstance> pendingSpawns = ConcurrentHashMap.newKeySet();
     
     public void spawnHologram(MultiblockInstance instance) {
         if (instance.type().displayName() == null || !instance.type().displayName().visible()) return;
+        
+        // Prevent concurrent spawns for the same instance
+        if (!pendingSpawns.add(instance)) return;
         
         // Remove existing if any
         removeHologram(instance);
         
         Location loc = instance.anchorLocation().clone().add(0.5, 1.5, 0.5); // Default above block
-        // We could add an offset config later
         
-        if (loc.getWorld() == null || !loc.getChunk().isLoaded()) return; // Safety
+        if (loc.getWorld() == null || !loc.getChunk().isLoaded()) {
+            pendingSpawns.remove(instance);
+            return;
+        }
         
         Bukkit.getScheduler().runTask(MultiBlockEngine.getInstance(), () -> {
-            // Ensure instance is still active before spawning
-            if (!MultiBlockEngine.getInstance().getManager().isInstanceActive(instance)) {
-                return;
-            }
-
             try {
+                // Ensure instance is still active before spawning
+                if (!MultiBlockEngine.getInstance().getManager().isInstanceActive(instance)) {
+                    return;
+                }
+
                 TextDisplay display = loc.getWorld().spawn(loc, TextDisplay.class);
                 
                 String rawText = instance.type().displayName().text();
@@ -51,14 +57,15 @@ public class HologramService {
                 CoreLogger core = MultiBlockEngine.getInstance().getLoggingService() != null ? MultiBlockEngine.getInstance().getLoggingService().core() : null;
                 if (core != null) {
                     core.logInternal(new LogScope.Core(), LogPhase.RUNTIME, LogLevel.WARN, "Failed to spawn TextDisplay hologram", e, null, Set.of());
-                } else {
-                    MultiBlockEngine.getInstance().getLogger().warning("Failed to spawn TextDisplay hologram. Ensure 1.19.4+");
                 }
+            } finally {
+                pendingSpawns.remove(instance);
             }
         });
     }
     
     public void removeHologram(MultiblockInstance instance) {
+        pendingSpawns.remove(instance);
         Entity entity = holograms.remove(instance);
         if (entity != null && entity.isValid()) {
             entity.remove();

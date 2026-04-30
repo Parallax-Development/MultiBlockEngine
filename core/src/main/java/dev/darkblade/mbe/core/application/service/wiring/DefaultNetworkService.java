@@ -97,7 +97,8 @@ public final class DefaultNetworkService implements NetworkService {
         private final ConcurrentHashMap<BlockPos, UUID> nodeIndex = new ConcurrentHashMap<>();
         private final ConcurrentHashMap<UUID, Set<UUID>> adjacency = new ConcurrentHashMap<>();
         private final ConcurrentHashMap<EdgeKey, ConnectionImpl> connections = new ConcurrentHashMap<>();
-        private final ConcurrentHashMap<UUID, UUID> networkByNode = new ConcurrentHashMap<>();
+        private volatile Map<UUID, UUID> networkByNode = Map.of();
+        private final java.util.concurrent.locks.ReentrantLock lock = new java.util.concurrent.locks.ReentrantLock();
 
         public TopologyState(NetworkType type, Consumer<Event> eventCaller) {
             this.type = type;
@@ -108,73 +109,95 @@ public final class DefaultNetworkService implements NetworkService {
             if (block == null || block.getWorld() == null) {
                 throw new IllegalArgumentException("block");
             }
-            NodeDescriptor safeDescriptor = descriptor == null ? new NodeDescriptor(Set.of()) : descriptor;
-            BlockPos position = new BlockPos(block.getWorld().getUID(), block.getX(), block.getY(), block.getZ());
-            UUID existing = nodeIndex.get(position);
-            if (existing != null) {
-                NodeImpl found = nodesById.get(existing);
-                if (found != null) {
-                    NodeImpl updated = new NodeImpl(found.id(), type, position, safeDescriptor.connectableFaces());
-                    nodesById.put(updated.id(), updated);
-                    return updated;
+            lock.lock();
+            try {
+                NodeDescriptor safeDescriptor = descriptor == null ? new NodeDescriptor(Set.of()) : descriptor;
+                BlockPos position = new BlockPos(block.getWorld().getUID(), block.getX(), block.getY(), block.getZ());
+                UUID existing = nodeIndex.get(position);
+                if (existing != null) {
+                    NodeImpl found = nodesById.get(existing);
+                    if (found != null) {
+                        NodeImpl updated = new NodeImpl(found.id(), type, position, safeDescriptor.connectableFaces());
+                        nodesById.put(updated.id(), updated);
+                        return updated;
+                    }
                 }
+                UUID id = UUID.randomUUID();
+                NodeImpl created = new NodeImpl(id, type, position, safeDescriptor.connectableFaces());
+                nodesById.put(id, created);
+                nodeIndex.put(position, id);
+                adjacency.putIfAbsent(id, ConcurrentHashMap.newKeySet());
+                
+                Map<UUID, UUID> next = new HashMap<>(networkByNode);
+                next.put(id, UUID.randomUUID());
+                this.networkByNode = Map.copyOf(next);
+                return created;
+            } finally {
+                lock.unlock();
             }
-            UUID id = UUID.randomUUID();
-            NodeImpl created = new NodeImpl(id, type, position, safeDescriptor.connectableFaces());
-            nodesById.put(id, created);
-            nodeIndex.put(position, id);
-            adjacency.putIfAbsent(id, ConcurrentHashMap.newKeySet());
-            networkByNode.put(id, UUID.randomUUID());
-            return created;
         }
 
         public void unregisterNode(NetworkNode node) {
-            NodeImpl resolved = resolve(node);
-            if (resolved == null) {
-                return;
+            lock.lock();
+            try {
+                NodeImpl resolved = resolve(node);
+                if (resolved == null) {
+                    return;
+                }
+                UUID id = resolved.id();
+                Set<UUID> neighbors = new HashSet<>(adjacency.getOrDefault(id, Set.of()));
+                for (UUID neighbor : neighbors) {
+                    disconnectById(id, neighbor);
+                }
+                adjacency.remove(id);
+                nodesById.remove(id);
+                nodeIndex.remove(resolved.position());
+                recomputeNetworks();
+            } finally {
+                lock.unlock();
             }
-            UUID id = resolved.id();
-            Set<UUID> neighbors = new HashSet<>(adjacency.getOrDefault(id, Set.of()));
-            for (UUID neighbor : neighbors) {
-                disconnectById(id, neighbor);
-            }
-            adjacency.remove(id);
-            nodesById.remove(id);
-            nodeIndex.remove(resolved.position());
-            networkByNode.remove(id);
-            recomputeNetworks();
         }
 
         public boolean connect(NetworkNode a, NetworkNode b) {
-            NodeImpl left = resolve(a);
-            NodeImpl right = resolve(b);
-            if (left == null || right == null || left.id().equals(right.id())) {
-                return false;
+            lock.lock();
+            try {
+                NodeImpl left = resolve(a);
+                NodeImpl right = resolve(b);
+                if (left == null || right == null || left.id().equals(right.id())) {
+                    return false;
+                }
+                EdgeKey key = EdgeKey.of(left.id(), right.id());
+                if (connections.containsKey(key)) {
+                    return false;
+                }
+                UUID leftNetwork = networkByNode.get(left.id());
+                UUID rightNetwork = networkByNode.get(right.id());
+                adjacency.computeIfAbsent(left.id(), unused -> ConcurrentHashMap.newKeySet()).add(right.id());
+                adjacency.computeIfAbsent(right.id(), unused -> ConcurrentHashMap.newKeySet()).add(left.id());
+                connections.put(key, new ConnectionImpl(UUID.randomUUID(), type, left, right));
+                recomputeNetworks();
+                if (leftNetwork != null && rightNetwork != null && !leftNetwork.equals(rightNetwork)) {
+                    eventCaller.accept(new IONetworkMergeEvent(type, rightNetwork, leftNetwork));
+                }
+                return true;
+            } finally {
+                lock.unlock();
             }
-            EdgeKey key = EdgeKey.of(left.id(), right.id());
-            if (connections.containsKey(key)) {
-                return false;
-            }
-            UUID leftNetwork = networkByNode.get(left.id());
-            UUID rightNetwork = networkByNode.get(right.id());
-            adjacency.computeIfAbsent(left.id(), unused -> ConcurrentHashMap.newKeySet()).add(right.id());
-            adjacency.computeIfAbsent(right.id(), unused -> ConcurrentHashMap.newKeySet()).add(left.id());
-            connections.put(key, new ConnectionImpl(UUID.randomUUID(), type, left, right));
-            recomputeNetworks();
-            if (leftNetwork != null && rightNetwork != null && !leftNetwork.equals(rightNetwork)) {
-                eventCaller.accept(new IONetworkMergeEvent(type, rightNetwork, leftNetwork));
-            }
-            return true;
         }
 
         public void disconnect(NetworkNode a, NetworkNode b) {
-            NodeImpl left = resolve(a);
-            NodeImpl right = resolve(b);
-            if (left == null || right == null || left.id().equals(right.id())) {
-                return;
+            lock.lock();
+            try {
+                NodeImpl left = resolve(a);
+                NodeImpl right = resolve(b);
+                if (left == null || right == null || left.id().equals(right.id())) {
+                    return;
+                }
+                disconnectById(left.id(), right.id());
+                recomputeNetworks();
+            } finally {
+                lock.unlock();
             }
-            disconnectById(left.id(), right.id());
-            recomputeNetworks();
         }
 
         public NetworkGraph getGraph(NetworkNode node) {
@@ -286,8 +309,7 @@ public final class DefaultNetworkService implements NetworkService {
                     next.put(id, chosen);
                 }
             }
-            networkByNode.clear();
-            networkByNode.putAll(next);
+            this.networkByNode = Map.copyOf(next);
         }
 
         private UUID chooseNetworkId(Set<UUID> component, Set<UUID> assigned) {
