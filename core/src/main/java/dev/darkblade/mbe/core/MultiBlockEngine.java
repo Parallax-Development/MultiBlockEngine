@@ -163,6 +163,8 @@ import java.util.Set;
 import java.util.UUID;
 
 
+import dev.darkblade.mbe.api.service.security.TrustedCommandService;
+import dev.darkblade.mbe.core.application.service.security.TrustedCommandServiceImpl;
 import dev.darkblade.mbe.core.internal.debug.DebugSessionService;
 import dev.darkblade.mbe.core.domain.assembly.AssemblyCoordinator;
 import dev.darkblade.mbe.core.domain.assembly.BuiltinAssemblyTriggers;
@@ -201,6 +203,11 @@ public class MultiBlockEngine extends JavaPlugin {
     private PanelViewServiceImpl panelViewService;
     private BukkitInventoryCompatService inventoryCompatService;
     private BukkitSchedulerCompatService schedulerCompatService;
+    private TrustedCommandService trustedCommandService;
+
+    public TrustedCommandService getTrustedCommandService() {
+        return trustedCommandService;
+    }
 
     @Override
     public void onEnable() {
@@ -318,6 +325,10 @@ public class MultiBlockEngine extends JavaPlugin {
         addonManager.registerCoreMbeService(limitService);
 
         addonManager.registerCoreService(InspectionPipelineService.class, new DefaultInspectionPipelineService());
+
+        trustedCommandService = new TrustedCommandServiceImpl(getDataFolder());
+        addonManager.registerCoreService(TrustedCommandService.class, trustedCommandService);
+        addonManager.registerCoreMbeService(trustedCommandService);
 
         PortResolutionService portResolutionService = new DefaultPortResolutionService();
         addonManager.registerCoreService(PortResolutionService.class, portResolutionService);

@@ -9,7 +9,9 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-public final class ToolSessionService implements MBEService {
+import dev.darkblade.mbe.api.tick.Tickable;
+
+public final class ToolSessionService implements MBEService, Tickable {
 
     private final ConcurrentHashMap<SessionKey, SessionValue> sessions = new ConcurrentHashMap<>();
     private final Duration ttl;
@@ -62,6 +64,16 @@ public final class ToolSessionService implements MBEService {
             return;
         }
         sessions.keySet().removeIf(key -> playerId.equals(key.playerId));
+    }
+
+    @Override
+    public void tick() {
+        purgeExpired();
+    }
+
+    @Override
+    public int getTickInterval() {
+        return 600; // Every 30 seconds
     }
 
     private void purgeExpired() {
