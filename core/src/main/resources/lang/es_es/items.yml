@@ -3,16 +3,14 @@ core:
     wrench:
       display_name: "Llave inglesa"
       lore:
-        assemble: "&eClick derecho: &aEnsamblar multibloque"
+        execute: "&eClick derecho: &aEjecutar acción del modo"
+        change_mode: "&eShift + Click derecho: &bCambiar modo"
         disassemble: "&eClick izquierdo: &cDesensamblar multibloque"
-        inspect: "&eShift + Click derecho: &bMostrar información"
-        variant: "&eShift + Click izquierdo: &dCambiar variante"
     wire_cutter:
       display_name: "Corta-cables"
       lore:
-        disconnect: "&eModo desconectar: &cSeparar dos nodos conectados"
-        split: "&eModo split: &6Forzar división de red"
-        debug: "&eModo debug: &bInspeccionar red activa"
+        execute: "&eClick derecho: &aEjecutar acción del modo"
+        change_mode: "&eShift + Click derecho: &bCambiar modo"
     blueprint:
       display_name: "Blueprint"
       lore:

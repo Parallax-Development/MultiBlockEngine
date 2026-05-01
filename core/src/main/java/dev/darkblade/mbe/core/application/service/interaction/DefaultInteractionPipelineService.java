@@ -76,7 +76,9 @@ public final class DefaultInteractionPipelineService implements InteractionPipel
         if (assemblyCoordinator != null && effectiveIntent.type() != InteractionType.WRENCH_USE) {
             AssemblyReport report = assemblyCoordinator.tryAssemble(effectiveIntent);
             if (report != null && report.success()) {
-                cancelVanilla = true;
+                if (effectiveIntent.type() != InteractionType.SHIFT_RIGHT_CLICK) {
+                    cancelVanilla = true;
+                }
             }
         }
 

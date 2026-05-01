@@ -4,18 +4,16 @@ items:
     material: IRON_HOE
     display-name: "mbe:core.items.wrench.display_name"
     lore:
-      - "mbe:core.items.wrench.lore.assemble"
+      - "mbe:core.items.wrench.lore.execute"
+      - "mbe:core.items.wrench.lore.change_mode"
       - "mbe:core.items.wrench.lore.disassemble"
-      - "mbe:core.items.wrench.lore.inspect"
-      - "mbe:core.items.wrench.lore.variant"
   wire_cutter:
     key: mbe:wire_cutter
     material: SHEARS
     display-name: "mbe:core.items.wire_cutter.display_name"
     lore:
-      - "mbe:core.items.wire_cutter.lore.disconnect"
-      - "mbe:core.items.wire_cutter.lore.split"
-      - "mbe:core.items.wire_cutter.lore.debug"
+      - "mbe:core.items.wire_cutter.lore.execute"
+      - "mbe:core.items.wire_cutter.lore.change_mode"
   blueprint:
     key: mbe:blueprint
     material: PAPER
