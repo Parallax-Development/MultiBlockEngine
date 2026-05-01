@@ -93,7 +93,7 @@ services:
   crafting:
     ui:
       title: "Mesa de Crafteo de Blueprints"
-      empty: " "
+      empty: "&7 "
       blueprint:
         name: "&b{id}"
         click_to_select: "&aHaz clic para seleccionar este blueprint"

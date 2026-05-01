@@ -1,22 +1,26 @@
 package dev.darkblade.mbe.core.application.service.tool;
 
-import dev.darkblade.mbe.api.tool.ToolItem;
+import dev.darkblade.mbe.api.tool.Tool;
+import dev.darkblade.mbe.api.tool.ToolMode;
 
+import java.util.Collection;
 import java.util.List;
 
-public final class WireCutterTool implements ToolItem {
+public final class WireCutterTool implements Tool {
+
+    private final List<ToolMode> modes;
+
+    public WireCutterTool(ToolMode... modes) {
+        this.modes = List.of(modes);
+    }
 
     @Override
-    public String getId() {
+    public String id() {
         return "wire_cutter";
     }
 
     @Override
-    public List<String> getSupportedModes() {
-        return List.of(
-                "disconnect_nodes",
-                "split_network",
-                "debug_wiring"
-        );
+    public Collection<ToolMode> modes() {
+        return modes;
     }
 }

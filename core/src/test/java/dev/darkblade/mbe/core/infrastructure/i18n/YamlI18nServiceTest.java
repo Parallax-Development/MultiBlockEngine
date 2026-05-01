@@ -168,8 +168,8 @@ final class YamlI18nServiceTest {
         assertTrue(es.isString("core.wrench.disassembled"));
         assertTrue(enItems.isString("core.items.wrench.display_name"));
         assertTrue(esItems.isString("core.items.wrench.display_name"));
-        assertTrue(enItems.isString("core.items.wrench.lore.assemble"));
-        assertTrue(esItems.isString("core.items.wrench.lore.assemble"));
+        assertTrue(enItems.isString("core.items.wrench.lore.execute"));
+        assertTrue(esItems.isString("core.items.wrench.lore.execute"));
         assertTrue(enItems.isString("core.items.blueprint.display_name"));
         assertTrue(esItems.isString("core.items.blueprint.display_name"));
         assertTrue(enItems.isString("core.items.blueprint.lore.right_click"));

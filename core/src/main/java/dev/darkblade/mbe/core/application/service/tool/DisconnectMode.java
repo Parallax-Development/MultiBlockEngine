@@ -6,17 +6,16 @@ import dev.darkblade.mbe.api.tool.ToolMode;
 
 import java.util.Map;
 
-public final class AssemblyMode implements ToolMode {
+public final class DisconnectMode implements ToolMode {
 
     private static final Map<ActionTrigger, ActionId> BINDINGS = Map.of(
-            ActionTrigger.RIGHT_CLICK, WrenchActions.ASSEMBLE,
-            ActionTrigger.LEFT_CLICK, WrenchActions.DISASSEMBLE,
+            ActionTrigger.RIGHT_CLICK, WireCutterActions.DISCONNECT,
             ActionTrigger.SHIFT_RIGHT_CLICK, WrenchActions.SWITCH_MODE
     );
 
     @Override
     public String id() {
-        return "assembly";
+        return "disconnect_nodes";
     }
 
     @Override
