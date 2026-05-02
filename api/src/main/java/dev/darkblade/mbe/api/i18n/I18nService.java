@@ -25,6 +25,14 @@ public interface I18nService extends MessageResolver {
         return resolve(key, locale, MessageUtils.params(params));
     }
 
+    default String resolve(MessageKey key, CommandSender sender) {
+        return tr(sender, key);
+    }
+
+    default String resolve(MessageKey key, CommandSender sender, Map<String, ?> params) {
+        return tr(sender, key, params);
+    }
+
     default void send(CommandSender sender, MessageKey key) {
         if (sender == null || key == null) {
             return;

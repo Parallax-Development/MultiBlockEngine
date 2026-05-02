@@ -47,8 +47,25 @@ public class HologramService {
                 TextDisplay display = loc.getWorld().spawn(loc, TextDisplay.class);
                 
                 String rawText = instance.type().displayName().text();
+                String resolvedText = rawText;
 
-                display.text(StringUtil.legacyText(rawText));
+                dev.darkblade.mbe.api.i18n.I18nService i18n = MultiBlockEngine.getInstance().getAddonLifecycleService().getCoreService(dev.darkblade.mbe.api.i18n.I18nService.class);
+                if (i18n != null && rawText != null && rawText.contains(":")) {
+                    try {
+                        int idx = rawText.indexOf(':');
+                        String origin = rawText.substring(0, idx).trim();
+                        String path = rawText.substring(idx + 1).trim();
+                        dev.darkblade.mbe.api.i18n.MessageKey key = dev.darkblade.mbe.api.i18n.MessageKey.of(origin, path);
+                        // For holograms (entities in the world), we use the server's default locale
+                        java.util.Locale locale = i18n.localeProvider() != null ? i18n.localeProvider().fallbackLocale() : java.util.Locale.US;
+                        String translated = i18n.resolve(key, locale);
+                        if (translated != null && !translated.isBlank() && !translated.equals(key.fullKey())) {
+                            resolvedText = translated;
+                        }
+                    } catch (Throwable ignored) {}
+                }
+
+                display.text(StringUtil.legacyText(resolvedText));
                 display.setBillboard(Display.Billboard.CENTER);
                 display.setPersistent(false); // Don't save to disk, we manage it
                 

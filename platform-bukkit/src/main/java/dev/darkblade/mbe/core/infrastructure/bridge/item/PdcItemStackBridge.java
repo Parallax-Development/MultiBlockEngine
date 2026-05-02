@@ -13,6 +13,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.command.CommandSender;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -58,6 +59,19 @@ public final class PdcItemStackBridge implements ItemStackBridge {
 
     @Override
     public ItemStack toItemStack(ItemInstance instance) {
+        return toItemStack(instance, (Locale) null);
+    }
+
+    @Override
+    public ItemStack toItemStack(ItemInstance instance, CommandSender sender) {
+        if (sender == null) return toItemStack(instance);
+        I18nService i18n = resolveI18n();
+        Locale locale = i18n != null && i18n.localeProvider() != null ? i18n.localeProvider().localeOf(sender) : null;
+        return toItemStack(instance, locale);
+    }
+
+    @Override
+    public ItemStack toItemStack(ItemInstance instance, Locale locale) {
         Objects.requireNonNull(instance, "instance");
         ItemDefinition def = Objects.requireNonNull(instance.definition(), "instance.definition()");
         ItemKey key = Objects.requireNonNull(def.key(), "definition.key()");
@@ -67,7 +81,7 @@ public final class PdcItemStackBridge implements ItemStackBridge {
 
         ItemMeta meta = stack.getItemMeta();
         if (meta != null) {
-            String name = resolveText(def.displayName());
+            String name = resolveText(def.displayName(), locale);
             if (name != null && !name.isBlank()) {
                 meta.displayName(Component.text(name, NamedTextColor.WHITE));
             }
@@ -75,7 +89,7 @@ public final class PdcItemStackBridge implements ItemStackBridge {
             Map<String, Object> props = def.properties();
             if (props != null) {
                 Object loreRaw = props.get("lore");
-                List<Component> lore = parseLore(loreRaw);
+                List<Component> lore = parseLore(loreRaw, locale);
                 if (!lore.isEmpty()) {
                     meta.lore(lore);
                 }
@@ -188,12 +202,12 @@ public final class PdcItemStackBridge implements ItemStackBridge {
         return used;
     }
 
-    private List<Component> parseLore(Object raw) {
+    private List<Component> parseLore(Object raw, Locale locale) {
         if (raw == null) {
             return List.of();
         }
         if (raw instanceof String s) {
-            String resolved = resolveText(s);
+            String resolved = resolveText(s, locale);
             if (resolved == null || resolved.isBlank()) {
                 return List.of();
             }
@@ -205,7 +219,7 @@ public final class PdcItemStackBridge implements ItemStackBridge {
                 if (o == null) {
                     continue;
                 }
-                String s = resolveText(String.valueOf(o));
+                String s = resolveText(String.valueOf(o), locale);
                 if (s == null || s.isBlank()) {
                     continue;
                 }
@@ -240,7 +254,7 @@ public final class PdcItemStackBridge implements ItemStackBridge {
         return out;
     }
 
-    private String resolveText(String raw) {
+    private String resolveText(String raw, Locale locale) {
         if (raw == null || raw.isBlank()) {
             return raw;
         }
@@ -249,11 +263,12 @@ public final class PdcItemStackBridge implements ItemStackBridge {
             return raw;
         }
         I18nService i18n = resolveI18n();
-        if (i18n == null || i18n.localeProvider() == null) {
+        if (i18n == null) {
             return raw;
         }
         try {
-            String translated = i18n.resolve(key, i18n.localeProvider().fallbackLocale());
+            Locale target = locale != null ? locale : (i18n.localeProvider() != null ? i18n.localeProvider().fallbackLocale() : Locale.US);
+            String translated = i18n.resolve(key, target);
             if (translated == null || translated.isBlank()) {
                 return raw;
             }

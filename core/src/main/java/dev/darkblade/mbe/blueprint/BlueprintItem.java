@@ -8,6 +8,7 @@ import dev.darkblade.mbe.core.infrastructure.bridge.item.ItemStackBridge;
 import dev.darkblade.mbe.preview.MultiblockDefinition;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.command.CommandSender;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
@@ -21,11 +22,15 @@ public final class BlueprintItem {
     }
 
     public static ItemStack create(ItemService itemService, ItemStackBridge bridge, MultiblockDefinition definition) {
+        return create(itemService, bridge, definition, null);
+    }
+
+    public static ItemStack create(ItemService itemService, ItemStackBridge bridge, MultiblockDefinition definition, CommandSender sender) {
         if (itemService == null || bridge == null || definition == null || definition.id() == null || definition.id().isBlank()) {
             return null;
         }
         ItemInstance instance = itemService.factory().create(BLUEPRINT_KEY, Map.of(DATA_STRUCTURE_ID, definition.id()));
-        ItemStack stack = bridge.toItemStack(instance);
+        ItemStack stack = bridge.toItemStack(instance, sender);
         ItemMeta meta = stack.getItemMeta();
         if (meta != null) {
             meta.displayName(Component.text("Blueprint: " + definition.id(), NamedTextColor.AQUA));
