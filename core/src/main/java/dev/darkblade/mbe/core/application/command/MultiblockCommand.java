@@ -565,7 +565,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
             send(sender, CoreMessageKeys.BLUEPRINT_NOT_FOUND, "id", id);
             return;
         }
-        org.bukkit.inventory.ItemStack blueprint = BlueprintItem.create(itemService, itemStackBridge, definition);
+        org.bukkit.inventory.ItemStack blueprint = BlueprintItem.create(itemService, itemStackBridge, definition, receiver);
         if (blueprint == null) {
             send(sender, CoreMessageKeys.BLUEPRINT_CREATE_FAILED, "id", definition.id());
             return;
