@@ -99,19 +99,13 @@ import dev.darkblade.mbe.core.application.service.tool.PdcToolStateResolver;
 import dev.darkblade.mbe.core.application.service.tool.ToolDispatcher;
 import dev.darkblade.mbe.core.application.service.tool.ToolStateResolver;
 import dev.darkblade.mbe.core.application.service.tool.WrenchTool;
-import dev.darkblade.mbe.core.application.service.tool.WireCutterTool;
+
 import dev.darkblade.mbe.core.application.service.tool.AssemblyMode;
 import dev.darkblade.mbe.core.application.service.tool.InspectMode;
-import dev.darkblade.mbe.core.application.service.tool.DisconnectMode;
-import dev.darkblade.mbe.core.application.service.tool.SplitMode;
-import dev.darkblade.mbe.core.application.service.tool.DebugWiringMode;
 import dev.darkblade.mbe.core.application.service.tool.AssembleAction;
 import dev.darkblade.mbe.core.application.service.tool.DisassembleAction;
 import dev.darkblade.mbe.core.application.service.tool.InspectAction;
 import dev.darkblade.mbe.core.application.service.tool.SwitchModeAction;
-import dev.darkblade.mbe.core.application.service.tool.DisconnectNodesAction;
-import dev.darkblade.mbe.core.application.service.tool.SplitNetworkAction;
-import dev.darkblade.mbe.core.application.service.tool.DebugWiringAction;
 import dev.darkblade.mbe.core.application.service.tool.ToolSessionService;
 import dev.darkblade.mbe.core.application.service.tool.ToolModeContextResolver;
 import dev.darkblade.mbe.core.application.service.tick.TickService;
@@ -370,18 +364,12 @@ public class MultiBlockEngine extends JavaPlugin {
 
         AssemblyMode assemblyMode = new AssemblyMode();
         InspectMode inspectMode = new InspectMode();
-        DisconnectMode disconnectMode = new DisconnectMode();
-        SplitMode splitMode = new SplitMode();
-        DebugWiringMode debugWiringMode = new DebugWiringMode();
 
         ((DefaultToolRegistry) toolRegistry).register(new WrenchTool(assemblyMode, inspectMode));
-        ((DefaultToolRegistry) toolRegistry).register(new WireCutterTool(disconnectMode, splitMode, debugWiringMode));
+
 
         ((DefaultToolModeRegistry) toolModeRegistry).register(assemblyMode);
         ((DefaultToolModeRegistry) toolModeRegistry).register(inspectMode);
-        ((DefaultToolModeRegistry) toolModeRegistry).register(disconnectMode);
-        ((DefaultToolModeRegistry) toolModeRegistry).register(splitMode);
-        ((DefaultToolModeRegistry) toolModeRegistry).register(debugWiringMode);
 
         DefaultAssemblyTriggerRegistry triggerRegistry = new DefaultAssemblyTriggerRegistry();
         BuiltinAssemblyTriggers.registerAll(triggerRegistry);
@@ -408,9 +396,6 @@ public class MultiBlockEngine extends JavaPlugin {
         ((DefaultToolActionRegistry) toolActionRegistry).register(new DisassembleAction(manager, playerMessageService));
         ((DefaultToolActionRegistry) toolActionRegistry).register(new InspectAction(manager, playerMessageService));
         ((DefaultToolActionRegistry) toolActionRegistry).register(new SwitchModeAction(toolStateResolver, toolRegistry, playerMessageService));
-        ((DefaultToolActionRegistry) toolActionRegistry).register(new DisconnectNodesAction(networkService, toolSessionService, toolModeContextResolver));
-        ((DefaultToolActionRegistry) toolActionRegistry).register(new SplitNetworkAction(networkService, toolSessionService, toolModeContextResolver));
-        ((DefaultToolActionRegistry) toolActionRegistry).register(new DebugWiringAction(networkService, toolModeContextResolver));
 
         DisplayEntityRenderer displayRenderer = createDisplayRenderer();
         PreviewSettings previewSettings = new PreviewSettings(
