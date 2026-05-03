@@ -64,5 +64,10 @@ public interface AddonContext {
     
     void runTask(Runnable task);
     void runTaskAsync(Runnable task);
-    void registerCommand(String name, org.bukkit.command.CommandExecutor executor, String... aliases);
+    
+    default void registerCommand(String name, org.bukkit.command.CommandExecutor executor, String... aliases) {
+        registerCommand(name, executor, executor instanceof org.bukkit.command.TabCompleter tc ? tc : null, aliases);
+    }
+
+    void registerCommand(String name, org.bukkit.command.CommandExecutor executor, org.bukkit.command.TabCompleter tabCompleter, String... aliases);
 }
