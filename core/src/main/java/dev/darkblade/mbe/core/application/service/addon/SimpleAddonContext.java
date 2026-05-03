@@ -19,6 +19,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.plugin.ServicePriority;
 
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -224,7 +225,7 @@ public class SimpleAddonContext implements AddonContext {
     }
 
     @Override
-    public void registerCommand(String name, org.bukkit.command.CommandExecutor executor, String... aliases) {
+    public void registerCommand(String name, org.bukkit.command.CommandExecutor executor, org.bukkit.command.TabCompleter tabCompleter, String... aliases) {
         try {
             final java.lang.reflect.Field f = plugin.getServer().getClass().getDeclaredField("commandMap");
             f.setAccessible(true);
@@ -233,6 +234,17 @@ public class SimpleAddonContext implements AddonContext {
                 @Override
                 public boolean execute(org.bukkit.command.CommandSender sender, String commandLabel, String[] args) {
                     return executor.onCommand(sender, this, commandLabel, args);
+                }
+
+                @Override
+                public List<String> tabComplete(org.bukkit.command.CommandSender sender, String alias, String[] args) throws IllegalArgumentException {
+                    if (tabCompleter != null) {
+                        List<String> completions = tabCompleter.onTabComplete(sender, this, alias, args);
+                        if (completions != null) {
+                            return completions;
+                        }
+                    }
+                    return super.tabComplete(sender, alias, args);
                 }
             };
             if (aliases != null && aliases.length > 0) {
