@@ -10,6 +10,7 @@ import dev.darkblade.mbe.api.logging.LogPhase;
 import dev.darkblade.mbe.api.logging.LogScope;
 import dev.darkblade.mbe.api.command.WrenchContext;
 import dev.darkblade.mbe.api.command.WrenchDispatcher;
+import dev.darkblade.mbe.api.command.WrenchResult;
 import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.MessageKey;
 import dev.darkblade.mbe.api.assembly.AssemblyContext;
@@ -147,8 +148,9 @@ public class MultiblockListener implements Listener {
         }
         event.setUseInteractedBlock(Event.Result.ALLOW);
         if ((event.getAction() == org.bukkit.event.block.Action.LEFT_CLICK_BLOCK
-                || event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK)
-                && event.getClickedBlock() != null
+                || event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK
+                || event.getAction() == org.bukkit.event.block.Action.LEFT_CLICK_AIR
+                || event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_AIR)
                 && isToolItem(event.getItem())) {
             ToolDispatcher dispatcher = resolveToolDispatcher();
             if (dispatcher == null) {
@@ -157,10 +159,27 @@ public class MultiblockListener implements Listener {
             WrenchContext context = new WrenchContext(
                     event.getPlayer(),
                     event.getClickedBlock(),
-                    event.getAction(),
+                    event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_AIR ? org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK :
+                    (event.getAction() == org.bukkit.event.block.Action.LEFT_CLICK_AIR ? org.bukkit.event.block.Action.LEFT_CLICK_BLOCK : event.getAction()),
                     event.getItem(),
                     event.getHand());
-            dispatcher.dispatch(context, resolveTrigger(event));
+            WrenchResult result = dispatcher.dispatch(context, resolveTrigger(event));
+            if (result != null && !result.isPass() && result.messageKey() != null && !result.messageKey().isBlank()) {
+                PlayerMessageService messageService = resolveMessageService();
+                if (messageService != null) {
+                    messageService.send(event.getPlayer(), new PlayerMessage(
+                            MessageKey.of("mbe", result.messageKey()),
+                            MessageChannel.ACTION_BAR,
+                            MessagePriority.NORMAL,
+                            result.context() != null ? result.context() : Map.of()
+                    ));
+                } else {
+                    I18nService service = resolveI18n();
+                    if (service != null) {
+                        service.send(event.getPlayer(), MessageKey.of("mbe", result.messageKey()), result.context() != null ? result.context() : Map.of());
+                    }
+                }
+            }
             event.setCancelled(true);
             return;
         }
@@ -191,13 +210,16 @@ public class MultiblockListener implements Listener {
     }
 
     private ActionTrigger resolveTrigger(PlayerInteractEvent event) {
-        if (event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK && event.getPlayer().isSneaking()) {
+        boolean isRightClick = event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK || event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_AIR;
+        boolean isLeftClick = event.getAction() == org.bukkit.event.block.Action.LEFT_CLICK_BLOCK || event.getAction() == org.bukkit.event.block.Action.LEFT_CLICK_AIR;
+
+        if (isRightClick && event.getPlayer().isSneaking()) {
             return ActionTrigger.SHIFT_RIGHT_CLICK;
         }
-        if (event.getAction() == org.bukkit.event.block.Action.LEFT_CLICK_BLOCK && event.getPlayer().isSneaking()) {
+        if (isLeftClick && event.getPlayer().isSneaking()) {
             return ActionTrigger.SHIFT_LEFT_CLICK;
         }
-        if (event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) {
+        if (isRightClick) {
             return ActionTrigger.RIGHT_CLICK;
         }
         return ActionTrigger.LEFT_CLICK;

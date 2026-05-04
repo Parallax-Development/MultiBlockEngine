@@ -37,6 +37,9 @@ public final class DisassembleAction implements ToolAction {
 
     @Override
     public WrenchResult execute(WrenchContext context) {
+        if (context.clickedBlock() == null) {
+            return WrenchResult.pass();
+        }
         Optional<MultiblockInstance> instanceOpt = runtimeService.getInstanceAt(context.clickedBlock().getLocation());
         if (instanceOpt.isEmpty()) {
             if (messageService != null && context.player() != null) {
