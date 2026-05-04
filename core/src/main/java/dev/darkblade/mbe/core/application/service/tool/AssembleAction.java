@@ -39,6 +39,9 @@ public final class AssembleAction implements ToolAction {
 
     @Override
     public WrenchResult execute(WrenchContext context) {
+        if (context.clickedBlock() == null) {
+            return WrenchResult.pass();
+        }
         AssemblyContext assemblyContext = new AssemblyContext(
                 context.player(),
                 context.clickedBlock(),

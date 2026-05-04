@@ -11,14 +11,13 @@ import java.util.Objects;
 
 public record WrenchContext(
         Player player,
-        Block clickedBlock,
+        @Nullable Block clickedBlock,
         Action action,
         @Nullable ItemStack item,
         @Nullable EquipmentSlot hand
 ) {
     public WrenchContext {
         Objects.requireNonNull(player, "player");
-        Objects.requireNonNull(clickedBlock, "clickedBlock");
         Objects.requireNonNull(action, "action");
     }
 }
