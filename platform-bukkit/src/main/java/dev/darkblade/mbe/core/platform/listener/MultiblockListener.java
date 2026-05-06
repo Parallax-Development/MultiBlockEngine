@@ -164,24 +164,26 @@ public class MultiblockListener implements Listener {
                     event.getItem(),
                     event.getHand());
             WrenchResult result = dispatcher.dispatch(context, resolveTrigger(event));
-            if (result != null && !result.isPass() && result.messageKey() != null && !result.messageKey().isBlank()) {
-                PlayerMessageService messageService = resolveMessageService();
-                if (messageService != null) {
-                    messageService.send(event.getPlayer(), new PlayerMessage(
-                            MessageKey.of("mbe", result.messageKey()),
-                            MessageChannel.ACTION_BAR,
-                            MessagePriority.NORMAL,
-                            result.context() != null ? result.context() : Map.of()
-                    ));
-                } else {
-                    I18nService service = resolveI18n();
-                    if (service != null) {
-                        service.send(event.getPlayer(), MessageKey.of("mbe", result.messageKey()), result.context() != null ? result.context() : Map.of());
+            if (result != null && !result.isPass()) {
+                if (result.messageKey() != null && !result.messageKey().isBlank()) {
+                    PlayerMessageService messageService = resolveMessageService();
+                    if (messageService != null) {
+                        messageService.send(event.getPlayer(), new PlayerMessage(
+                                MessageKey.of("mbe", result.messageKey()),
+                                MessageChannel.ACTION_BAR,
+                                MessagePriority.NORMAL,
+                                result.context() != null ? result.context() : Map.of()
+                        ));
+                    } else {
+                        I18nService service = resolveI18n();
+                        if (service != null) {
+                            service.send(event.getPlayer(), MessageKey.of("mbe", result.messageKey()), result.context() != null ? result.context() : Map.of());
+                        }
                     }
                 }
+                event.setCancelled(true);
+                return;
             }
-            event.setCancelled(true);
-            return;
         }
         InteractionIntent intent = intentFactory.from(event);
         if (intent == null) {
