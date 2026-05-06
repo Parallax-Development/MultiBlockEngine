@@ -667,7 +667,8 @@ public class AddonLifecycleService {
                 dataFolder,
                 this,
                 serviceRegistry,
-                serviceLifecycleManager);
+                serviceLifecycleManager,
+                loader);
         try {
             phaseRef.set(LogPhase.LOAD);
             addon.onLoad(context);

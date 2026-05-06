@@ -18,12 +18,18 @@ import dev.darkblade.mbe.core.domain.condition.Condition;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.ServicePriority;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public class SimpleAddonContext implements AddonContext {
     private final String addonId;
@@ -35,6 +41,7 @@ public class SimpleAddonContext implements AddonContext {
     private final AddonLifecycleService addonManager;
     private final AddonServiceRegistry services;
     private final ServiceLifecycleOrchestrator serviceLifecycleManager;
+    private final ClassLoader classLoader;
 
     public SimpleAddonContext(
             String addonId,
@@ -44,7 +51,8 @@ public class SimpleAddonContext implements AddonContext {
             Path dataFolder,
             AddonLifecycleService addonManager,
             AddonServiceRegistry services,
-            ServiceLifecycleOrchestrator serviceLifecycleManager
+            ServiceLifecycleOrchestrator serviceLifecycleManager,
+            ClassLoader classLoader
     ) {
         this.addonId = addonId;
         this.addonNamespace = namespaceOf(addonId);
@@ -55,6 +63,7 @@ public class SimpleAddonContext implements AddonContext {
         this.addonManager = addonManager;
         this.services = services;
         this.serviceLifecycleManager = serviceLifecycleManager;
+        this.classLoader = classLoader;
     }
 
     @Override
@@ -253,6 +262,57 @@ public class SimpleAddonContext implements AddonContext {
             commandMap.register(addonNamespace, cmd);
         } catch (Exception e) {
             logger.error("Failed to register command " + name + " for addon " + addonId, e);
+        }
+    }
+
+    @Override
+    public @Nullable InputStream getResource(@NotNull String filename) {
+        if (filename == null || filename.isBlank()) {
+            return null;
+        }
+
+        // URLClassLoader.getResourceAsStream handle leading slashes differently,
+        // but by convention in Bukkit we don't use them.
+        String path = filename;
+        if (path.startsWith("/")) {
+            path = path.substring(1);
+        }
+
+        return classLoader.getResourceAsStream(path);
+    }
+
+    @Override
+    public void saveResource(@NotNull String resourcePath, boolean replace) {
+        if (resourcePath == null || resourcePath.isBlank()) {
+            throw new IllegalArgumentException("ResourcePath cannot be null or empty");
+        }
+
+        String path = resourcePath.replace('\\', '/');
+        InputStream in = getResource(path);
+        if (in == null) {
+            throw new IllegalArgumentException("The embedded resource '" + path + "' cannot be found in addon JAR");
+        }
+
+        Path outFile = dataFolder.resolve(path).normalize();
+        if (!outFile.startsWith(dataFolder.normalize())) {
+            throw new IllegalArgumentException("Resource path outside data folder: " + path);
+        }
+
+        try {
+            if (!Files.exists(outFile.getParent())) {
+                Files.createDirectories(outFile.getParent());
+            }
+
+            if (!Files.exists(outFile) || replace) {
+                Files.copy(in, outFile, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (IOException ex) {
+            logger.error("Could not save " + outFile.getFileName() + " to " + outFile, ex);
+        } finally {
+            try {
+                in.close();
+            } catch (IOException ignored) {
+            }
         }
     }
 }
