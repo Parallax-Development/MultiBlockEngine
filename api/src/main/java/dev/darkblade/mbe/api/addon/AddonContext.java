@@ -12,7 +12,10 @@ import dev.darkblade.mbe.core.domain.action.Action;
 import dev.darkblade.mbe.core.domain.condition.Condition;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.ServicePriority;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
+import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -70,4 +73,22 @@ public interface AddonContext {
     }
 
     void registerCommand(String name, org.bukkit.command.CommandExecutor executor, org.bukkit.command.TabCompleter tabCompleter, String... aliases);
+
+    /**
+     * Gets an embedded resource from the addon JAR.
+     *
+     * @param filename the relative path to the resource inside the JAR
+     * @return the input stream for the resource, or null if not found
+     */
+    @Nullable
+    InputStream getResource(@NotNull String filename);
+
+    /**
+     * Saves an embedded resource from the addon JAR to the addon data folder.
+     *
+     * @param resourcePath the relative path to the resource inside the JAR
+     * @param replace      whether to replace the file if it already exists
+     * @throws IllegalArgumentException if the resource is null or empty, or if the resource does not exist
+     */
+    void saveResource(@NotNull String resourcePath, boolean replace);
 }
