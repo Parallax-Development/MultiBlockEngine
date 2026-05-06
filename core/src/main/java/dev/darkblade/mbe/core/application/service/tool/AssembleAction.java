@@ -54,8 +54,14 @@ public final class AssembleAction implements ToolAction {
                 )
         );
         AssemblyReport report = assemblyCoordinator.attemptAssembly(assemblyContext);
-        if (report == null || !report.success()) {
-            return WrenchResult.noop();
+        if (report == null) {
+            return WrenchResult.pass();
+        }
+        if (!report.success()) {
+            if ("no_multiblock_matched".equals(report.reasonKey()) || "no_controller_block".equals(report.reasonKey()) || "instance_exists".equals(report.reasonKey())) {
+                return WrenchResult.pass();
+            }
+            return WrenchResult.fail("core.wrench.missing", report.debugData() != null ? report.debugData() : Map.of());
         }
         if (messageService != null && context.player() != null) {
             messageService.send(context.player(), new PlayerMessage(

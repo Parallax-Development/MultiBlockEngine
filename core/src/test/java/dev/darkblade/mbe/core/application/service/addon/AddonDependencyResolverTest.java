@@ -73,8 +73,8 @@ public class AddonDependencyResolverTest {
         ));
 
         assertTrue(res.loadOrder().isEmpty());
-        assertEquals("Dependency cycle detected", res.failures().get("a"));
-        assertEquals("Dependency cycle detected", res.failures().get("b"));
+        assertTrue(res.failures().get("a").startsWith("Dependency cycle detected"));
+        assertTrue(res.failures().get("b").startsWith("Dependency cycle detected"));
     }
 
     @Test

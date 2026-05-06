@@ -23,6 +23,11 @@ core:
     session_started: "&aDebug session started for {type}"
   tool:
     mode_switched: "Mode changed to: {mode}"
+    not_a_node: "&cThat block is not a network node."
+    node_selected: "&eNode selected. Click another node to finish."
+    incompatible_types: "&cNodes have incompatible network types."
+    nodes_disconnected: "&cNodes disconnected from the {type} network."
+    network_split: "&cNetwork split into multiple segments."
   ui:
     link:
       invalid_block: "&cThat block is not a valid controller_block."
