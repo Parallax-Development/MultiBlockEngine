@@ -23,6 +23,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
+          cache: 'gradle'
 
       - name: Make gradlew executable
         run: chmod +x gradlew
@@ -36,12 +37,12 @@ jobs:
         run: ./gradlew publish
         env:
           RELEASE_VERSION: ${{ github.event.release.tag_name }}
+          GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
 
       - name: Upload JAR to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            core/build/libs/*.jar
+            build/libs/*.jar
             api/build/libs/*.jar

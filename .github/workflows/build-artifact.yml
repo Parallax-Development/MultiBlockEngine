@@ -2,7 +2,7 @@ name: Build
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, dev ]
   pull_request:
 
 jobs:
@@ -16,6 +16,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
+          cache: 'gradle'
 
       - name: Make gradlew executable
         run: chmod +x gradlew
@@ -28,5 +29,5 @@ jobs:
         with:
           name: mbe-core-jars
           path: |
-            core/build/libs/*.jar
+            build/libs/*.jar
             api/build/libs/*.jar

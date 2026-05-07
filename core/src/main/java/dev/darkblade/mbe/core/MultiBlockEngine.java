@@ -166,7 +166,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-
 import dev.darkblade.mbe.api.service.security.TrustedCommandService;
 import dev.darkblade.mbe.core.application.service.security.TrustedCommandServiceImpl;
 import dev.darkblade.mbe.core.internal.debug.DebugSessionService;
