@@ -2,12 +2,12 @@ plugins {
     id 'base'
 }
 
-def buildNumber = System.getenv('BUILD_NUMBER') ?: System.getenv('GITHUB_RUN_NUMBER') ?: 'LOCAL'
-def releaseVersion = System.getenv('RELEASE_VERSION')
+def buildNumber = providers.environmentVariable('BUILD_NUMBER')
+    .orElse(providers.environmentVariable('GITHUB_RUN_NUMBER'))
+    .orElse('LOCAL')
+    .get()
+def releaseVersion = providers.environmentVariable('RELEASE_VERSION').orNull
 def baseVersion = (releaseVersion != null && !releaseVersion.isBlank()) ? releaseVersion : project.findProperty('projectVersion') ?: '1.0.0'
-def requestedTasks = gradle.startParameter.taskNames.collect { it.toLowerCase(Locale.ROOT) }
-def hasReleaseVersion = releaseVersion != null && !releaseVersion.isBlank()
-def isReleaseBuild = hasReleaseVersion || requestedTasks.any { it.contains('publish') || it.contains('release') }
 def artifactBaseName = 'MultiblockEngine'
 
 allprojects {
