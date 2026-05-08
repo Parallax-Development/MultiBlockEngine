@@ -62,17 +62,10 @@ graph TD
     end
     
     subgraph Addons Ecosystem
-        D --> E[mbe-energy]
-        D --> F[mbe-wiring]
-        D --> G[mbe-crafting]
-        D --> H[mbe-ui]
-        D --> I[mbe-blueprints]
+        D --> E[Addons]
     end
     
     C -.-> E
-    C -.-> F
-    C -.-> G
-    C -.-> H
 ```
 
 ---
