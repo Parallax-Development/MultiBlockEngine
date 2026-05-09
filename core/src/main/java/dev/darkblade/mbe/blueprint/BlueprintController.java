@@ -76,6 +76,24 @@ public final class BlueprintController {
         return true;
     }
 
+    public boolean handleRotation(Player player) {
+        if (player == null) {
+            return false;
+        }
+        PlayerBuildContext context = contextService.get(player);
+        if (context.mode() != Mode.PREVIEW_PLACEMENT) {
+            previewService.touch(player);
+            return false;
+        }
+        PreviewSession session = context.preview();
+        if (session == null) {
+            return false;
+        }
+        previewService.rotatePreview(player, session.rotation().nextClockwise());
+        previewService.touch(player);
+        return true;
+    }
+
     public boolean handleHeldItem(Player player) {
         if (player == null) {
             return false;
