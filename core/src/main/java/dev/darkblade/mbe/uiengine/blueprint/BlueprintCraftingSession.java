@@ -3,7 +3,6 @@ package dev.darkblade.mbe.uiengine.blueprint;
 import dev.darkblade.mbe.preview.MultiblockDefinition;
 import org.bukkit.inventory.Inventory;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;

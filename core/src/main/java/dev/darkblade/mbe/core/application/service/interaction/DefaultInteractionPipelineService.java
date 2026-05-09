@@ -17,7 +17,6 @@ import dev.darkblade.mbe.core.application.service.wrench.DefaultWrenchDispatcher
 import dev.darkblade.mbe.core.domain.MultiblockInstance;
 import dev.darkblade.mbe.core.domain.assembly.AssemblyCoordinator;
 import dev.darkblade.mbe.core.infrastructure.bridge.item.ItemStackBridge;
-import org.bukkit.block.TileState;
 import org.bukkit.event.block.Action;
 
 import java.util.List;
