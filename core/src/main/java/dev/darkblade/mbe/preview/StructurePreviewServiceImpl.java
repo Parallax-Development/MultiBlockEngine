@@ -319,7 +319,8 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
     private Location resolveInitialOrigin(Player player) {
         Block target = player.getTargetBlockExact(raycastDistance);
         if (target != null && target.getWorld() != null) {
-            BlockFace face = player.getTargetBlockFace(raycastDistance);
+            org.bukkit.util.RayTraceResult result = player.rayTraceBlocks(raycastDistance);
+            org.bukkit.block.BlockFace face = result != null ? result.getHitBlockFace() : null;
             Location origin = target.getLocation();
             if (face != null) {
                 origin = origin.add(face.getModX(), face.getModY(), face.getModZ());

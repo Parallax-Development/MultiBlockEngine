@@ -96,6 +96,7 @@ public class PlayerResolver {
         // Check chunk loaded to avoid loading chunks
         if (!instance.anchorLocation().getChunk().isLoaded()) return Collections.emptyList();
         
-        return instance.anchorLocation().getNearbyPlayers(radius);
+        org.bukkit.Location loc = instance.anchorLocation();
+        return loc.getWorld() != null ? loc.getWorld().getNearbyEntities(loc, radius, radius, radius, e -> e instanceof Player).stream().map(e -> (Player)e).toList() : java.util.List.of();
     }
 }

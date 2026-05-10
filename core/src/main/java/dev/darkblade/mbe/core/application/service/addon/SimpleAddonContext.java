@@ -77,7 +77,7 @@ public class SimpleAddonContext implements AddonContext {
 
     @Override
     public String getEngineVersion() {
-        return MultiBlockEngine.getInstance().getPluginMeta().getVersion();
+        return MultiBlockEngine.getInstance().getDescription().getVersion();
     }
 
     @Override

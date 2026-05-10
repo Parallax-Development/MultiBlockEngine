@@ -40,8 +40,8 @@ public final class MultiblockExpansion extends PlaceholderExpansion {
             int maxListSize
     ) {
         this(
-                plugin.getPluginMeta().getAuthors(),
-                plugin.getPluginMeta().getVersion(),
+                plugin.getDescription().getAuthors(),
+                plugin.getDescription().getVersion(),
                 plugin::getManager,
                 queryService,
                 metadataService,

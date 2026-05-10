@@ -11,6 +11,7 @@ import dev.darkblade.mbe.core.internal.tooling.StringUtil;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.title.Title;
+import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
@@ -23,14 +24,17 @@ public final class PlayerMessageServiceImpl implements PlayerMessageService {
 
     @InjectService
     private I18nService i18n;
+    
+    private BukkitAudiences adventure;
 
     private final Map<UUID, ActionBarState> actionBarStates = new ConcurrentHashMap<>();
 
     public PlayerMessageServiceImpl() {
     }
 
-    public PlayerMessageServiceImpl(I18nService i18n) {
+    public PlayerMessageServiceImpl(I18nService i18n, BukkitAudiences adventure) {
         this.i18n = i18n;
+        this.adventure = adventure;
     }
 
     @Override
@@ -58,11 +62,23 @@ public final class PlayerMessageServiceImpl implements PlayerMessageService {
             resolved = PlaceholderAPI.setPlaceholders(player, resolved);
         }
         MessageChannel channel = resolveChannel(message);
-        switch (channel) {
-            case CHAT, SYSTEM -> player.sendMessage(StringUtil.legacyText(resolved));
-            case ACTION_BAR -> sendActionBar(player, resolved);
-            case TITLE -> player.showTitle(Title.title(StringUtil.legacyText(resolved), Component.empty()));
-            case SUBTITLE -> player.showTitle(Title.title(Component.empty(), StringUtil.legacyText(resolved)));
+        
+        if (this.adventure != null) {
+            net.kyori.adventure.audience.Audience audience = this.adventure.player(player);
+            switch (channel) {
+                case CHAT, SYSTEM -> audience.sendMessage(StringUtil.legacyText(resolved));
+                case ACTION_BAR -> sendActionBar(player, audience, resolved);
+                case TITLE -> audience.showTitle(Title.title(StringUtil.legacyText(resolved), Component.empty()));
+                case SUBTITLE -> audience.showTitle(Title.title(Component.empty(), StringUtil.legacyText(resolved)));
+            }
+        } else {
+            // Fallback for when adventure is null
+            switch (channel) {
+                case CHAT, SYSTEM -> ((org.bukkit.command.CommandSender) player).sendMessage(StringUtil.toLegacy(StringUtil.legacyText(resolved)));
+                case ACTION_BAR -> sendActionBar(player, null, resolved);
+                case TITLE -> player.sendTitle(StringUtil.toLegacy(StringUtil.legacyText(resolved)), "", 10, 70, 20);
+                case SUBTITLE -> player.sendTitle("", StringUtil.toLegacy(StringUtil.legacyText(resolved)), 10, 70, 20);
+            }
         }
     }
 
@@ -83,7 +99,7 @@ public final class PlayerMessageServiceImpl implements PlayerMessageService {
         };
     }
 
-    private void sendActionBar(Player player, String message) {
+    private void sendActionBar(Player player, net.kyori.adventure.audience.Audience audience, String message) {
         ActionBarState state = actionBarStates.computeIfAbsent(player.getUniqueId(), ignored -> new ActionBarState());
         long now = System.currentTimeMillis();
         synchronized (state) {
@@ -93,7 +109,11 @@ public final class PlayerMessageServiceImpl implements PlayerMessageService {
             state.lastMessage = message;
             state.lastTimestamp = now;
         }
-        player.sendActionBar(StringUtil.legacyText(message));
+        if (audience != null) {
+            audience.sendActionBar(StringUtil.legacyText(message));
+        } else {
+            player.spigot().sendMessage(net.md_5.bungee.api.ChatMessageType.ACTION_BAR, net.md_5.bungee.api.chat.TextComponent.fromLegacyText(StringUtil.toLegacy(StringUtil.legacyText(message))));
+        }
     }
 
     private boolean isPlaceholderApiPresent() {

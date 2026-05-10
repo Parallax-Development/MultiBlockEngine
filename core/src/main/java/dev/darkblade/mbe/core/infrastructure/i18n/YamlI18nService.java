@@ -126,7 +126,7 @@ public final class YamlI18nService implements I18nService {
                 return;
             }
             if (sender instanceof Player player) {
-                player.sendMessage(StringUtil.legacyText(msg));
+                ((CommandSender) player).sendMessage(dev.darkblade.mbe.core.internal.tooling.StringUtil.toLegacy(StringUtil.legacyText(msg)));
                 return;
             }
             sender.sendMessage(ChatColor.translateAlternateColorCodes('&', msg));

@@ -207,6 +207,14 @@ public class MultiBlockEngine extends JavaPlugin {
     private BukkitInventoryCompatService inventoryCompatService;
     private BukkitSchedulerCompatService schedulerCompatService;
     private TrustedCommandService trustedCommandService;
+    private net.kyori.adventure.platform.bukkit.BukkitAudiences adventure;
+
+    public net.kyori.adventure.platform.bukkit.BukkitAudiences adventure() {
+        if (this.adventure == null) {
+            throw new IllegalStateException("Tried to access Adventure when the plugin was disabled!");
+        }
+        return this.adventure;
+    }
 
     public TrustedCommandService getTrustedCommandService() {
         return trustedCommandService;
@@ -231,6 +239,8 @@ public class MultiBlockEngine extends JavaPlugin {
         CoreLogger log = loggingManager.core();
         log.setCorePhase(LogPhase.BOOT);
         log.info("MultiBlockEngine starting...");
+
+        this.adventure = net.kyori.adventure.platform.bukkit.BukkitAudiences.create(this);
 
         // Initialize components
         api = new MultiblockAPIImpl();
@@ -317,7 +327,7 @@ public class MultiBlockEngine extends JavaPlugin {
         );
         addonManager.registerCoreService(LocaleProvider.class, localeProvider);
         addonManager.registerCoreService(I18nService.class, i18n);
-        PlayerMessageServiceImpl playerMessageService = new PlayerMessageServiceImpl(i18n);
+        PlayerMessageServiceImpl playerMessageService = new PlayerMessageServiceImpl(i18n, this.adventure);
         addonManager.registerCoreService(PlayerMessageService.class, playerMessageService);
         addonManager.registerCoreMbeService(playerMessageService);
 
@@ -652,11 +662,16 @@ public class MultiBlockEngine extends JavaPlugin {
         if (persistence != null) {
             persistence.shutdown(true);
         }
+        if (this.adventure != null) {
+            this.adventure.close();
+            this.adventure = null;
+        }
         if (log != null) {
             log.info("MultiBlockEngine stopping...");
         } else {
             getLogger().info("MultiBlockEngine stopping...");
         }
+        instance = null;
     }
     
     public static MultiBlockEngine getInstance() {

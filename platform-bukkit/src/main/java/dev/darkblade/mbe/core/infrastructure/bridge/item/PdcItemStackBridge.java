@@ -8,9 +8,6 @@ import dev.darkblade.mbe.api.item.ItemService;
 import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.MessageKey;
 import dev.darkblade.mbe.core.MultiBlockEngine;
-import dev.darkblade.mbe.core.internal.tooling.StringUtil;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.command.CommandSender;
@@ -83,15 +80,15 @@ public final class PdcItemStackBridge implements ItemStackBridge {
         if (meta != null) {
             String name = resolveText(def.displayName(), locale);
             if (name != null && !name.isBlank()) {
-                meta.displayName(Component.text(name, NamedTextColor.WHITE));
+                meta.setDisplayName(org.bukkit.ChatColor.translateAlternateColorCodes('&', name));
             }
 
             Map<String, Object> props = def.properties();
             if (props != null) {
                 Object loreRaw = props.get("lore");
-                List<Component> lore = parseLore(loreRaw, locale);
+                List<String> lore = parseLore(loreRaw, locale);
                 if (!lore.isEmpty()) {
-                    meta.lore(lore);
+                    meta.setLore(lore);
                 }
                 Object customModelRaw = props.get("custom-model-data");
                 if (customModelRaw instanceof Number number) {
@@ -121,9 +118,9 @@ public final class PdcItemStackBridge implements ItemStackBridge {
             if (isStorageDisk(props)) {
                 long used = readDiskUsed(data);
                 long total = readDiskTotal(props, data);
-                meta.lore(List.of(
-                        StringUtil.legacyText("&7Disco de almacenamiento"),
-                        StringUtil.legacyText("&fCapacidad: " + used + "/" + total)
+                meta.setLore(List.of(
+                        org.bukkit.ChatColor.translateAlternateColorCodes('&', "&7Disco de almacenamiento"),
+                        org.bukkit.ChatColor.translateAlternateColorCodes('&', "&fCapacidad: " + used + "/" + total)
                 ));
             }
 
@@ -202,7 +199,7 @@ public final class PdcItemStackBridge implements ItemStackBridge {
         return used;
     }
 
-    private List<Component> parseLore(Object raw, Locale locale) {
+    private List<String> parseLore(Object raw, Locale locale) {
         if (raw == null) {
             return List.of();
         }
@@ -211,10 +208,10 @@ public final class PdcItemStackBridge implements ItemStackBridge {
             if (resolved == null || resolved.isBlank()) {
                 return List.of();
             }
-            return List.of(StringUtil.legacyText(resolved));
+            return List.of(org.bukkit.ChatColor.translateAlternateColorCodes('&', resolved));
         }
         if (raw instanceof List<?> list) {
-            List<Component> out = new ArrayList<>();
+            List<String> out = new ArrayList<>();
             for (Object o : list) {
                 if (o == null) {
                     continue;
@@ -223,7 +220,7 @@ public final class PdcItemStackBridge implements ItemStackBridge {
                 if (s == null || s.isBlank()) {
                     continue;
                 }
-                out.add(StringUtil.legacyText(s));
+                out.add(org.bukkit.ChatColor.translateAlternateColorCodes('&', s));
             }
             return out;
         }

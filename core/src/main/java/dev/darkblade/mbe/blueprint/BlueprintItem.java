@@ -33,7 +33,7 @@ public final class BlueprintItem {
         ItemStack stack = bridge.toItemStack(instance, sender);
         ItemMeta meta = stack.getItemMeta();
         if (meta != null) {
-            meta.displayName(Component.text("Blueprint: " + definition.id(), NamedTextColor.AQUA));
+            meta.setDisplayName(dev.darkblade.mbe.core.internal.tooling.StringUtil.toLegacy(Component.text("Blueprint: " + definition.id(), NamedTextColor.AQUA)));
             stack.setItemMeta(meta);
         }
         return stack;

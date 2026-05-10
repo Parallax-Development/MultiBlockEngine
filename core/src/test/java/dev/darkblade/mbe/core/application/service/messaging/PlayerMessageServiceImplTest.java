@@ -30,10 +30,10 @@ class PlayerMessageServiceImplTest {
 
     @Test
     void resolvesMessageWithI18nAndSendsToChat() {
+        PlayerProbe probe = new PlayerProbe();
         PlayerMessageServiceImpl service = new PlayerMessageServiceImpl(new TestI18nService(Map.of(
                 KEY_MODE.fullKey(), "Mode: {mode}"
-        )));
-        PlayerProbe probe = new PlayerProbe();
+        )), probe.adventure());
 
         service.send(probe.player(), new PlayerMessage(
                 KEY_MODE,
@@ -48,10 +48,10 @@ class PlayerMessageServiceImplTest {
 
     @Test
     void actionBarDoesNotSpamRepeatedMessagesWithinDebounceWindow() {
+        PlayerProbe probe = new PlayerProbe();
         PlayerMessageServiceImpl service = new PlayerMessageServiceImpl(new TestI18nService(Map.of(
                 KEY_MODE.fullKey(), "Mode: {mode}"
-        )));
-        PlayerProbe probe = new PlayerProbe();
+        )), probe.adventure());
         PlayerMessage message = new PlayerMessage(
                 KEY_MODE,
                 MessageChannel.ACTION_BAR,
@@ -68,12 +68,12 @@ class PlayerMessageServiceImplTest {
 
     @Test
     void routesByPriorityWhenChannelIsNull() {
+        PlayerProbe probe = new PlayerProbe();
         PlayerMessageServiceImpl service = new PlayerMessageServiceImpl(new TestI18nService(Map.of(
                 KEY_MODE.fullKey(), "Mode: {mode}",
                 KEY_ERROR.fullKey(), "No permission",
                 KEY_ALERT.fullKey(), "Critical failure"
-        )));
-        PlayerProbe probe = new PlayerProbe();
+        )), probe.adventure());
 
         service.send(probe.player(), new PlayerMessage(
                 KEY_MODE,
@@ -115,17 +115,35 @@ class PlayerMessageServiceImplTest {
                     if (name.equals("getUniqueId")) {
                         return uuid;
                     }
-                    if (name.equals("sendMessage") && args != null && args.length == 1 && args[0] instanceof Component component) {
-                        chat.add(component);
-                        return null;
-                    }
-                    if (name.equals("sendActionBar") && args != null && args.length == 1 && args[0] instanceof Component component) {
-                        actionBar.add(component);
-                        return null;
-                    }
-                    if (name.equals("showTitle") && args != null && args.length == 1 && args[0] instanceof Title title) {
-                        titles.add(title);
-                        return null;
+                    return defaultValue(method.getReturnType());
+                }
+        );
+
+        private final net.kyori.adventure.platform.bukkit.BukkitAudiences adventure = (net.kyori.adventure.platform.bukkit.BukkitAudiences) Proxy.newProxyInstance(
+                net.kyori.adventure.platform.bukkit.BukkitAudiences.class.getClassLoader(),
+                new Class<?>[]{net.kyori.adventure.platform.bukkit.BukkitAudiences.class},
+                (proxy, method, args) -> {
+                    if (method.getName().equals("player") && args != null && args.length == 1) {
+                        return (net.kyori.adventure.audience.Audience) Proxy.newProxyInstance(
+                                net.kyori.adventure.audience.Audience.class.getClassLoader(),
+                                new Class<?>[]{net.kyori.adventure.audience.Audience.class},
+                                (p, m, a) -> {
+                                    String name = m.getName();
+                                    if (name.equals("sendMessage") && a != null && a.length == 1 && a[0] instanceof Component component) {
+                                        chat.add(component);
+                                        return null;
+                                    }
+                                    if (name.equals("sendActionBar") && a != null && a.length == 1 && a[0] instanceof Component component) {
+                                        actionBar.add(component);
+                                        return null;
+                                    }
+                                    if (name.equals("showTitle") && a != null && a.length == 1 && a[0] instanceof Title title) {
+                                        titles.add(title);
+                                        return null;
+                                    }
+                                    return defaultValue(m.getReturnType());
+                                }
+                        );
                     }
                     return defaultValue(method.getReturnType());
                 }
@@ -133,6 +151,10 @@ class PlayerMessageServiceImplTest {
 
         private Player player() {
             return player;
+        }
+
+        private net.kyori.adventure.platform.bukkit.BukkitAudiences adventure() {
+            return adventure;
         }
 
         private List<Component> chat() {

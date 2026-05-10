@@ -15,7 +15,7 @@ public record SpawnEntityAction(EntityType type, Vector offset, String customNam
         if (loc.getWorld() != null) {
             Entity entity = loc.getWorld().spawnEntity(loc, type);
             if (customName != null) {
-                entity.customName(StringUtil.legacyText(customName));
+                entity.setCustomName(StringUtil.toLegacy(StringUtil.legacyText(customName)));
                 entity.setCustomNameVisible(true);
             }
         }

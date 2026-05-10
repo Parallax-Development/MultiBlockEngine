@@ -41,6 +41,7 @@ public class MultiblockRuntimeService implements Tickable {
     private AddonLifecycleService addonManager;
     private InstanceStorageService storage;
     private final Map<String, List<MultiblockType>> variantsBySignature = new HashMap<>();
+    private long tickCounter = 0;
     
     // Supported rotations
     private static final BlockFace[] ROTATIONS = {BlockFace.NORTH, BlockFace.EAST, BlockFace.SOUTH, BlockFace.WEST};
@@ -184,7 +185,7 @@ public class MultiblockRuntimeService implements Tickable {
     @Override
     public void tick() {
         long startTime = System.nanoTime();
-        long currentTick = Bukkit.getCurrentTick();
+        long currentTick = tickCounter++;
         
         for (MultiblockInstance instance : activeInstances.values()) {
             // Allow tick execution even if INACTIVE, so logic can check state conditions
@@ -217,9 +218,9 @@ public class MultiblockRuntimeService implements Tickable {
         // Simple optimization: check if chunk is loaded first
         if (!loc.getChunk().isLoaded()) return false;
         
-        // getNearbyPlayers is efficient in modern Paper/Spigot
-        Collection<Player> players = loc.getNearbyPlayers(radius);
-        return !players.isEmpty();
+        // getNearbyEntities is efficient in modern Paper/Spigot
+        Collection<org.bukkit.entity.Entity> entities = loc.getWorld().getNearbyEntities(loc, radius, radius, radius, e -> e instanceof Player);
+        return !entities.isEmpty();
     }
     
     /**

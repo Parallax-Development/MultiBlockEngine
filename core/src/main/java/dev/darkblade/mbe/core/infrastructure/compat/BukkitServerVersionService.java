@@ -33,10 +33,10 @@ public final class BukkitServerVersionService implements ServerVersionService, M
 
     private static ServerVersion resolveCurrent() {
         try {
-            return ServerVersion.parse(Bukkit.getMinecraftVersion());
+            return ServerVersion.parse(Bukkit.getBukkitVersion());
         } catch (Throwable ignored) {
             try {
-                return ServerVersion.parse(Bukkit.getBukkitVersion());
+                return ServerVersion.parse(Bukkit.getServer().getVersion());
             } catch (Throwable ignoredToo) {
                 return ServerVersion.UNKNOWN;
             }
