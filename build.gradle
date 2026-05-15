@@ -2,10 +2,41 @@ plugins {
     id 'base'
 }
 
-def buildNumber = providers.environmentVariable('BUILD_NUMBER')
+// --- Cached Build Number ---
+def buildNumberFile = rootProject.file('.gradle/build-number.txt')
+
+def readBuildNumber = {
+    if (buildNumberFile.exists()) {
+        def text = buildNumberFile.text.trim()
+        return text.isInteger() ? text.toInteger() : 0
+    }
+    return 0
+}
+
+tasks.register('incrementBuildNumber') {
+    description = 'Increments the cached local build number counter.'
+    group = 'build setup'
+
+    // Declare the file as output for up-to-date checks
+    outputs.file(buildNumberFile)
+    // Never consider this task up-to-date
+    outputs.upToDateWhen { false }
+
+    doLast {
+        def current = readBuildNumber()
+        def next = current + 1
+        buildNumberFile.parentFile.mkdirs()
+        buildNumberFile.text = next.toString()
+        logger.lifecycle("Build number incremented: ${current} -> ${next}")
+    }
+}
+
+// Resolve build number: CI env > cached local counter
+def ciBuildNumber = providers.environmentVariable('BUILD_NUMBER')
     .orElse(providers.environmentVariable('GITHUB_RUN_NUMBER'))
-    .orElse('LOCAL')
-    .get()
+    .orNull
+def buildNumber = ciBuildNumber ?: (readBuildNumber() > 0 ? readBuildNumber().toString() : 'LOCAL')
+
 def releaseVersion = providers.environmentVariable('RELEASE_VERSION').orNull
 def baseVersion = (releaseVersion != null && !releaseVersion.isBlank()) ? releaseVersion : project.findProperty('projectVersion') ?: '1.0.0'
 def artifactBaseName = 'MultiblockEngine'
@@ -13,6 +44,17 @@ def artifactBaseName = 'MultiblockEngine'
 allprojects {
     group = 'com.mbe'
     version = "${baseVersion}-${buildNumber}"
+}
+
+// Hook incrementBuildNumber into all build tasks (only for local builds)
+if (ciBuildNumber == null) {
+    gradle.projectsEvaluated {
+        rootProject.allprojects { proj ->
+            proj.tasks.matching { it.name == 'build' }.configureEach {
+                dependsOn rootProject.tasks.named('incrementBuildNumber')
+            }
+        }
+    }
 }
 
 subprojects {
