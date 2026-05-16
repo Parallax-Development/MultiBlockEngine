@@ -213,6 +213,18 @@ public final class ServiceLifecycleOrchestrator {
         return List.copyOf(result);
     }
 
+    public Map<String, List<String>> getServiceIdsByAddon() {
+        Map<String, List<String>> snapshot = new java.util.LinkedHashMap<>();
+        for (Map.Entry<String, List<String>> entry : servicesByAddon.entrySet()) {
+            snapshot.put(entry.getKey(), List.copyOf(entry.getValue()));
+        }
+        return Map.copyOf(snapshot);
+    }
+
+    public java.util.Collection<MBEService> getAllRegistered() {
+        return registry.getAll();
+    }
+
     private static String normalizeAddonId(String addonId) {
         if (addonId == null || addonId.isBlank()) {
             return "unknown";

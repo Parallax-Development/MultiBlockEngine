@@ -477,6 +477,65 @@ public class AddonLifecycleService {
         }
     }
 
+    public record AddonInfo(
+            String id,
+            String version,
+            AddonState state,
+            List<String> serviceIds,
+            List<String> dependencies) {
+    }
+
+    public List<AddonInfo> getAddonInfoList() {
+        List<AddonInfo> result = new ArrayList<>();
+        List<String> allIds = new ArrayList<>(states.keySet());
+        allIds.sort(String::compareToIgnoreCase);
+        java.util.Map<String, List<String>> serviceMap = serviceLifecycleManager.getServiceIdsByAddon();
+        for (String id : allIds) {
+            if (CORE_PROVIDER_ID.equals(id)) {
+                continue;
+            }
+            AddonState state = states.getOrDefault(id, AddonState.DISABLED);
+            String version = addonVersion(id);
+            List<String> deps = List.of();
+            DiscoveredAddon discovered = discoveredAddons.get(id);
+            if (discovered != null && discovered.metadata().dependsIds() != null) {
+                deps = List.copyOf(discovered.metadata().dependsIds());
+            }
+            List<String> serviceIds = serviceMap.getOrDefault(id, List.of());
+            result.add(new AddonInfo(id, version, state, serviceIds, deps));
+        }
+        return List.copyOf(result);
+    }
+
+    public Optional<AddonInfo> getAddonInfo(String addonId) {
+        if (addonId == null || addonId.isBlank()) {
+            return Optional.empty();
+        }
+        String key = addonId.trim();
+        AddonState state = states.get(key);
+        if (state == null) {
+            return Optional.empty();
+        }
+        if (CORE_PROVIDER_ID.equals(key)) {
+            java.util.Map<String, List<String>> serviceMap = serviceLifecycleManager.getServiceIdsByAddon();
+            List<String> coreServices = serviceMap.getOrDefault(CORE_PROVIDER_ID, List.of());
+            return Optional.of(new AddonInfo(CORE_PROVIDER_ID, "core", state, coreServices, List.of()));
+        }
+        String version = addonVersion(key);
+        List<String> deps = List.of();
+        DiscoveredAddon discovered = discoveredAddons.get(key);
+        if (discovered != null && discovered.metadata().dependsIds() != null) {
+            deps = List.copyOf(discovered.metadata().dependsIds());
+        }
+        java.util.Map<String, List<String>> serviceMap = serviceLifecycleManager.getServiceIdsByAddon();
+        List<String> serviceIds = serviceMap.getOrDefault(key, List.of());
+        return Optional.of(new AddonInfo(key, version, state, serviceIds, deps));
+    }
+
+    public ServiceLifecycleOrchestrator getServiceLifecycleOrchestrator() {
+        return serviceLifecycleManager;
+    }
+
     public <T> void queueServiceExposure(String addonId, Class<T> api, T implementation, ServicePriority priority) {
         Objects.requireNonNull(addonId, "addonId");
         Objects.requireNonNull(api, "api");

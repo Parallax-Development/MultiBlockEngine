@@ -270,8 +270,7 @@ public class MultiBlockEngine extends JavaPlugin {
         schedulerCompatService = new BukkitSchedulerCompatService(this);
         BukkitDisplayCompatService displayCompatService = new BukkitDisplayCompatService(
                 getServer().getPluginManager(),
-                () -> addonManager == null ? null : addonManager.getCoreService(DisplayEntityRenderer.class)
-        );
+                () -> addonManager == null ? null : addonManager.getCoreService(DisplayEntityRenderer.class));
         addonManager.registerCoreService(ServerVersionService.class, serverVersionService);
         addonManager.registerCoreService(InventoryCompatService.class, inventoryCompatService);
         addonManager.registerCoreService(SchedulerCompatService.class, schedulerCompatService);
@@ -287,17 +286,18 @@ public class MultiBlockEngine extends JavaPlugin {
             }
 
             log.logInternal(
-                new LogScope.Core(),
-                LogPhase.RUNTIME,
-                LogLevel.ERROR,
-                "Storage service exception",
-                error,
-                new dev.darkblade.mbe.api.logging.LogKv[] {
-                    dev.darkblade.mbe.api.logging.LogKv.kv("storage", storageService == null ? "null" : storageService.toString()),
-                    dev.darkblade.mbe.api.logging.LogKv.kv("storageType", storageService == null ? "null" : storageService.getClass().getName())
-                },
-                Set.of("storage")
-            );
+                    new LogScope.Core(),
+                    LogPhase.RUNTIME,
+                    LogLevel.ERROR,
+                    "Storage service exception",
+                    error,
+                    new dev.darkblade.mbe.api.logging.LogKv[] {
+                            dev.darkblade.mbe.api.logging.LogKv.kv("storage",
+                                    storageService == null ? "null" : storageService.toString()),
+                            dev.darkblade.mbe.api.logging.LogKv.kv("storageType",
+                                    storageService == null ? "null" : storageService.getClass().getName())
+                    },
+                    Set.of("storage"));
         };
 
         DefaultItemService itemService = new DefaultItemService();
@@ -305,7 +305,8 @@ public class MultiBlockEngine extends JavaPlugin {
         addonManager.registerCoreService(ItemService.class, itemService);
         ItemStackBridge itemStackBridge = createItemStackBridge(itemService);
         addonManager.registerCoreService(ItemStackBridge.class, itemStackBridge);
-        addonManager.registerCoreService(StorageRegistry.class, new DefaultStorageRegistry(log, storageExceptionHandler));
+        addonManager.registerCoreService(StorageRegistry.class,
+                new DefaultStorageRegistry(log, storageExceptionHandler));
         addonManager.registerCoreService(PersistentStorageService.class, persistence);
 
         ExportHookRegistry exportHooks = new DefaultExportHookRegistry();
@@ -323,15 +324,15 @@ public class MultiBlockEngine extends JavaPlugin {
                         .toList(),
                 log,
                 localeProvider,
-                () -> getConfig().getBoolean("i18n.debugMissingKeys", false)
-        );
+                () -> getConfig().getBoolean("i18n.debugMissingKeys", false));
         addonManager.registerCoreService(LocaleProvider.class, localeProvider);
         addonManager.registerCoreService(I18nService.class, i18n);
         PlayerMessageServiceImpl playerMessageService = new PlayerMessageServiceImpl(i18n, this.adventure);
         addonManager.registerCoreService(PlayerMessageService.class, playerMessageService);
         addonManager.registerCoreMbeService(playerMessageService);
 
-        PermissionBasedLimitResolver limitResolver = new PermissionBasedLimitResolver(new File(getDataFolder(), "limits.yml"), log);
+        PermissionBasedLimitResolver limitResolver = new PermissionBasedLimitResolver(
+                new File(getDataFolder(), "limits.yml"), log);
         MultiblockLimitServiceImpl limitService = new MultiblockLimitServiceImpl(persistence, limitResolver);
         addonManager.registerCoreService(MultiblockLimitResolver.class, limitResolver);
         addonManager.registerCoreService(MultiblockLimitService.class, limitService);
@@ -352,7 +353,8 @@ public class MultiBlockEngine extends JavaPlugin {
         ToolModeRegistry toolModeRegistry = new DefaultToolModeRegistry();
         ToolActionRegistry toolActionRegistry = new DefaultToolActionRegistry();
         ToolStateResolver toolStateResolver = new PdcToolStateResolver(itemStackBridge, toolRegistry);
-        ToolDispatcher toolDispatcher = new ToolDispatcher(toolStateResolver, toolRegistry, toolModeRegistry, toolActionRegistry);
+        ToolDispatcher toolDispatcher = new ToolDispatcher(toolStateResolver, toolRegistry, toolModeRegistry,
+                toolActionRegistry);
         addonManager.registerCoreService(IOService.class, ioService);
         addonManager.registerCoreService(IOTickService.class, ioTickService);
         addonManager.registerCoreService(NetworkService.class, networkService);
@@ -368,14 +370,14 @@ public class MultiBlockEngine extends JavaPlugin {
         addonManager.registerCoreService(ToolSessionService.class, toolSessionService);
         tickService.register(toolSessionService);
 
-        ToolModeContextResolver toolModeContextResolver = new ToolModeContextResolver(manager, ioService, networkService);
+        ToolModeContextResolver toolModeContextResolver = new ToolModeContextResolver(manager, ioService,
+                networkService);
         addonManager.registerCoreService(ToolModeContextResolver.class, toolModeContextResolver);
 
         AssemblyMode assemblyMode = new AssemblyMode();
         InspectMode inspectMode = new InspectMode();
 
         ((DefaultToolRegistry) toolRegistry).register(new WrenchTool(assemblyMode, inspectMode));
-
 
         ((DefaultToolModeRegistry) toolModeRegistry).register(assemblyMode);
         ((DefaultToolModeRegistry) toolModeRegistry).register(inspectMode);
@@ -386,7 +388,8 @@ public class MultiBlockEngine extends JavaPlugin {
         if (registeredTriggers <= 0) {
             log.error("Assembly triggers registry is empty");
         } else {
-            log.info("Assembly triggers registered", dev.darkblade.mbe.api.logging.LogKv.kv("count", registeredTriggers));
+            log.info("Assembly triggers registered",
+                    dev.darkblade.mbe.api.logging.LogKv.kv("count", registeredTriggers));
         }
         addonManager.registerCoreService(AssemblyTriggerRegistry.class, triggerRegistry);
         assemblyTriggers = triggerRegistry;
@@ -395,25 +398,28 @@ public class MultiBlockEngine extends JavaPlugin {
         addonManager.registerCoreService(AssemblyReportService.class, assemblyReportService);
         addonManager.registerCoreMbeService(assemblyReportService);
         boolean assemblyDebugEnabled = getConfig().getBoolean("debug.assembly", getConfig().getBoolean("debug", false));
-        assemblyCoordinator = new AssemblyCoordinator(manager, triggerRegistry, assemblyReportService, log, assemblyDebugEnabled);
+        assemblyCoordinator = new AssemblyCoordinator(manager, triggerRegistry, assemblyReportService, log,
+                assemblyDebugEnabled);
         assemblyCoordinator.setLimitService(limitService);
         if (assemblyCoordinator == null) {
             log.fatal("Assembly coordinator initialization failed");
         }
 
-        ((DefaultToolActionRegistry) toolActionRegistry).register(new AssembleAction(assemblyCoordinator, playerMessageService));
+        ((DefaultToolActionRegistry) toolActionRegistry)
+                .register(new AssembleAction(assemblyCoordinator, playerMessageService));
         ((DefaultToolActionRegistry) toolActionRegistry).register(new DisassembleAction(manager, playerMessageService));
         ((DefaultToolActionRegistry) toolActionRegistry).register(new InspectAction(manager, playerMessageService));
-        ((DefaultToolActionRegistry) toolActionRegistry).register(new SwitchModeAction(toolStateResolver, toolRegistry, playerMessageService));
+        ((DefaultToolActionRegistry) toolActionRegistry)
+                .register(new SwitchModeAction(toolStateResolver, toolRegistry, playerMessageService));
 
         DisplayEntityRenderer displayRenderer = createDisplayRenderer();
         PreviewSettings previewSettings = new PreviewSettings(
-            getConfig().getInt("preview.batchSize", 30),
-            getConfig().getInt("preview.raycastDistance", 8),
-            getConfig().getDouble("preview.maxDistance", 24.0D),
-            Duration.ofSeconds(Math.max(3, getConfig().getLong("preview.timeoutSeconds", 20L)))
-        );
-        structurePreviewService = new StructurePreviewServiceImpl(this, displayRenderer, playerMessageService, new UnknownValidationStrategy(), previewSettings);
+                getConfig().getInt("preview.batchSize", 30),
+                getConfig().getInt("preview.raycastDistance", 8),
+                getConfig().getDouble("preview.maxDistance", 24.0D),
+                Duration.ofSeconds(Math.max(3, getConfig().getLong("preview.timeoutSeconds", 20L))));
+        structurePreviewService = new StructurePreviewServiceImpl(this, displayRenderer, playerMessageService,
+                new UnknownValidationStrategy(), previewSettings);
         addonManager.registerCoreService(DisplayEntityRenderer.class, displayRenderer);
         registerPlatformPreviewRendererService(displayRenderer);
         addonManager.registerCoreService(StructurePreviewService.class, structurePreviewService);
@@ -422,15 +428,15 @@ public class MultiBlockEngine extends JavaPlugin {
         addonManager.registerCoreService(StructureCatalogService.class, structureCatalogService);
         BuildContextService buildContextService = new InMemoryBuildContextService();
         addonManager.registerCoreService(BuildContextService.class, buildContextService);
-        BlueprintDefinitionResolver blueprintDefinitionResolver = new BlueprintDefinitionResolver(structureCatalogService);
+        BlueprintDefinitionResolver blueprintDefinitionResolver = new BlueprintDefinitionResolver(
+                structureCatalogService);
         Map<String, InventoryDataProvider> uiProviders = new HashMap<>();
         uiProviders.put("blueprints", new BlueprintDataProvider(structureCatalogService));
         InventorySessionStore inventorySessions = new InventorySessionStore();
         InventoryUIService inventoryUIService = new InventoryUIServiceImpl(
                 new InventoryConfigLoader(new File(getDataFolder(), "inventories.yml")),
                 new InventoryRenderer(uiProviders),
-                inventorySessions
-        );
+                inventorySessions);
         addonManager.registerCoreService(InventoryUIService.class, inventoryUIService);
         // Blueprint crafting table panel components
         BlueprintCraftingSessionStore craftingSessionStore = new BlueprintCraftingSessionStore();
@@ -439,21 +445,19 @@ public class MultiBlockEngine extends JavaPlugin {
                 craftingSessionStore,
                 addonManager.getCoreService(I18nService.class),
                 addonManager.getCoreService(ItemService.class),
-                itemStackBridge
-        );
+                itemStackBridge);
         BlueprintCraftingServiceImpl craftingService = new BlueprintCraftingServiceImpl(
                 craftingSessionStore,
                 addonManager.getCoreService(ItemService.class),
-                itemStackBridge
-        );
-        PreviewOriginResolver previewOriginResolver = new RaycastPreviewOriginResolver(getConfig().getInt("preview.raycastDistance", 8));
+                itemStackBridge);
+        PreviewOriginResolver previewOriginResolver = new RaycastPreviewOriginResolver(
+                getConfig().getInt("preview.raycastDistance", 8));
         BlueprintController blueprintController = new BlueprintController(
                 buildContextService,
                 structurePreviewService,
                 blueprintDefinitionResolver,
                 previewOriginResolver,
-                new BlueprintHeldItemResolver(itemStackBridge)
-        );
+                new BlueprintHeldItemResolver(itemStackBridge));
         BlueprintServiceImpl blueprintService = new BlueprintServiceImpl(blueprintController, inventoryUIService,
                 craftingPanelRenderer);
         addonManager.registerCoreService(BlueprintService.class, blueprintService);
@@ -465,7 +469,8 @@ public class MultiBlockEngine extends JavaPlugin {
         editorSessions = new EditorSessionManager();
         interactionRouter = new InteractionRouter();
         interactionRouter.setPanelViewService(panelViewService);
-        InteractionPipelineService pipelineService = new DefaultInteractionPipelineService(assemblyCoordinator, null, interactionRouter, itemStackBridge, manager);
+        InteractionPipelineService pipelineService = new DefaultInteractionPipelineService(assemblyCoordinator, null,
+                interactionRouter, itemStackBridge, manager);
         addonManager.registerCoreService(InteractionPipelineService.class, pipelineService);
         panelBindings = new PanelBindingService(new File(getDataFolder(), "panel-bindings.yml"), interactionRouter);
         coreServiceLifecycleCoordinator.register(panelBindings);
@@ -474,14 +479,14 @@ public class MultiBlockEngine extends JavaPlugin {
         addonManager.registerCoreService(PanelBindingRegistry.class, panelBindings);
         addonManager.registerCoreService(PanelBindingMutationService.class, panelBindings);
         addonManager.registerCoreService(PanelBindingLinkService.class, panelBindings);
-        long metadataPlaceholderCacheTtlMs = Math.max(0L, getConfig().getLong("metadata.placeholder-cache-ttl-ms", 1000L));
+        long metadataPlaceholderCacheTtlMs = Math.max(0L,
+                getConfig().getLong("metadata.placeholder-cache-ttl-ms", 1000L));
         metadataService = new MetadataServiceImpl(metadataPlaceholderCacheTtlMs);
         coreServiceLifecycleCoordinator.register(metadataService);
         addonManager.registerCoreService(MetadataService.class, metadataService);
         metadataContextResolver = new PlayerMultiblockContextResolver(
                 manager,
-                Math.max(1D, getConfig().getDouble("metadata.placeholder-context-max-distance", 12D))
-        );
+                Math.max(1D, getConfig().getDouble("metadata.placeholder-context-max-distance", 12D)));
         registerDefaultMetadata(metadataService);
         long placeholderCacheTtlMs = Math.max(0L, getConfig().getLong("placeholder.cache-ttl-ms", 1000L));
         playerMultiblockQueryService = new PlayerMultiblockQueryServiceImpl(manager, placeholderCacheTtlMs);
@@ -494,7 +499,7 @@ public class MultiBlockEngine extends JavaPlugin {
         ensureDefaultLangFiles();
         ensureDefaultMultiblockFiles();
         i18n.reload();
-        
+
         File multiblockDir = new File(getDataFolder(), "multiblocks");
         if (!multiblockDir.exists()) {
             multiblockDir.mkdirs();
@@ -504,13 +509,15 @@ public class MultiBlockEngine extends JavaPlugin {
         addonManager.registerCoreService(BlockRegistry.class, blockRegistry);
         BlockItemService blockItemService = new BlockItemService(this, blockRegistry);
         addonManager.registerCoreService(BlockItemService.class, blockItemService);
-        getServer().getPluginManager().registerEvents(new BlockPlacementListener(blockItemService, blockRegistry, manager, assemblyCoordinator), this);
+        getServer().getPluginManager().registerEvents(
+                new BlockPlacementListener(blockItemService, blockRegistry, manager, assemblyCoordinator), this);
 
         File builtinDir = new File(multiblockDir, ".builtin");
-        if (!builtinDir.exists()) builtinDir.mkdirs();
+        if (!builtinDir.exists())
+            builtinDir.mkdirs();
         BuiltinBlockLoader blockLoader = new BuiltinBlockLoader(blockRegistry, log);
         blockLoader.loadFromDirectory(builtinDir);
-        
+
         // Load definitions
         log.setCorePhase(LogPhase.LOAD);
         List<MultiblockParser.LoadedType> loadedTypes = parser.loadAllWithSources(multiblockDir);
@@ -523,12 +530,15 @@ public class MultiBlockEngine extends JavaPlugin {
             try {
                 manager.registerType(type, loaded.source());
                 types.add(type);
-                log.info("Loaded multiblock", dev.darkblade.mbe.api.logging.LogKv.kv("id", type.id()), dev.darkblade.mbe.api.logging.LogKv.kv("source", loaded.source().type().name()), dev.darkblade.mbe.api.logging.LogKv.kv("path", loaded.source().path()));
+                log.info("Loaded multiblock", dev.darkblade.mbe.api.logging.LogKv.kv("id", type.id()),
+                        dev.darkblade.mbe.api.logging.LogKv.kv("source", loaded.source().type().name()),
+                        dev.darkblade.mbe.api.logging.LogKv.kv("path", loaded.source().path()));
             } catch (Exception e) {
-                log.log(LogLevel.ERROR, "Failed to register multiblock type", e, dev.darkblade.mbe.api.logging.LogKv.kv("id", type.id()));
+                log.log(LogLevel.ERROR, "Failed to register multiblock type", e,
+                        dev.darkblade.mbe.api.logging.LogKv.kv("id", type.id()));
             }
         }
-        
+
         // Restore persisted instances
         Collection<MultiblockInstance> instances = storage.loadAll();
         if (instances.isEmpty()) {
@@ -544,7 +554,8 @@ public class MultiBlockEngine extends JavaPlugin {
                     legacy.close();
                     instances = fromDb;
                 } catch (Throwable t) {
-                    log.warn("Legacy SQL migration skipped", dev.darkblade.mbe.api.logging.LogKv.kv("reason", t.getClass().getSimpleName()));
+                    log.warn("Legacy SQL migration skipped",
+                            dev.darkblade.mbe.api.logging.LogKv.kv("reason", t.getClass().getSimpleName()));
                 }
             }
         }
@@ -571,25 +582,29 @@ public class MultiBlockEngine extends JavaPlugin {
         InteractionPipelineService interactionPipeline = addonManager.getCoreService(InteractionPipelineService.class);
         getServer().getPluginManager().registerEvents(
                 createMultiblockListener(interactionPipeline, i18n),
-                this
-        );
+                this);
         getServer().getPluginManager().registerEvents(createEditorInputListener(), this);
         getServer().getPluginManager().registerEvents(new ExportInteractListener(exportSelections), this);
         getServer().getPluginManager().registerEvents(blueprintInputListener, this);
         getServer().getPluginManager().registerEvents(new PreviewPlacementController(blueprintController), this);
-        getServer().getPluginManager().registerEvents(new PreviewBlockPlaceListener(structurePreviewService, buildContextService), this);
-        getServer().getPluginManager().registerEvents(new StructurePreviewRequestListener(structurePreviewService), this);
-        getServer().getPluginManager().registerEvents(new InventoryUIListener(inventorySessions, blueprintService, inventoryCompatService), this);
+        getServer().getPluginManager()
+                .registerEvents(new PreviewBlockPlaceListener(structurePreviewService, buildContextService), this);
+        getServer().getPluginManager().registerEvents(new StructurePreviewRequestListener(structurePreviewService),
+                this);
+        getServer().getPluginManager().registerEvents(
+                new InventoryUIListener(inventorySessions, blueprintService, inventoryCompatService), this);
         getServer().getPluginManager().registerEvents(
                 new BlueprintCraftingPanelListener(
                         craftingSessionStore,
                         craftingPanelRenderer,
                         craftingService,
-                        addonManager.getCoreService(dev.darkblade.mbe.api.message.PlayerMessageService.class)
-                ), this);
-        getServer().getPluginManager().registerEvents(new PlaceholderCacheInvalidationListener(playerMultiblockQueryService), this);
+                        addonManager.getCoreService(dev.darkblade.mbe.api.message.PlayerMessageService.class)),
+                this);
+        getServer().getPluginManager()
+                .registerEvents(new PlaceholderCacheInvalidationListener(playerMultiblockQueryService), this);
         getServer().getPluginManager().registerEvents(new MetadataInvalidationListener(metadataService), this);
-        getServer().getPluginManager().registerEvents(new IOPortLifecycleListener(ioService, portResolutionService), this);
+        getServer().getPluginManager().registerEvents(new IOPortLifecycleListener(ioService, portResolutionService),
+                this);
         for (MultiblockInstance inst : instances) {
             Bukkit.getPluginManager().callEvent(new MultiblockFormEvent(inst, null));
         }
@@ -598,7 +613,7 @@ public class MultiBlockEngine extends JavaPlugin {
         MultiblockCommand cmd = new MultiblockCommand(this, exportSelections, structureExporter);
         getCommand("multiblock").setExecutor(cmd);
         getCommand("multiblock").setTabCompleter(cmd);
-        
+
         Bukkit.getScheduler().runTaskTimerAsynchronously(this, () -> {
             try {
                 if (persistence != null) {
@@ -607,11 +622,12 @@ public class MultiBlockEngine extends JavaPlugin {
             } catch (Exception ignored) {
             }
         }, 20L * 60L, 20L * 60L);
-        
+
         // Register PlaceholderExpansion
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
             int placeholderMaxListSize = Math.max(1, getConfig().getInt("placeholder.max-list-size", 50));
-            new MultiblockExpansion(this, playerMultiblockQueryService, metadataService, metadataContextResolver, placeholderMaxListSize).register();
+            new MultiblockExpansion(this, playerMultiblockQueryService, metadataService, metadataContextResolver,
+                    placeholderMaxListSize).register();
             log.info("Hooked into PlaceholderAPI");
         }
 
@@ -673,7 +689,7 @@ public class MultiBlockEngine extends JavaPlugin {
         }
         instance = null;
     }
-    
+
     public static MultiBlockEngine getInstance() {
         return instance;
     }
@@ -681,19 +697,19 @@ public class MultiBlockEngine extends JavaPlugin {
     public static int getApiVersion() {
         return API_VERSION;
     }
-    
+
     public MultiblockRuntimeService getManager() {
         return manager;
     }
-    
+
     public MultiblockParser getParser() {
         return parser;
     }
-    
+
     public MultiblockAPI getAPI() {
         return api;
     }
-    
+
     public DebugSessionService getDebugSessionService() {
         return debugManager;
     }
@@ -723,10 +739,12 @@ public class MultiBlockEngine extends JavaPlugin {
     }
 
     private void ensureDefaultLangFiles() {
+        saveResourceIfNotExists("lang/en_us/addons.yml");
         saveResourceIfNotExists("lang/en_us/core.yml");
         saveResourceIfNotExists("lang/en_us/commands.yml");
         saveResourceIfNotExists("lang/en_us/services.yml");
         saveResourceIfNotExists("lang/en_us/items.yml");
+        saveResourceIfNotExists("lang/es_es/addons.yml");
         saveResourceIfNotExists("lang/es_es/core.yml");
         saveResourceIfNotExists("lang/es_es/commands.yml");
         saveResourceIfNotExists("lang/es_es/services.yml");
@@ -796,8 +814,7 @@ public class MultiBlockEngine extends JavaPlugin {
                                 return number.intValue();
                             }
                             return 0;
-                        })
-        );
+                        }));
 
         service.define(
                 MetadataKeyBuilder.<UUID>of("multiblock_owner", UUID.class)
@@ -825,8 +842,7 @@ public class MultiBlockEngine extends JavaPlugin {
                                 }
                             }
                             return new UUID(0L, 0L);
-                        })
-        );
+                        }));
 
         service.define(
                 MetadataKeyBuilder.<Double>of("multiblock_efficiency", Double.class)
@@ -845,8 +861,7 @@ public class MultiBlockEngine extends JavaPlugin {
                                 return 0D;
                             }
                             return Math.max(0D, Math.min(1D, energyNumber.doubleValue() / max));
-                        })
-        );
+                        }));
     }
 
     private boolean isSqliteDriverPresent() {
@@ -862,7 +877,8 @@ public class MultiBlockEngine extends JavaPlugin {
         if (getServer().getPluginManager().getPlugin("ProtocolLib") == null) {
             return new DisplayEntityRenderer() {
                 @Override
-                public int spawnBlockDisplay(org.bukkit.entity.Player player, org.bukkit.Location location, org.bukkit.block.data.BlockData blockData) {
+                public int spawnBlockDisplay(org.bukkit.entity.Player player, org.bukkit.Location location,
+                        org.bukkit.block.data.BlockData blockData) {
                     return -1;
                 }
 
@@ -876,20 +892,22 @@ public class MultiBlockEngine extends JavaPlugin {
             };
         }
         try {
-            Class<?> bridgeClass = Class.forName("dev.darkblade.mbe.platform.bukkit.preview.bridge.ProtocolLibLegacyRendererBridge");
+            Class<?> bridgeClass = Class
+                    .forName("dev.darkblade.mbe.platform.bukkit.preview.bridge.ProtocolLibLegacyRendererBridge");
             return (DisplayEntityRenderer) bridgeClass.getConstructor().newInstance();
         } catch (ReflectiveOperationException e) {
             throw new IllegalStateException("Failed to initialize versioned ProtocolLib renderer bridge", e);
         }
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     private void registerPlatformPreviewRendererService(DisplayEntityRenderer displayRenderer) {
         if (displayRenderer == null || addonManager == null) {
             return;
         }
         try {
-            Class<?> bridgeType = Class.forName("dev.darkblade.mbe.platform.bukkit.preview.bridge.ProtocolLibLegacyRendererBridge");
+            Class<?> bridgeType = Class
+                    .forName("dev.darkblade.mbe.platform.bukkit.preview.bridge.ProtocolLibLegacyRendererBridge");
             if (!bridgeType.isInstance(displayRenderer)) {
                 return;
             }
@@ -905,7 +923,8 @@ public class MultiBlockEngine extends JavaPlugin {
 
     private ItemStackBridge createItemStackBridge(ItemService itemService) {
         try {
-            Class<?> bridgeClass = Class.forName("dev.darkblade.mbe.core.infrastructure.bridge.item.PdcItemStackBridge");
+            Class<?> bridgeClass = Class
+                    .forName("dev.darkblade.mbe.core.infrastructure.bridge.item.PdcItemStackBridge");
             Constructor<?> constructor = bridgeClass.getConstructor(ItemService.class);
             return (ItemStackBridge) constructor.newInstance(itemService);
         } catch (ReflectiveOperationException e) {
@@ -916,7 +935,8 @@ public class MultiBlockEngine extends JavaPlugin {
     private Listener createEditorInputListener() {
         try {
             Class<?> listenerClass = Class.forName("dev.darkblade.mbe.core.platform.listener.EditorInputListener");
-            Constructor<?> constructor = listenerClass.getConstructor(MultiBlockEngine.class, EditorSessionManager.class);
+            Constructor<?> constructor = listenerClass.getConstructor(MultiBlockEngine.class,
+                    EditorSessionManager.class);
             return (Listener) constructor.newInstance(this, editorSessions);
         } catch (ReflectiveOperationException e) {
             throw new IllegalStateException("Failed to initialize editor platform listener", e);
@@ -926,7 +946,8 @@ public class MultiBlockEngine extends JavaPlugin {
     private Listener createMultiblockListener(InteractionPipelineService interactionPipeline, I18nService i18n) {
         try {
             Class<?> listenerClass = Class.forName("dev.darkblade.mbe.core.platform.listener.MultiblockListener");
-            Class<?> intentFactoryClass = Class.forName("dev.darkblade.mbe.core.platform.interaction.BukkitInteractionIntentFactory");
+            Class<?> intentFactoryClass = Class
+                    .forName("dev.darkblade.mbe.core.platform.interaction.BukkitInteractionIntentFactory");
             Object intentFactory = intentFactoryClass.getConstructor().newInstance();
             Constructor<?> constructor = listenerClass.getConstructor(
                     MultiblockRuntimeService.class,
@@ -934,8 +955,7 @@ public class MultiBlockEngine extends JavaPlugin {
                     AssemblyCoordinator.class,
                     I18nService.class,
                     InteractionPipelineService.class,
-                    intentFactoryClass
-            );
+                    intentFactoryClass);
             java.util.function.Consumer<org.bukkit.event.Event> eventCaller = Bukkit.getPluginManager()::callEvent;
             return (Listener) constructor.newInstance(
                     manager,
@@ -943,8 +963,7 @@ public class MultiBlockEngine extends JavaPlugin {
                     assemblyCoordinator,
                     i18n,
                     interactionPipeline,
-                    intentFactory
-            );
+                    intentFactory);
         } catch (ReflectiveOperationException e) {
             throw new IllegalStateException("Failed to initialize multiblock platform listener", e);
         }

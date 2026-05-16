@@ -24,6 +24,7 @@ permissions:
       multiblockengine.admin.export: true
       multiblockengine.admin.services: true
       multiblockengine.admin.blueprint: true
+      multiblockengine.admin.addons: true
   multiblockengine.admin.reload:
     description: Allows using /mbe reload and /mbe admin reload
     default: op
@@ -35,6 +36,9 @@ permissions:
     default: op
   multiblockengine.admin.blueprint:
     description: Allows using /mbe blueprint give <id>
+    default: op
+  multiblockengine.admin.addons:
+    description: Allows using /mbe addons list and /mbe addons status
     default: op
   multiblockengine.debug:
     description: Allows access to debug command layer

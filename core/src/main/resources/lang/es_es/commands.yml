@@ -18,6 +18,8 @@ commands:
     debug_type: "/{label} debug type <typeId> [jugador]"
     debug_service: "/{label} debug <servicio> [info] <args>"
     debug_list: "/{label} debug list"
+    addons_list: "/{label} addons list"
+    addons_status: "/{label} addons status <addonId>"
   error:
     no_permission: "&cNo tienes permiso."
     player_only: "&cEste comando solo puede usarlo un jugador."

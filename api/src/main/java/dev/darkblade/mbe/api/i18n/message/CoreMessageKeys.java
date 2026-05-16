@@ -80,6 +80,8 @@ public enum CoreMessageKeys implements MessageKey {
     LINK_CREATED("core.ui.link.created"),
     LINK_FINISHED("core.ui.link.finished"),
     LINK_CANCELLED("core.ui.link.cancelled"),
+    COMMAND_HELP_ADDONS_LIST("commands.help.addons_list"),
+    COMMAND_HELP_ADDONS_STATUS("commands.help.addons_status"),
     EXPORT_MARKED("core.export.marked");
 
     private static final String ORIGIN = "mbe";

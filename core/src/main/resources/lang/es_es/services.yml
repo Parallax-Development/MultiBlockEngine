@@ -88,8 +88,14 @@ services:
       call: "&7/{label} services call <servicio> <info|execute> <args>"
       example: "&7Ejemplo: /{label} services call items info"
     list:
-      title: "&eServicios disponibles ({count}):"
+      title: "&eServicios registrados:"
+      core_title: "&6Servicios Core ({count}):"
+      core_line: "&7  {ids}"
+      addon_title: "&6Servicios de Addons ({count}):"
+      addon_entry: "&7- {id} &8[{addon}]"
+      command_title: "&6Servicios de Comando ({count}):"
       entry: "&7- {id} : {description}"
+      none: "&7  Ninguno."
   crafting:
     ui:
       title: "Mesa de Crafteo de Blueprints"

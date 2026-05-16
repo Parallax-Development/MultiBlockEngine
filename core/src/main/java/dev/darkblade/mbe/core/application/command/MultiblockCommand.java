@@ -5,6 +5,7 @@ import dev.darkblade.mbe.blueprint.BlueprintItem;
 import dev.darkblade.mbe.core.MultiBlockEngine;
 import dev.darkblade.mbe.core.application.service.MetricsService;
 import dev.darkblade.mbe.core.application.service.MultiblockRuntimeService;
+import dev.darkblade.mbe.core.application.command.addon.AddonsCommandRouter;
 import dev.darkblade.mbe.core.application.command.service.ServicesCommandRouter;
 import dev.darkblade.mbe.core.application.command.service.impl.BlueprintCommandService;
 import dev.darkblade.mbe.core.application.command.service.impl.AssemblyCommandService;
@@ -68,6 +69,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
     private static final String PERM_ADMIN_EXPORT = "multiblockengine.admin.export";
     private static final String PERM_ADMIN_SERVICES = "multiblockengine.admin.services";
     private static final String PERM_ADMIN_BLUEPRINT = "multiblockengine.admin.blueprint";
+    private static final String PERM_ADMIN_ADDONS = "multiblockengine.admin.addons";
     private static final String PERM_DEBUG_SESSION = "multiblockengine.debug.session";
     private static final String PERM_DEBUG_SERVICES = "multiblockengine.debug.services";
     private static final String PERM_REPORT_CONSOLE = "mbe.debug.report.console";
@@ -116,6 +118,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
 
     private final MultiBlockEngine plugin;
     private final ServicesCommandRouter services;
+    private final AddonsCommandRouter addons;
     private final SelectionService exportSelections;
     private final StructureExporter structureExporter;
     private final BlueprintCommandService blueprintCommands;
@@ -132,6 +135,7 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
         this.services.registerInternal(new UiCommandService(plugin));
         this.services.registerInternal(this.blueprintCommands);
         this.services.registerInternal(this.assemblyCommands);
+        this.addons = new AddonsCommandRouter(plugin);
     }
 
     @Override
@@ -156,6 +160,14 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
                 return true;
             }
             return services.handle(sender, label, safeArgs);
+        }
+
+        if (root.equals("addons")) {
+            if (!sender.hasPermission(PERM_ADMIN_ADDONS) && !sender.hasPermission(PERM_ADMIN)) {
+                send(sender, CoreMessageKeys.COMMAND_NO_PERMISSION);
+                return true;
+            }
+            return addons.handle(sender, label, safeArgs);
         }
 
         if (root.equals("admin")) {
@@ -402,6 +414,8 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
             send(sender, CoreMessageKeys.COMMAND_HELP_ADMIN_EXPORT, "label", label);
             send(sender, CoreMessageKeys.COMMAND_HELP_ADMIN_SERVICES, "label", label);
             send(sender, CoreMessageKeys.COMMAND_HELP_ADMIN_SERVICE, "label", label);
+            send(sender, CoreMessageKeys.COMMAND_HELP_ADDONS_LIST, "label", label);
+            send(sender, CoreMessageKeys.COMMAND_HELP_ADDONS_STATUS, "label", label);
         }
         if (sender.hasPermission(PERM_DEBUG)) {
             send(sender, CoreMessageKeys.COMMAND_HELP_DEBUG_TYPE, "label", label);
@@ -1029,6 +1043,10 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
             return services.tabComplete(sender, safeArgs);
         }
 
+        if (safeArgs.length > 0 && safeArgs[0] != null && safeArgs[0].equalsIgnoreCase("addons")) {
+            return addons.tabComplete(sender, safeArgs);
+        }
+
         if (safeArgs.length == 1) {
             List<String> roots = new ArrayList<>();
             roots.add("help");
@@ -1053,6 +1071,9 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
             if (sender.hasPermission(PERM_ADMIN_SERVICES) || sender.hasPermission(PERM_ADMIN)) {
                 roots.add("services");
                 roots.add("admin");
+            }
+            if (sender.hasPermission(PERM_ADMIN_ADDONS) || sender.hasPermission(PERM_ADMIN)) {
+                roots.add("addons");
             }
             if (sender.hasPermission(PERM_DEBUG)) {
                 roots.add("debug");
