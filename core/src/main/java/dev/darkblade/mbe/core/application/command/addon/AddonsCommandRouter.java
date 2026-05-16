@@ -195,14 +195,14 @@ public final class AddonsCommandRouter {
 
     private static String coloredState(AddonLifecycleService.AddonState state) {
         if (state == null) {
-            return "\u00a77UNKNOWN";
+            return "&7UNKNOWN";
         }
         return switch (state) {
-            case ENABLED -> "\u00a7a" + state.name();
-            case FAILED -> "\u00a7c" + state.name();
-            case DISABLED -> "\u00a7e" + state.name();
-            case LOADED -> "\u00a77" + state.name();
-            case DISCOVERED -> "\u00a77" + state.name();
+            case ENABLED -> "&a" + state.name();
+            case FAILED -> "&c" + state.name();
+            case DISABLED -> "&e" + state.name();
+            case LOADED -> "&7" + state.name();
+            case DISCOVERED -> "&7" + state.name();
         };
     }
 
