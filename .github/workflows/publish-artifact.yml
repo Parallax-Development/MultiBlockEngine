@@ -28,15 +28,31 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
+      - name: Parse Release Tag
+        id: parse_tag
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          if [[ -z "$TAG" ]]; then
+            TAG="${{ github.ref_name }}"
+          fi
+          
+          VERSION="$TAG"
+          BUILD_NUM="${{ github.run_number }}"
+          
+          if [[ "$TAG" == *-* ]]; then
+            VERSION="${TAG%-*}"
+            BUILD_NUM="${TAG##*-}"
+          fi
+          
+          echo "RELEASE_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "BUILD_NUMBER=$BUILD_NUM" >> "$GITHUB_ENV"
+
       - name: Build
         run: ./gradlew clean build -x test
-        env:
-          RELEASE_VERSION: ${{ github.event.release.tag_name }}
 
       - name: Publish
         run: ./gradlew publish
         env:
-          RELEASE_VERSION: ${{ github.event.release.tag_name }}
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
