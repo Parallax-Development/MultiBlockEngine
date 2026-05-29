@@ -141,7 +141,7 @@ public class MultiblockListener implements Listener {
         assembly.tryAssembleFromPlacedBlock(event.getBlockPlaced(), ctx);
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onInteract(PlayerInteractEvent event) {
         if (event.getHand() != EquipmentSlot.HAND) {
             return;
@@ -286,7 +286,7 @@ public class MultiblockListener implements Listener {
         return toolRegistry;
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
         Block block = event.getBlock();
         Optional<MultiblockInstance> instanceOpt = manager.getInstanceAt(block.getLocation());

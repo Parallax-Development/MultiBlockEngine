@@ -3,6 +3,7 @@ version: ${version}
 main: dev.darkblade.mbe.core.MultiBlockEngine
 api-version: 1.20
 authors: [DarkbladeDev]
+website: https://modrinth.com/plugin/mbe
 description: A performant, extensible, and maintainable multi-block structure system.
 softdepend: [PlaceholderAPI, ProtocolLib]
 commands:
