@@ -36,16 +36,11 @@ jobs:
             TAG="${{ github.ref_name }}"
           fi
           
-          VERSION="$TAG"
-          BUILD_NUM="${{ github.run_number }}"
-          
-          if [[ "$TAG" == *-* ]]; then
-            VERSION="${TAG%-*}"
-            BUILD_NUM="${TAG##*-}"
-          fi
+          # Remove 'v' prefix for SemVer standard
+          VERSION="${TAG#v}"
           
           echo "RELEASE_VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "BUILD_NUMBER=$BUILD_NUM" >> "$GITHUB_ENV"
+          echo "BUILD_NUMBER=${{ github.run_number }}" >> "$GITHUB_ENV"
 
       - name: Build
         run: ./gradlew clean build -x test

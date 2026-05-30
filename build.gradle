@@ -43,7 +43,7 @@ def artifactBaseName = 'MultiblockEngine'
 
 allprojects {
     group = 'com.mbe'
-    version = "${baseVersion}-${buildNumber}"
+    version = "${baseVersion}+${buildNumber}"
 }
 
 // Hook incrementBuildNumber into all build tasks (only for local builds)
@@ -88,8 +88,8 @@ tasks.register('validateRootArtifact') {
         if (!expectedArtifactFile.exists()) {
             throw new GradleException("No se generó el artifact esperado: ${expectedArtifactFile.absolutePath}")
         }
-        // Updated regex to support the new format: Name-Major.Minor.Patch-BuildNumber.jar
-        if (!expectedArtifactFile.name.matches(/^${artifactBaseName}-.+\..+\..+-.+\.jar$/)) {
+        // Updated regex to support the new format: Name-Major.Minor.Patch+BuildNumber.jar
+        if (!expectedArtifactFile.name.matches(/^${artifactBaseName}-.+\..+\..+\+.+\.jar$/)) {
              // Fallback for dev/LOCAL if needed, but the new version string should generally match if based on projectVersion
              if (!expectedArtifactFile.name.matches(/^${artifactBaseName}-.+\.jar$/)) {
                 throw new GradleException("El nombre del artifact no cumple el formato esperado: ${expectedArtifactFile.name}")
