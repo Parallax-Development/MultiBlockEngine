@@ -828,7 +828,9 @@ public class MultiblockCommand implements CommandExecutor, TabCompleter {
         }
 
         MultiblockInstance instance = instanceOpt.get();
-        dev.darkblade.mbe.api.event.MultiblockBreakEvent mbEvent = new dev.darkblade.mbe.api.event.MultiblockBreakEvent(instance, player);
+        dev.darkblade.mbe.api.platform.PlatformService platformService = plugin.getAddonLifecycleService().getCoreService(dev.darkblade.mbe.api.platform.PlatformService.class);
+        dev.darkblade.mbe.api.platform.MBEPlayer mbePlayer = platformService != null ? platformService.wrap(player, dev.darkblade.mbe.api.platform.MBEPlayer.class) : null;
+        dev.darkblade.mbe.api.event.MultiblockBreakEvent mbEvent = new dev.darkblade.mbe.api.event.MultiblockBreakEvent(instance, mbePlayer);
         org.bukkit.Bukkit.getPluginManager().callEvent(mbEvent);
         if (mbEvent.isCancelled()) {
             send(player, CoreMessageKeys.ACTION_CANCELLED);

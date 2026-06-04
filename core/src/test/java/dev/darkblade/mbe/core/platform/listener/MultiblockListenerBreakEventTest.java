@@ -196,6 +196,7 @@ public class MultiblockListenerBreakEventTest {
         private boolean destroyed;
 
         private TestManager(MultiblockInstance instance) {
+            super(null, null, null, null, null, null, null);
             this.instance = instance;
         }
 

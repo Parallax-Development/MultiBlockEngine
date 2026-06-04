@@ -183,7 +183,7 @@ public final class FilePersistentStorageService implements PersistentStorageServ
             return "unknown";
         }
         String lower = v.toLowerCase(java.util.Locale.ROOT);
-        String safe = lower.replace('\\', '_').replace('/', '_');
+        String safe = lower.replace('\\', '_').replace('/', '_').replace(':', '_');
         safe = safe.replace("..", "_");
         return safe;
     }

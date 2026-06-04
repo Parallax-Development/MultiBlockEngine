@@ -66,6 +66,7 @@ public class MultiblockListener implements Listener {
     private ToolDispatcher toolDispatcher;
     private ItemStackBridge itemStackBridge;
     private ToolRegistry toolRegistry;
+    private dev.darkblade.mbe.api.platform.PlatformService platformService;
 
     public MultiblockListener(MultiblockRuntimeService manager) {
         this(manager, Bukkit.getPluginManager()::callEvent, null, null, null);
@@ -107,8 +108,9 @@ public class MultiblockListener implements Listener {
                 assembly,
                 i18n,
                 new DefaultInteractionPipelineService(assembly, wrenchDispatcher, new InteractionRouter(), null,
-                        manager),
-                new BukkitInteractionIntentFactory());
+                        manager, null),
+                new BukkitInteractionIntentFactory(),
+                null);
     }
 
     public MultiblockListener(
@@ -117,13 +119,15 @@ public class MultiblockListener implements Listener {
             AssemblyCoordinator assembly,
             I18nService i18n,
             InteractionPipelineService interactionPipeline,
-            BukkitInteractionIntentFactory intentFactory) {
+            BukkitInteractionIntentFactory intentFactory,
+            dev.darkblade.mbe.api.platform.PlatformService platformService) {
         this.manager = manager;
         this.eventCaller = eventCaller;
         this.assembly = assembly;
         this.i18n = i18n;
         this.interactionPipeline = interactionPipeline;
         this.intentFactory = intentFactory == null ? new BukkitInteractionIntentFactory() : intentFactory;
+        this.platformService = platformService;
     }
 
     @EventHandler
@@ -141,50 +145,12 @@ public class MultiblockListener implements Listener {
         assembly.tryAssembleFromPlacedBlock(event.getBlockPlaced(), ctx);
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onInteract(PlayerInteractEvent event) {
         if (event.getHand() != EquipmentSlot.HAND) {
             return;
         }
         event.setUseInteractedBlock(Event.Result.ALLOW);
-        if ((event.getAction() == org.bukkit.event.block.Action.LEFT_CLICK_BLOCK
-                || event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK
-                || event.getAction() == org.bukkit.event.block.Action.LEFT_CLICK_AIR
-                || event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_AIR)
-                && isToolItem(event.getItem())) {
-            ToolDispatcher dispatcher = resolveToolDispatcher();
-            if (dispatcher == null) {
-                return;
-            }
-            WrenchContext context = new WrenchContext(
-                    event.getPlayer(),
-                    event.getClickedBlock(),
-                    event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_AIR ? org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK :
-                    (event.getAction() == org.bukkit.event.block.Action.LEFT_CLICK_AIR ? org.bukkit.event.block.Action.LEFT_CLICK_BLOCK : event.getAction()),
-                    event.getItem(),
-                    event.getHand());
-            WrenchResult result = dispatcher.dispatch(context, resolveTrigger(event));
-            if (result != null && !result.isPass()) {
-                if (result.messageKey() != null && !result.messageKey().isBlank()) {
-                    PlayerMessageService messageService = resolveMessageService();
-                    if (messageService != null) {
-                        messageService.send(event.getPlayer(), new PlayerMessage(
-                                MessageKey.of("mbe", result.messageKey()),
-                                MessageChannel.ACTION_BAR,
-                                MessagePriority.NORMAL,
-                                result.context() != null ? result.context() : Map.of()
-                        ));
-                    } else {
-                        I18nService service = resolveI18n();
-                        if (service != null) {
-                            service.send(event.getPlayer(), MessageKey.of("mbe", result.messageKey()), result.context() != null ? result.context() : Map.of());
-                        }
-                    }
-                }
-                event.setCancelled(true);
-                return;
-            }
-        }
         InteractionIntent intent = intentFactory.from(event);
         if (intent == null) {
             return;
@@ -293,7 +259,8 @@ public class MultiblockListener implements Listener {
         if (instanceOpt.isPresent()) {
             MultiblockInstance instance = instanceOpt.get();
 
-            MultiblockBreakEvent mbEvent = new MultiblockBreakEvent(instance, event.getPlayer());
+            dev.darkblade.mbe.api.platform.MBEPlayer mbePlayer = platformService != null ? platformService.wrap(event.getPlayer(), dev.darkblade.mbe.api.platform.MBEPlayer.class) : null;
+            MultiblockBreakEvent mbEvent = new MultiblockBreakEvent(instance, mbePlayer);
             eventCaller.accept(mbEvent);
             if (mbEvent.isCancelled()) {
                 event.setCancelled(true);

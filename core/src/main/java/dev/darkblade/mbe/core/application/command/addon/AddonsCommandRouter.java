@@ -1,5 +1,10 @@
 package dev.darkblade.mbe.core.application.command.addon;
 
+import dev.darkblade.mbe.core.application.service.addon.domain.AddonState;
+import dev.darkblade.mbe.core.application.service.addon.domain.AddonInfo;
+
+
+
 import dev.darkblade.mbe.core.MultiBlockEngine;
 import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.MessageKey;
@@ -128,13 +133,13 @@ public final class AddonsCommandRouter {
 
         @Override
         public void execute(CommandSender sender, String label, List<String> args) {
-            List<AddonLifecycleService.AddonInfo> addons = plugin.getAddonLifecycleService().getAddonInfoList();
+            List<AddonInfo> addons = plugin.getAddonLifecycleService().getAddonInfoList();
             if (addons.isEmpty()) {
                 send(sender, MSG_LIST_NONE);
                 return;
             }
             send(sender, MSG_LIST_TITLE, Map.of("count", addons.size()));
-            for (AddonLifecycleService.AddonInfo info : addons) {
+            for (AddonInfo info : addons) {
                 send(sender, MSG_LIST_ENTRY, Map.of(
                         "id", info.id(),
                         "version", safe(info.version()),
@@ -157,12 +162,12 @@ public final class AddonsCommandRouter {
                 return;
             }
             String addonId = args.get(0).trim();
-            Optional<AddonLifecycleService.AddonInfo> opt = plugin.getAddonLifecycleService().getAddonInfo(addonId);
+            Optional<AddonInfo> opt = plugin.getAddonLifecycleService().getAddonInfo(addonId);
             if (opt.isEmpty()) {
                 send(sender, MSG_STATUS_NOT_FOUND, Map.of("id", addonId));
                 return;
             }
-            AddonLifecycleService.AddonInfo info = opt.get();
+            AddonInfo info = opt.get();
             send(sender, MSG_STATUS_TITLE, Map.of("id", info.id()));
             send(sender, MSG_STATUS_VERSION, Map.of("version", safe(info.version())));
             send(sender, MSG_STATUS_STATE, Map.of("state", coloredState(info.state())));
@@ -182,7 +187,7 @@ public final class AddonsCommandRouter {
         public List<String> tabComplete(CommandSender sender, List<String> args) {
             if (args.size() == 1) {
                 List<String> ids = new ArrayList<>();
-                for (AddonLifecycleService.AddonInfo info : plugin.getAddonLifecycleService().getAddonInfoList()) {
+                for (AddonInfo info : plugin.getAddonLifecycleService().getAddonInfoList()) {
                     ids.add(info.id());
                 }
                 return ids;
@@ -193,7 +198,7 @@ public final class AddonsCommandRouter {
 
     // --- Utilities ---
 
-    private static String coloredState(AddonLifecycleService.AddonState state) {
+    private static String coloredState(AddonState state) {
         if (state == null) {
             return "&7UNKNOWN";
         }
@@ -252,3 +257,4 @@ public final class AddonsCommandRouter {
         return v == null ? "" : v;
     }
 }
+

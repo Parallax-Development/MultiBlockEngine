@@ -1,14 +1,5 @@
 package dev.darkblade.mbe.api.service;
 
-public interface MBEService {
+public interface MBEService extends ManagedRuntimeService {
     String getServiceId();
-
-    default void onLoad() {
-    }
-
-    default void onEnable() {
-    }
-
-    default void onDisable() {
-    }
 }

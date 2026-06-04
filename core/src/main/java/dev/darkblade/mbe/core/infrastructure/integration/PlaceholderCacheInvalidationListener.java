@@ -16,9 +16,9 @@ public final class PlaceholderCacheInvalidationListener implements Listener {
         this.queryService = queryService;
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @org.bukkit.event.EventHandler(ignoreCancelled = true)
     public void onMultiblockForm(MultiblockFormEvent event) {
-        Player player = event.getPlayer();
+        dev.darkblade.mbe.api.platform.MBEPlayer player = event.getPlayer();
         if (player == null) {
             queryService.invalidateAll();
             return;

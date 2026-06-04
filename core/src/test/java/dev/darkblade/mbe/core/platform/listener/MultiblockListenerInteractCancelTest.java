@@ -459,7 +459,7 @@ public class MultiblockListenerInteractCancelTest {
                 List.of()
         );
 
-        MultiblockRuntimeService manager = new MultiblockRuntimeService();
+        MultiblockRuntimeService manager = createTestRuntimeService();
         manager.registerType(type);
         WrenchTestHarness harness = new WrenchTestHarness(manager);
         MultiblockListener listener = new MultiblockListener(manager, e -> {
@@ -476,7 +476,7 @@ public class MultiblockListenerInteractCancelTest {
 
     @Test
     void interactOnTillableSoilWithWrenchIsCancelled() throws Exception {
-        MultiblockRuntimeService manager = new MultiblockRuntimeService();
+        MultiblockRuntimeService manager = createTestRuntimeService();
         WrenchTestHarness harness = new WrenchTestHarness(manager);
         MultiblockListener listener = new MultiblockListener(manager, e -> {
         }, harness.dispatcher);
@@ -588,10 +588,35 @@ public class MultiblockListenerInteractCancelTest {
         );
     }
 
+    private static MultiblockRuntimeService createTestRuntimeService() {
+        dev.darkblade.mbe.core.application.service.multiblock.MultiblockTypeRegistry typeRegistry = new dev.darkblade.mbe.core.application.service.multiblock.MultiblockTypeRegistry();
+        dev.darkblade.mbe.core.application.service.multiblock.MultiblockInstanceRegistry instanceRegistry = new dev.darkblade.mbe.core.application.service.multiblock.MultiblockInstanceRegistry();
+        dev.darkblade.mbe.core.application.service.MetricsService metrics = new dev.darkblade.mbe.core.application.service.MetricsService();
+        dev.darkblade.mbe.core.application.service.multiblock.MultiblockTickingService tickingService = new dev.darkblade.mbe.core.application.service.multiblock.MultiblockTickingService(instanceRegistry, metrics);
+        dev.darkblade.mbe.core.application.service.HologramService holograms = new dev.darkblade.mbe.core.application.service.HologramService();
+        dev.darkblade.mbe.core.application.service.multiblock.MultiblockAssemblyService assemblyService = new dev.darkblade.mbe.core.application.service.multiblock.MultiblockAssemblyService(typeRegistry, instanceRegistry, tickingService, holograms);
+        dev.darkblade.mbe.core.application.service.multiblock.MultiblockCapabilityInitializer capabilityInitializer = new dev.darkblade.mbe.core.application.service.multiblock.MultiblockCapabilityInitializer();
+        return new MultiblockRuntimeService(typeRegistry, instanceRegistry, capabilityInitializer, assemblyService, tickingService, holograms, metrics);
+    }
+
     private static final class TestManager extends MultiblockRuntimeService {
         private final MultiblockInstance instance;
 
         private TestManager(MultiblockInstance instance) {
+            super(
+                new dev.darkblade.mbe.core.application.service.multiblock.MultiblockTypeRegistry(),
+                new dev.darkblade.mbe.core.application.service.multiblock.MultiblockInstanceRegistry(),
+                new dev.darkblade.mbe.core.application.service.multiblock.MultiblockCapabilityInitializer(),
+                new dev.darkblade.mbe.core.application.service.multiblock.MultiblockAssemblyService(
+                    new dev.darkblade.mbe.core.application.service.multiblock.MultiblockTypeRegistry(),
+                    new dev.darkblade.mbe.core.application.service.multiblock.MultiblockInstanceRegistry(),
+                    new dev.darkblade.mbe.core.application.service.multiblock.MultiblockTickingService(new dev.darkblade.mbe.core.application.service.multiblock.MultiblockInstanceRegistry(), new dev.darkblade.mbe.core.application.service.MetricsService()),
+                    new dev.darkblade.mbe.core.application.service.HologramService()
+                ),
+                new dev.darkblade.mbe.core.application.service.multiblock.MultiblockTickingService(new dev.darkblade.mbe.core.application.service.multiblock.MultiblockInstanceRegistry(), new dev.darkblade.mbe.core.application.service.MetricsService()),
+                new dev.darkblade.mbe.core.application.service.HologramService(),
+                new dev.darkblade.mbe.core.application.service.MetricsService()
+            );
             this.instance = instance;
         }
 
@@ -603,6 +628,20 @@ public class MultiblockListenerInteractCancelTest {
 
     private static final class ControllerNoCreateManager extends MultiblockRuntimeService {
         private ControllerNoCreateManager(MultiblockType type) {
+            super(
+                new dev.darkblade.mbe.core.application.service.multiblock.MultiblockTypeRegistry(),
+                new dev.darkblade.mbe.core.application.service.multiblock.MultiblockInstanceRegistry(),
+                new dev.darkblade.mbe.core.application.service.multiblock.MultiblockCapabilityInitializer(),
+                new dev.darkblade.mbe.core.application.service.multiblock.MultiblockAssemblyService(
+                    new dev.darkblade.mbe.core.application.service.multiblock.MultiblockTypeRegistry(),
+                    new dev.darkblade.mbe.core.application.service.multiblock.MultiblockInstanceRegistry(),
+                    new dev.darkblade.mbe.core.application.service.multiblock.MultiblockTickingService(new dev.darkblade.mbe.core.application.service.multiblock.MultiblockInstanceRegistry(), new dev.darkblade.mbe.core.application.service.MetricsService()),
+                    new dev.darkblade.mbe.core.application.service.HologramService()
+                ),
+                new dev.darkblade.mbe.core.application.service.multiblock.MultiblockTickingService(new dev.darkblade.mbe.core.application.service.multiblock.MultiblockInstanceRegistry(), new dev.darkblade.mbe.core.application.service.MetricsService()),
+                new dev.darkblade.mbe.core.application.service.HologramService(),
+                new dev.darkblade.mbe.core.application.service.MetricsService()
+            );
             registerType(type);
         }
 

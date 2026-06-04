@@ -52,6 +52,11 @@ import dev.darkblade.mbe.core.infrastructure.integration.MultiblockExpansion;
 import dev.darkblade.mbe.core.infrastructure.integration.PlaceholderCacheInvalidationListener;
 import dev.darkblade.mbe.core.infrastructure.integration.IOPortLifecycleListener;
 import dev.darkblade.mbe.core.application.service.CoreServiceLifecycleCoordinator;
+import dev.darkblade.mbe.core.application.service.multiblock.MultiblockTypeRegistry;
+import dev.darkblade.mbe.core.application.service.multiblock.MultiblockInstanceRegistry;
+import dev.darkblade.mbe.core.application.service.multiblock.MultiblockTickingService;
+import dev.darkblade.mbe.core.application.service.multiblock.MultiblockAssemblyService;
+import dev.darkblade.mbe.core.application.service.multiblock.MultiblockCapabilityInitializer;
 import dev.darkblade.mbe.core.application.service.MultiblockRuntimeService;
 import dev.darkblade.mbe.core.application.service.editor.EditorSessionManager;
 import dev.darkblade.mbe.core.application.service.interaction.DefaultInteractionPipelineService;
@@ -242,9 +247,22 @@ public class MultiBlockEngine extends JavaPlugin {
 
         this.adventure = net.kyori.adventure.platform.bukkit.BukkitAudiences.create(this);
 
+        dev.darkblade.mbe.api.platform.PlatformService platformService = initPlatformService();
+
         // Initialize components
         api = new MultiblockAPIImpl();
-        manager = new MultiblockRuntimeService();
+        dev.darkblade.mbe.core.application.service.multiblock.MultiblockTypeRegistry typeRegistry = new dev.darkblade.mbe.core.application.service.multiblock.MultiblockTypeRegistry();
+        dev.darkblade.mbe.core.application.service.multiblock.MultiblockInstanceRegistry instanceRegistry = new dev.darkblade.mbe.core.application.service.multiblock.MultiblockInstanceRegistry();
+        dev.darkblade.mbe.core.application.service.MetricsService metrics = new dev.darkblade.mbe.core.application.service.MetricsService();
+        dev.darkblade.mbe.core.application.service.multiblock.MultiblockTickingService tickingService = new dev.darkblade.mbe.core.application.service.multiblock.MultiblockTickingService(
+                instanceRegistry, metrics);
+        dev.darkblade.mbe.core.application.service.HologramService holograms = new dev.darkblade.mbe.core.application.service.HologramService();
+        dev.darkblade.mbe.core.application.service.multiblock.MultiblockAssemblyService assemblyService = new dev.darkblade.mbe.core.application.service.multiblock.MultiblockAssemblyService(
+                typeRegistry, instanceRegistry, tickingService, holograms);
+        dev.darkblade.mbe.core.application.service.multiblock.MultiblockCapabilityInitializer capabilityInitializer = new dev.darkblade.mbe.core.application.service.multiblock.MultiblockCapabilityInitializer();
+
+        manager = new MultiblockRuntimeService(typeRegistry, instanceRegistry, capabilityInitializer, assemblyService,
+                tickingService, holograms, metrics);
         parser = new MultiblockParser(api, log);
         persistence = new FilePersistentStorageService(getDataFolder().toPath().resolve("persist"));
         persistence.initialize();
@@ -457,7 +475,8 @@ public class MultiBlockEngine extends JavaPlugin {
                 structurePreviewService,
                 blueprintDefinitionResolver,
                 previewOriginResolver,
-                new BlueprintHeldItemResolver(itemStackBridge));
+                new BlueprintHeldItemResolver(itemStackBridge),
+                platformService);
         BlueprintServiceImpl blueprintService = new BlueprintServiceImpl(blueprintController, inventoryUIService,
                 craftingPanelRenderer);
         addonManager.registerCoreService(BlueprintService.class, blueprintService);
@@ -470,7 +489,7 @@ public class MultiBlockEngine extends JavaPlugin {
         interactionRouter = new InteractionRouter();
         interactionRouter.setPanelViewService(panelViewService);
         InteractionPipelineService pipelineService = new DefaultInteractionPipelineService(assemblyCoordinator, null,
-                interactionRouter, itemStackBridge, manager);
+                interactionRouter, itemStackBridge, manager, platformService);
         addonManager.registerCoreService(InteractionPipelineService.class, pipelineService);
         panelBindings = new PanelBindingService(new File(getDataFolder(), "panel-bindings.yml"), interactionRouter);
         coreServiceLifecycleCoordinator.register(panelBindings);
@@ -581,7 +600,7 @@ public class MultiBlockEngine extends JavaPlugin {
         // Register Listeners
         InteractionPipelineService interactionPipeline = addonManager.getCoreService(InteractionPipelineService.class);
         getServer().getPluginManager().registerEvents(
-                createMultiblockListener(interactionPipeline, i18n),
+                createMultiblockListener(interactionPipeline, i18n, platformService),
                 this);
         getServer().getPluginManager().registerEvents(createEditorInputListener(), this);
         getServer().getPluginManager().registerEvents(new ExportInteractListener(exportSelections), this);
@@ -589,7 +608,8 @@ public class MultiBlockEngine extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new PreviewPlacementController(blueprintController), this);
         getServer().getPluginManager()
                 .registerEvents(new PreviewBlockPlaceListener(structurePreviewService, buildContextService), this);
-        getServer().getPluginManager().registerEvents(new StructurePreviewRequestListener(structurePreviewService),
+        getServer().getPluginManager().registerEvents(
+                new StructurePreviewRequestListener(structurePreviewService, platformService),
                 this);
         getServer().getPluginManager().registerEvents(
                 new InventoryUIListener(inventorySessions, blueprintService, inventoryCompatService), this);
@@ -602,6 +622,9 @@ public class MultiBlockEngine extends JavaPlugin {
                 this);
         getServer().getPluginManager()
                 .registerEvents(new PlaceholderCacheInvalidationListener(playerMultiblockQueryService), this);
+        getServer().getPluginManager()
+                .registerEvents(new dev.darkblade.mbe.core.infrastructure.integration.QueryCacheInvalidationListener(
+                        playerMultiblockQueryService), this);
         getServer().getPluginManager().registerEvents(new MetadataInvalidationListener(metadataService), this);
         getServer().getPluginManager().registerEvents(new IOPortLifecycleListener(ioService, portResolutionService),
                 this);
@@ -632,6 +655,85 @@ public class MultiBlockEngine extends JavaPlugin {
         }
 
         log.info("MultiBlockEngine enabled", dev.darkblade.mbe.api.logging.LogKv.kv("types", types.size()));
+    }
+
+    private dev.darkblade.mbe.api.platform.PlatformService initPlatformService() {
+        try {
+            Class<?> clazz = Class.forName("dev.darkblade.mbe.platform.bukkit.adapter.BukkitPlatformService");
+            return (dev.darkblade.mbe.api.platform.PlatformService) clazz.getDeclaredConstructor().newInstance();
+        } catch (Exception e) {
+            getLogger().severe("Failed to initialize PlatformService: " + e.getClass().getSimpleName());
+            e.printStackTrace();
+            return new dev.darkblade.mbe.api.platform.PlatformService() {
+                @Override
+                public String getServiceId() {
+                    return "mbe:platform_fallback";
+                }
+
+                @Override
+                public java.util.Optional<dev.darkblade.mbe.api.platform.MBEPlayer> getPlayer(java.util.UUID uuid) {
+                    return java.util.Optional.empty();
+                }
+
+                @Override
+                public java.util.Optional<dev.darkblade.mbe.api.platform.MBEPlayer> getPlayerExact(String name) {
+                    return java.util.Optional.empty();
+                }
+
+                @Override
+                public java.util.Optional<dev.darkblade.mbe.api.platform.MBEWorld> getWorld(java.util.UUID uuid) {
+                    return java.util.Optional.empty();
+                }
+
+                @Override
+                public java.util.Optional<dev.darkblade.mbe.api.platform.MBEWorld> getWorld(String name) {
+                    return java.util.Optional.empty();
+                }
+
+                @Override
+                public <T> T unwrap(Object wrapped, Class<T> type) {
+                    return null;
+                }
+
+                @Override
+                public <T> T wrap(Object raw, Class<T> type) {
+                    if (raw instanceof org.bukkit.entity.Player
+                            && type == dev.darkblade.mbe.api.platform.MBEPlayer.class) {
+                        org.bukkit.entity.Player p = (org.bukkit.entity.Player) raw;
+                        return type.cast(new dev.darkblade.mbe.api.platform.MBEPlayer() {
+                            @Override
+                            public java.util.UUID getUniqueId() {
+                                return p.getUniqueId();
+                            }
+
+                            @Override
+                            public String getName() {
+                                return p.getName();
+                            }
+
+                            @Override
+                            public void sendMessage(String message) {
+                                try {
+                                    p.getClass().getMethod("sendMessage", String.class).invoke(p, message);
+                                } catch (Exception ignored) {
+                                }
+                            }
+
+                            @Override
+                            public boolean hasPermission(String permission) {
+                                return p.hasPermission(permission);
+                            }
+
+                            @Override
+                            public dev.darkblade.mbe.api.platform.MBELocation getLocation() {
+                                return null;
+                            }
+                        });
+                    }
+                    return null;
+                }
+            };
+        }
     }
 
     @Override
@@ -943,7 +1045,8 @@ public class MultiBlockEngine extends JavaPlugin {
         }
     }
 
-    private Listener createMultiblockListener(InteractionPipelineService interactionPipeline, I18nService i18n) {
+    private Listener createMultiblockListener(InteractionPipelineService interactionPipeline, I18nService i18n,
+            dev.darkblade.mbe.api.platform.PlatformService platformService) {
         try {
             Class<?> listenerClass = Class.forName("dev.darkblade.mbe.core.platform.listener.MultiblockListener");
             Class<?> intentFactoryClass = Class
@@ -955,7 +1058,8 @@ public class MultiBlockEngine extends JavaPlugin {
                     AssemblyCoordinator.class,
                     I18nService.class,
                     InteractionPipelineService.class,
-                    intentFactoryClass);
+                    intentFactoryClass,
+                    dev.darkblade.mbe.api.platform.PlatformService.class);
             java.util.function.Consumer<org.bukkit.event.Event> eventCaller = Bukkit.getPluginManager()::callEvent;
             return (Listener) constructor.newInstance(
                     manager,
@@ -963,7 +1067,8 @@ public class MultiBlockEngine extends JavaPlugin {
                     assemblyCoordinator,
                     i18n,
                     interactionPipeline,
-                    intentFactory);
+                    intentFactory,
+                    platformService);
         } catch (ReflectiveOperationException e) {
             throw new IllegalStateException("Failed to initialize multiblock platform listener", e);
         }

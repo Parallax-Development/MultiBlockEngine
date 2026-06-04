@@ -1,7 +1,7 @@
 package dev.darkblade.mbe.api.event;
 
 import dev.darkblade.mbe.core.domain.MultiblockInstance;
-import org.bukkit.entity.Player;
+import dev.darkblade.mbe.api.platform.MBEPlayer;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
@@ -11,10 +11,10 @@ import org.jetbrains.annotations.Nullable;
 public class MultiblockFormEvent extends Event implements Cancellable {
     private static final HandlerList handlers = new HandlerList();
     private final MultiblockInstance instance;
-    private final Player player;
+    private final MBEPlayer player;
     private boolean cancelled;
 
-    public MultiblockFormEvent(@NotNull MultiblockInstance instance, @Nullable Player player) {
+    public MultiblockFormEvent(@NotNull MultiblockInstance instance, @Nullable MBEPlayer player) {
         this.instance = instance;
         this.player = player;
     }
@@ -25,7 +25,7 @@ public class MultiblockFormEvent extends Event implements Cancellable {
     }
 
     @Nullable
-    public Player getPlayer() {
+    public MBEPlayer getPlayer() {
         return player;
     }
 

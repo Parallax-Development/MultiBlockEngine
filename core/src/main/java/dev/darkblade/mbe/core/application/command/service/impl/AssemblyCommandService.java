@@ -184,7 +184,9 @@ public final class AssemblyCommandService implements MbeCommandService {
             return;
         }
         MultiblockInstance instance = instanceOpt.get();
-        MultiblockBreakEvent event = new MultiblockBreakEvent(instance, player);
+        dev.darkblade.mbe.api.platform.PlatformService platformService = plugin.getAddonLifecycleService().getCoreService(dev.darkblade.mbe.api.platform.PlatformService.class);
+        dev.darkblade.mbe.api.platform.MBEPlayer mbePlayer = platformService != null ? platformService.wrap(player, dev.darkblade.mbe.api.platform.MBEPlayer.class) : null;
+        MultiblockBreakEvent event = new MultiblockBreakEvent(instance, mbePlayer);
         Bukkit.getPluginManager().callEvent(event);
         if (event.isCancelled()) {
             send(player, CoreMessageKeys.ACTION_CANCELLED);

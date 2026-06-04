@@ -126,6 +126,7 @@ class PlayerMultiblockQueryServiceImplTest {
         private int snapshotReads;
 
         private TestRuntimeService(Collection<MultiblockInstance> instances) {
+            super(null, null, null, null, null, null, null);
             this.instances = instances;
         }
 

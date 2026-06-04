@@ -160,6 +160,7 @@ class MultiblockExpansionTest {
         private final Collection<MultiblockInstance> instances;
 
         private TestRuntimeService(Collection<MultiblockInstance> instances) {
+            super(null, null, null, null, null, null, null);
             this.instances = instances;
         }
 

@@ -1,23 +1,23 @@
 package dev.darkblade.mbe.api.event;
 
 import dev.darkblade.mbe.core.domain.MultiblockInstance;
-import org.bukkit.block.Block;
-import org.bukkit.entity.Player;
+import dev.darkblade.mbe.api.platform.MBEBlock;
+import dev.darkblade.mbe.api.platform.MBEPlayer;
+import dev.darkblade.mbe.api.service.interaction.InteractionType;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
-import org.bukkit.event.block.Action;
 import org.jetbrains.annotations.NotNull;
 
 public class MultiblockInteractEvent extends Event implements Cancellable {
     private static final HandlerList handlers = new HandlerList();
     private final MultiblockInstance instance;
-    private final Player player;
-    private final Action action;
-    private final Block clickedBlock;
+    private final MBEPlayer player;
+    private final InteractionType action;
+    private final MBEBlock clickedBlock;
     private boolean cancelled;
 
-    public MultiblockInteractEvent(@NotNull MultiblockInstance instance, @NotNull Player player, @NotNull Action action, @NotNull Block clickedBlock) {
+    public MultiblockInteractEvent(@NotNull MultiblockInstance instance, @NotNull MBEPlayer player, @NotNull InteractionType action, @NotNull MBEBlock clickedBlock) {
         this.instance = instance;
         this.player = player;
         this.action = action;
@@ -30,17 +30,17 @@ public class MultiblockInteractEvent extends Event implements Cancellable {
     }
 
     @NotNull
-    public Player getPlayer() {
+    public MBEPlayer getPlayer() {
         return player;
     }
     
     @NotNull
-    public Action getAction() {
+    public InteractionType getAction() {
         return action;
     }
     
     @NotNull
-    public Block getClickedBlock() {
+    public MBEBlock getClickedBlock() {
         return clickedBlock;
     }
 
