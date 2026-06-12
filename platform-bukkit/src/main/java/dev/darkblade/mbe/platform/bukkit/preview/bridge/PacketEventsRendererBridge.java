@@ -27,13 +27,13 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public final class ProtocolLibLegacyRendererBridge implements DisplayEntityRenderer {
+public final class PacketEventsRendererBridge implements DisplayEntityRenderer {
     private final BlockDisplayRenderer renderer;
     private final AtomicInteger entityIdCounter = new AtomicInteger(2_000_000);
     private final Map<Integer, UUID> ownersByEntityId = new ConcurrentHashMap<>();
 
-    public ProtocolLibLegacyRendererBridge() {
-        ProtocolLibAdapter adapter = new ProtocolLibAdapter();
+    public PacketEventsRendererBridge() {
+        PacketEventsAdapter adapter = new PacketEventsAdapter();
         Map<ProtocolVersion, BlockDisplayRenderer> byVersion = new java.util.EnumMap<>(ProtocolVersion.class);
         BlockDisplayRenderer renderer_1_21 = new Renderer_1_21(adapter);
         BlockDisplayRenderer renderer_1_21_2 = new Renderer_1_21_2(adapter);

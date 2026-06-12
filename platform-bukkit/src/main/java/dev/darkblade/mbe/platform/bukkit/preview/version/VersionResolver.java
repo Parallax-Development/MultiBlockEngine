@@ -1,22 +1,19 @@
 package dev.darkblade.mbe.platform.bukkit.preview.version;
 
-import com.comphenix.protocol.ProtocolLibrary;
-import com.comphenix.protocol.ProtocolManager;
+import com.github.retrooper.packetevents.PacketEvents;
 import org.bukkit.entity.Player;
 
 public final class VersionResolver {
-    private final ProtocolManager protocolManager;
 
     public VersionResolver() {
-        this.protocolManager = ProtocolLibrary.getProtocolManager();
     }
 
     public ProtocolVersion resolve(Player player) {
-        if (player == null || protocolManager == null) {
+        if (player == null) {
             return ProtocolVersion.UNKNOWN;
         }
         try {
-            int protocolId = protocolManager.getProtocolVersion(player);
+            int protocolId = PacketEvents.getAPI().getPlayerManager().getClientVersion(player).getProtocolVersion();
             return map(protocolId);
         } catch (RuntimeException ex) {
             org.bukkit.Bukkit.getLogger().log(java.util.logging.Level.WARNING, "[MBE Preview] Protocol resolution failed: " + ex.getMessage());

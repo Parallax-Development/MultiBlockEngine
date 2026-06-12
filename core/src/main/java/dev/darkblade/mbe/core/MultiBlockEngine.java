@@ -226,6 +226,15 @@ public class MultiBlockEngine extends JavaPlugin {
     }
 
     @Override
+    public void onLoad() {
+        com.github.retrooper.packetevents.PacketEvents.setAPI(io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder.build(this));
+        com.github.retrooper.packetevents.PacketEvents.getAPI().getSettings().reEncodeByDefault(false)
+            .checkForUpdates(false)
+            .bStats(true);
+        com.github.retrooper.packetevents.PacketEvents.getAPI().load();
+    }
+
+    @Override
     public void onEnable() {
         instance = this;
 
@@ -233,6 +242,8 @@ public class MultiBlockEngine extends JavaPlugin {
         if (!getDataFolder().exists()) {
             getDataFolder().mkdirs();
         }
+        
+        com.github.retrooper.packetevents.PacketEvents.getAPI().init();
 
         // Save default config
         saveDefaultConfig();
@@ -976,7 +987,7 @@ public class MultiBlockEngine extends JavaPlugin {
     }
 
     private DisplayEntityRenderer createDisplayRenderer() {
-        if (getServer().getPluginManager().getPlugin("ProtocolLib") == null) {
+        if (getServer().getPluginManager().getPlugin("packetevents") == null) {
             return new DisplayEntityRenderer() {
                 @Override
                 public int spawnBlockDisplay(org.bukkit.entity.Player player, org.bukkit.Location location,
@@ -995,10 +1006,10 @@ public class MultiBlockEngine extends JavaPlugin {
         }
         try {
             Class<?> bridgeClass = Class
-                    .forName("dev.darkblade.mbe.platform.bukkit.preview.bridge.ProtocolLibLegacyRendererBridge");
+                    .forName("dev.darkblade.mbe.platform.bukkit.preview.bridge.PacketEventsRendererBridge");
             return (DisplayEntityRenderer) bridgeClass.getConstructor().newInstance();
         } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("Failed to initialize versioned ProtocolLib renderer bridge", e);
+            throw new IllegalStateException("Failed to initialize versioned PacketEvents renderer bridge", e);
         }
     }
 
@@ -1009,7 +1020,7 @@ public class MultiBlockEngine extends JavaPlugin {
         }
         try {
             Class<?> bridgeType = Class
-                    .forName("dev.darkblade.mbe.platform.bukkit.preview.bridge.ProtocolLibLegacyRendererBridge");
+                    .forName("dev.darkblade.mbe.platform.bukkit.preview.bridge.PacketEventsRendererBridge");
             if (!bridgeType.isInstance(displayRenderer)) {
                 return;
             }

@@ -5,7 +5,7 @@ api-version: 1.20
 authors: [DarkbladeDev]
 website: https://modrinth.com/plugin/mbe
 description: A performant, extensible, and maintainable multi-block structure system.
-softdepend: [PlaceholderAPI, ProtocolLib]
+softdepend: [PlaceholderAPI, packetevents]
 commands:
   multiblock:
     description: Main command for MultiBlockEngine
