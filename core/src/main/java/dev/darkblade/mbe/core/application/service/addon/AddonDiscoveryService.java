@@ -210,23 +210,6 @@ public class AddonDiscoveryService {
             core.info("Addon load order", LogKv.kv("order", joinLimited(registry.resolvedOrder, 30)),
                     LogKv.kv("count", registry.resolvedOrder.size()));
         }
-
-        for (String id : registry.resolvedOrder) {
-            if (registry.states.getOrDefault(id, AddonState.DISABLED) == AddonState.FAILED) {
-                continue;
-            }
-
-            DiscoveredAddon discovered = registry.discoveredAddons.get(id);
-            if (discovered == null) {
-                continue;
-            }
-
-            try {
-                // Delegated to AddonRuntimeLifecycleService
-            } catch (Exception e) {
-                // failAddon(id, AddonException.Phase.LOAD, "Unhandled exception during addon load", e, true);
-            }
-        }
     }
 
     private AddonMetadata readMetadata(File file) throws IOException {

@@ -85,6 +85,23 @@ public class AddonLifecycleService {
 
     public void loadAddons() {
         discoveryService.loadAddons();
+
+        for (String id : registry.resolvedOrder) {
+            if (registry.states.getOrDefault(id, AddonState.DISABLED) == AddonState.FAILED) {
+                continue;
+            }
+
+            DiscoveredAddon discovered = registry.discoveredAddons.get(id);
+            if (discovered == null) {
+                continue;
+            }
+
+            try {
+                runtimeService.loadAddon(discovered);
+            } catch (Exception e) {
+                failAddon(id, AddonException.Phase.LOAD, "Unhandled exception during addon load", e, true);
+            }
+        }
     }
 
     public void enableAddons() {
