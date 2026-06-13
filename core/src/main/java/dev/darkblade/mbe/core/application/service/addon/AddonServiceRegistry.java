@@ -57,16 +57,17 @@ public final class AddonServiceRegistry {
                 ServiceScope.GLOBAL,
                 0,
                 false,
-                true
-        ));
+                true));
 
-        log.logInternal(new LogScope.Core(), LogPhase.SERVICE_REGISTER, LogLevel.DEBUG, "Service registered via legacy adapter", null, new LogKv[] {
-            LogKv.kv("service", serviceType.getName()),
-            LogKv.kv("provider", addonId)
-        }, Set.of());
+        log.logInternal(new LogScope.Core(), LogPhase.SERVICE_REGISTER, LogLevel.DEBUG,
+                "Service registered via legacy adapter", null, new LogKv[] {
+                        LogKv.kv("service", serviceType.getName()),
+                        LogKv.kv("provider", addonId)
+                }, Set.of());
     }
 
-    public synchronized <T> Optional<T> resolveIfEnabled(String addonId, Class<T> serviceType, Function<String, dev.darkblade.mbe.core.application.service.addon.domain.AddonState> stateProvider) {
+    public synchronized <T> Optional<T> resolveIfEnabled(String addonId, Class<T> serviceType,
+            Function<String, dev.darkblade.mbe.core.application.service.addon.domain.AddonState> stateProvider) {
         Objects.requireNonNull(addonId, "addonId");
         Objects.requireNonNull(serviceType, "serviceType");
         Objects.requireNonNull(stateProvider, "stateProvider");
@@ -77,33 +78,10 @@ public final class AddonServiceRegistry {
         return unifiedRegistry.resolveService(serviceType, null, null);
     }
 
+    /**
+     * @deprecated Validation removed to allow addons to expose their own service
+     *             APIs.
+     */
     private void validateApiType(String addonId, LogPhase phase, String op, Class<?> type) {
-        ClassLoader cl = type.getClassLoader();
-        if (cl == apiClassLoader) {
-            return;
-        }
-
-        ApiTypeEnforcementMode mode = apiTypeEnforcementMode;
-        LogLevel level = mode == ApiTypeEnforcementMode.ERROR ? LogLevel.FATAL : LogLevel.WARN;
-        log.logInternal(new LogScope.Core(), phase, level,
-            "Service type is not part of api",
-            null,
-            new LogKv[] {
-                LogKv.kv("addonId", addonId),
-                LogKv.kv("op", op),
-                LogKv.kv("mode", mode.name()),
-                LogKv.kv("service", type.getName()),
-                LogKv.kv("serviceCl", cl == null ? "bootstrap" : cl.toString()),
-                LogKv.kv("apiCl", apiClassLoader == null ? "bootstrap" : apiClassLoader.toString())
-            },
-            Set.of()
-        );
-
-        if (mode == ApiTypeEnforcementMode.ERROR) {
-            throw new IllegalArgumentException(
-                "Invalid service " + op + ": Service type " + type.getName() + " is not part of api. " +
-                    "Move the service interface/DTOs to api and depend on it as compileOnly."
-            );
-        }
     }
 }
