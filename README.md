@@ -126,5 +126,5 @@ Built with passion for next-level Minecraft server engineering. Thanks to the op
 
 - [PaperMC](https://papermc.io/) - High-performance Minecraft server software.
 - [HikariCP](https://github.com/brettwooldridge/HikariCP) - "Zero-overhead" JDBC connection pool.
-- [ProtocolLib](https://github.com/dmulloy2/ProtocolLib) - Protocol manipulation library.
+- [PacketEvents](https://modrinth.com/plugin/packetevents) - Protocol manipulation library.
 - [PlaceholderAPI](https://placeholderapi.com) - PlaceholderAPI integration.
