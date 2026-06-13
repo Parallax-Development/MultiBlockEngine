@@ -76,28 +76,7 @@ public final class ServiceLifecycleOrchestrator {
         }
     }
 
-    public void clearAddons() {
-        stopTickServiceIfPresent("unknown");
-        currentPhase.set(LifecyclePhase.CORE_SERVICES);
-        for (String addonId : new java.util.ArrayList<>(servicesByAddon.keySet())) {
-            if (!"mbe:core".equals(addonId)) {
-                for (String serviceId : servicesByAddon.getOrDefault(addonId, List.of())) {
-                    registry.unregister(serviceId);
-                }
-                servicesByAddon.remove(addonId);
-            }
-        }
-    }
 
-    public LifecyclePhase getCurrentPhase() {
-        return currentPhase.get();
-    }
-
-    public void setCurrentPhase(LifecyclePhase phase) {
-        if (phase != null) {
-            currentPhase.set(phase);
-        }
-    }
 
     public void registerService(String addonId, MBEService service) {
         String owner = normalizeAddonId(addonId);
