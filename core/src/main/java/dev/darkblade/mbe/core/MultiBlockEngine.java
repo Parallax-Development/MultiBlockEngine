@@ -227,11 +227,15 @@ public class MultiBlockEngine extends JavaPlugin {
 
     @Override
     public void onLoad() {
-        com.github.retrooper.packetevents.PacketEvents.setAPI(io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder.build(this));
-        com.github.retrooper.packetevents.PacketEvents.getAPI().getSettings().reEncodeByDefault(false)
-            .checkForUpdates(false)
-            .bStats(true);
-        com.github.retrooper.packetevents.PacketEvents.getAPI().load();
+        try {
+            com.github.retrooper.packetevents.PacketEvents
+                    .setAPI(io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder.build(this));
+            com.github.retrooper.packetevents.PacketEvents.getAPI().getSettings().reEncodeByDefault(false)
+                    .checkForUpdates(false);
+            com.github.retrooper.packetevents.PacketEvents.getAPI().load();
+        } catch (NoClassDefFoundError | Exception e) {
+            getLogger().warning("Failed to initialize PacketEvents: " + e.getMessage());
+        }
     }
 
     @Override
@@ -242,7 +246,7 @@ public class MultiBlockEngine extends JavaPlugin {
         if (!getDataFolder().exists()) {
             getDataFolder().mkdirs();
         }
-        
+
         com.github.retrooper.packetevents.PacketEvents.getAPI().init();
 
         // Save default config
