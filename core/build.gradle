@@ -39,6 +39,8 @@ dependencies {
     testImplementation project(":platform-bukkit")
     testCompileOnly 'me.clip:placeholderapi:2.11.5'
     testRuntimeOnly 'me.clip:placeholderapi:2.11.5'
+    testCompileOnly 'com.github.retrooper:packetevents-spigot:2.12.2'
+    testRuntimeOnly 'com.github.retrooper:packetevents-spigot:2.12.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 

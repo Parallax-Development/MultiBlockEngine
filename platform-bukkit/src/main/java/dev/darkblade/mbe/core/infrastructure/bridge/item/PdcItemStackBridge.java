@@ -99,15 +99,7 @@ public final class PdcItemStackBridge implements ItemStackBridge {
                 if (!flags.isEmpty()) {
                     meta.addItemFlags(flags.toArray(ItemFlag[]::new));
                 }
-                Object customModelRaw = props.get("custom-model-data");
-                if (customModelRaw instanceof Number number) {
-                    int customModelData = Math.max(0, number.intValue());
-                    meta.setCustomModelData(customModelData);
-                }
-                List<ItemFlag> flags = parseFlags(props.get("flags"));
-                if (!flags.isEmpty()) {
-                    meta.addItemFlags(flags.toArray(ItemFlag[]::new));
-                }
+
             }
 
             PersistentDataContainer pdc = meta.getPersistentDataContainer();
