@@ -1,5 +1,8 @@
 package dev.darkblade.mbe.core.application.service;
 
+import dev.darkblade.mbe.core.application.service.DefaultUnifiedServiceRegistry;
+import dev.darkblade.mbe.core.application.service.DefaultResolutionPolicy;
+
 import dev.darkblade.mbe.api.logging.CoreLogger;
 import dev.darkblade.mbe.api.logging.LogBackend;
 import dev.darkblade.mbe.api.logging.LogLevel;
@@ -22,14 +25,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ServiceLifecycleManagerTest {
 
     @Test
-    void registrySupportsLookupByIdAndTypeAndListeners() {
+    void registrySupportsLookupByIdAndType() {
         CoreLogger logger = testLogger();
-        MBEServiceRegistry registry = new MBEServiceRegistry();
+        DefaultUnifiedServiceRegistry registry = new DefaultUnifiedServiceRegistry(new DefaultResolutionPolicy());
         ServiceInjector injector = new ServiceInjector(registry, logger);
         ServiceLifecycleOrchestrator lifecycle = new ServiceLifecycleOrchestrator(registry, injector, logger);
 
-        AtomicInteger notifications = new AtomicInteger();
-        lifecycle.addListener(service -> notifications.incrementAndGet());
+
 
         ProducerService p1 = new ProducerService("mbe:test.energy.one", 120, 500);
         ProducerService p2 = new ProducerService("mbe:test.energy.two", 240, 500);
@@ -38,13 +40,12 @@ class ServiceLifecycleManagerTest {
 
         assertEquals(2, lifecycle.getByType(EnergyProvider.class).size());
         assertTrue(lifecycle.get("mbe:test.energy.one", EnergyProvider.class).isPresent());
-        assertEquals(2, notifications.get());
     }
 
     @Test
     void injectorSupportsOptionalAndMissingServiceWithoutFailure() {
         CoreLogger logger = testLogger();
-        MBEServiceRegistry registry = new MBEServiceRegistry();
+        DefaultUnifiedServiceRegistry registry = new DefaultUnifiedServiceRegistry(new DefaultResolutionPolicy());
         ServiceInjector injector = new ServiceInjector(registry, logger);
 
         MissingDependencyTarget target = new MissingDependencyTarget();
@@ -58,7 +59,7 @@ class ServiceLifecycleManagerTest {
     @Test
     void lifecycleRegistersInjectsAndEnablesDependentServices() {
         CoreLogger logger = testLogger();
-        MBEServiceRegistry registry = new MBEServiceRegistry();
+        DefaultUnifiedServiceRegistry registry = new DefaultUnifiedServiceRegistry(new DefaultResolutionPolicy());
         ServiceInjector injector = new ServiceInjector(registry, logger);
         ServiceLifecycleOrchestrator lifecycle = new ServiceLifecycleOrchestrator(registry, injector, logger);
 

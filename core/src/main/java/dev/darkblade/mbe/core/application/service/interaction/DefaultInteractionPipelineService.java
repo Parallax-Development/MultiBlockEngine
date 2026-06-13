@@ -17,7 +17,6 @@ import dev.darkblade.mbe.core.application.service.wrench.DefaultWrenchDispatcher
 import dev.darkblade.mbe.core.domain.MultiblockInstance;
 import dev.darkblade.mbe.core.domain.assembly.AssemblyCoordinator;
 import dev.darkblade.mbe.core.infrastructure.bridge.item.ItemStackBridge;
-import org.bukkit.block.TileState;
 import org.bukkit.event.block.Action;
 
 import java.util.List;
@@ -31,6 +30,7 @@ public final class DefaultInteractionPipelineService implements InteractionPipel
     private final InteractionRouter interactionRouter;
     private final ItemStackBridge itemStackBridge;
     private final MultiblockRuntimeService multiblockRuntimeService;
+    private final dev.darkblade.mbe.api.platform.PlatformService platformService;
     private final List<InteractionHandler> handlers = new CopyOnWriteArrayList<>();
 
     public DefaultInteractionPipelineService(
@@ -38,13 +38,15 @@ public final class DefaultInteractionPipelineService implements InteractionPipel
             WrenchDispatcher wrenchDispatcher,
             InteractionRouter interactionRouter,
             ItemStackBridge itemStackBridge,
-            MultiblockRuntimeService multiblockRuntimeService
+            MultiblockRuntimeService multiblockRuntimeService,
+            dev.darkblade.mbe.api.platform.PlatformService platformService
     ) {
         this.assemblyCoordinator = assemblyCoordinator;
         this.wrenchDispatcher = wrenchDispatcher;
         this.interactionRouter = interactionRouter;
         this.itemStackBridge = itemStackBridge;
         this.multiblockRuntimeService = multiblockRuntimeService;
+        this.platformService = platformService;
     }
 
     @Override
@@ -56,6 +58,7 @@ public final class DefaultInteractionPipelineService implements InteractionPipel
         InteractionIntent effectiveIntent = normalizeIntent(intent);
         boolean cancelVanilla = false;
 
+        boolean wrenchHandled = false;
         if (wrenchDispatcher != null) {
             Action action = toBukkitAction(effectiveIntent.type());
             if (effectiveIntent.player() != null && effectiveIntent.targetBlock() != null && action != null) {
@@ -69,11 +72,13 @@ public final class DefaultInteractionPipelineService implements InteractionPipel
                 WrenchResult result = wrenchDispatcher.dispatch(ctx);
                 if (result != null && !result.isPass()) {
                     cancelVanilla = true;
+                    wrenchHandled = true;
                 }
             }
         }
 
-        if (assemblyCoordinator != null && effectiveIntent.type() != InteractionType.WRENCH_USE) {
+        if (assemblyCoordinator != null && !wrenchHandled
+                && (effectiveIntent.type() != InteractionType.WRENCH_USE || wrenchDispatcher == null)) {
             AssemblyReport report = assemblyCoordinator.tryAssemble(effectiveIntent);
             if (report != null && report.success()) {
                 if (effectiveIntent.type() != InteractionType.SHIFT_RIGHT_CLICK) {
@@ -96,7 +101,9 @@ public final class DefaultInteractionPipelineService implements InteractionPipel
                 
                 org.bukkit.event.block.Action bukkitAction = toBukkitAction(effectiveIntent.type());
                 if (bukkitAction != null && effectiveIntent.player() != null) {
-                    dev.darkblade.mbe.api.event.MultiblockInteractEvent mbEvent = new dev.darkblade.mbe.api.event.MultiblockInteractEvent(instance, effectiveIntent.player(), bukkitAction, effectiveIntent.targetBlock());
+                    dev.darkblade.mbe.api.platform.MBEPlayer mbePlayer = platformService != null ? platformService.wrap(effectiveIntent.player(), dev.darkblade.mbe.api.platform.MBEPlayer.class) : null;
+                    dev.darkblade.mbe.api.platform.MBEBlock mbeBlock = platformService != null ? platformService.wrap(effectiveIntent.targetBlock(), dev.darkblade.mbe.api.platform.MBEBlock.class) : null;
+                    dev.darkblade.mbe.api.event.MultiblockInteractEvent mbEvent = new dev.darkblade.mbe.api.event.MultiblockInteractEvent(instance, mbePlayer, effectiveIntent.type(), mbeBlock);
                     org.bukkit.Bukkit.getPluginManager().callEvent(mbEvent);
                     if (mbEvent.isCancelled()) {
                         cancelVanilla = true;

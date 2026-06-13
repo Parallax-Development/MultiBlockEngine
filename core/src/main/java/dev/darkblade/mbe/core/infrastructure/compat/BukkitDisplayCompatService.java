@@ -24,8 +24,8 @@ public final class BukkitDisplayCompatService implements DisplayCompatService, M
     }
 
     @Override
-    public boolean isProtocolLibAvailable() {
-        return pluginManager.getPlugin("ProtocolLib") != null;
+    public boolean isPacketEventsAvailable() {
+        return pluginManager.getPlugin("packetevents") != null;
     }
 
     @Override

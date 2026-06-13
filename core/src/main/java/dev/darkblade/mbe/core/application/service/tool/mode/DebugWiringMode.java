@@ -8,7 +8,6 @@ import dev.darkblade.mbe.api.wiring.NetworkService;
 import dev.darkblade.mbe.core.application.service.tool.ToolModeContextResolver;
 
 import java.util.Map;
-import java.util.Optional;
 
 public final class DebugWiringMode implements ToolMode {
 

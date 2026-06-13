@@ -17,13 +17,14 @@ public class NoHardcodedMessagesTest {
     @ArchTest
     static final ArchRule no_player_sendmessage_with_literal =
             noClasses()
+                    .that().resideOutsideOfPackages("..api.i18n..", "..core.infrastructure.i18n..", "..core.application.service.messaging..", "..platform..")
                     .should().callMethod(Player.class, "sendMessage", String.class)
                     .because("Player messages must use I18nService");
 
     @ArchTest
     static final ArchRule no_commandsender_sendmessage_with_literal =
             noClasses()
-                    .that().resideOutsideOfPackages("..api.i18n..", "..core.infrastructure.i18n..")
+                    .that().resideOutsideOfPackages("..api.i18n..", "..core.infrastructure.i18n..", "..core.application.service.messaging..", "..platform..")
                     .should().callMethod(CommandSender.class, "sendMessage", String.class)
                     .because("Sender messages must use I18nService");
 

@@ -1,0 +1,21 @@
+addons:
+  router:
+    overview:
+      usage: "&eUsage:"
+      list: "&7/{label} addons list"
+      status: "&7/{label} addons status <addonId>"
+    list:
+      title: "&eLoaded addons ({count}):"
+      entry: "&7- {id} &8v{version} [{state}&8]"
+      none: "&7No addons loaded."
+    status:
+      title: "&eAddon: {id}"
+      version: "&7Version: {version}"
+      state: "&7State: {state}"
+      dependencies: "&7Dependencies: {deps}"
+      services_title: "&7Registered services ({count}):"
+      service_entry: "&7  - {serviceId}"
+      no_services: "&7  No services registered."
+      not_found: "&cAddon not found: {id}"
+    error:
+      generic: "&cAddon command is invalid."

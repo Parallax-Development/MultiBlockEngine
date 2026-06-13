@@ -6,9 +6,11 @@ import org.bukkit.event.Listener;
 
 public final class StructurePreviewRequestListener implements Listener {
     private final StructurePreviewService previewService;
+    private final dev.darkblade.mbe.api.platform.PlatformService platformService;
 
-    public StructurePreviewRequestListener(StructurePreviewService previewService) {
+    public StructurePreviewRequestListener(StructurePreviewService previewService, dev.darkblade.mbe.api.platform.PlatformService platformService) {
         this.previewService = previewService;
+        this.platformService = platformService;
     }
 
     @EventHandler
@@ -16,6 +18,7 @@ public final class StructurePreviewRequestListener implements Listener {
         if (event.isCancelled()) {
             return;
         }
-        previewService.startPreview(event.getPlayer(), event.getDefinition());
+        org.bukkit.entity.Player player = platformService.unwrap(event.getPlayer(), org.bukkit.entity.Player.class);
+        previewService.startPreview(player, event.getDefinition());
     }
 }

@@ -114,6 +114,11 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
     private static final Duration COOLDOWN = Duration.ofMillis(500);
     private WrenchInteractable resolvedInteractable;
     private ToolModeExecutionService toolModeExecutionService;
+    private dev.darkblade.mbe.api.platform.PlatformService platformService;
+
+    public void setPlatformService(dev.darkblade.mbe.api.platform.PlatformService platformService) {
+        this.platformService = platformService;
+    }
 
     public DefaultWrenchDispatcher(MultiblockRuntimeService manager, ItemStackBridge itemStackBridge, I18nService i18n) {
         this(manager, itemStackBridge, i18n, null, Bukkit.getPluginManager()::callEvent);
@@ -336,7 +341,10 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
     }
 
     private boolean runInteractActions(MultiblockInstance instance, Player player, Block block, org.bukkit.event.block.Action action) {
-        MultiblockInteractEvent mbEvent = new MultiblockInteractEvent(instance, player, action, block);
+        dev.darkblade.mbe.api.platform.MBEPlayer mbePlayer = platformService != null ? platformService.wrap(player, dev.darkblade.mbe.api.platform.MBEPlayer.class) : null;
+        dev.darkblade.mbe.api.platform.MBEBlock mbeBlock = platformService != null ? platformService.wrap(block, dev.darkblade.mbe.api.platform.MBEBlock.class) : null;
+        dev.darkblade.mbe.api.service.interaction.InteractionType interactionType = action == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK ? (player.isSneaking() ? dev.darkblade.mbe.api.service.interaction.InteractionType.SHIFT_RIGHT_CLICK : dev.darkblade.mbe.api.service.interaction.InteractionType.RIGHT_CLICK_BLOCK) : dev.darkblade.mbe.api.service.interaction.InteractionType.LEFT_CLICK_BLOCK;
+        MultiblockInteractEvent mbEvent = new MultiblockInteractEvent(instance, mbePlayer, interactionType, mbeBlock);
         eventCaller.accept(mbEvent);
         if (mbEvent.isCancelled()) {
             return true;
@@ -891,7 +899,8 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
     }
 
     private boolean disassemble(Player player, MultiblockInstance instance) {
-        MultiblockBreakEvent mbEvent = new MultiblockBreakEvent(instance, player);
+        dev.darkblade.mbe.api.platform.MBEPlayer mbePlayer = platformService != null ? platformService.wrap(player, dev.darkblade.mbe.api.platform.MBEPlayer.class) : null;
+        MultiblockBreakEvent mbEvent = new MultiblockBreakEvent(instance, mbePlayer);
         eventCaller.accept(mbEvent);
         if (mbEvent.isCancelled()) {
             return false;

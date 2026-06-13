@@ -1,10 +1,8 @@
 package dev.darkblade.mbe.api.block;
 
-import dev.darkblade.mbe.api.capability.Capability;
 import dev.darkblade.mbe.api.wiring.PortDefinition;
 import dev.darkblade.mbe.core.domain.action.Action;
 import dev.darkblade.mbe.core.domain.DisplayNameConfig;
-import dev.darkblade.mbe.core.domain.MultiblockInstance;
 import dev.darkblade.mbe.core.domain.MultiblockType;
 
 import java.util.List;

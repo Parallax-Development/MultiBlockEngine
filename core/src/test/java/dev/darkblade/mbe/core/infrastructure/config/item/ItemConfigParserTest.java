@@ -117,6 +117,6 @@ class ItemConfigParserTest {
         assertNotNull(meta);
         assertEquals(3, meta.getCustomModelData());
         assertTrue(meta.hasItemFlag(ItemFlag.HIDE_ATTRIBUTES));
-        assertTrue(meta.lore() != null && !meta.lore().isEmpty());
+        assertTrue(meta.getLore() != null && !meta.getLore().isEmpty());
     }
 }

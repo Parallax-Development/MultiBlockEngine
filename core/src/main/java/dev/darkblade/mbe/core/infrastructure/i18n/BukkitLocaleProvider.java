@@ -20,8 +20,8 @@ public final class BukkitLocaleProvider implements LocaleProvider {
     public Locale localeOf(CommandSender sender) {
         try {
             if (sender instanceof Player player) {
-                Locale locale = player.locale();
-                return locale == null ? fallback : locale;
+                String locStr = player.getLocale();
+                return locStr == null ? fallback : Locale.forLanguageTag(locStr.replace('_', '-'));
             }
             return fallback;
         } catch (Throwable t) {
@@ -39,8 +39,8 @@ public final class BukkitLocaleProvider implements LocaleProvider {
             if (player == null) {
                 return fallback;
             }
-            Locale locale = player.locale();
-            return locale == null ? fallback : locale;
+            String locStr = player.getLocale();
+            return locStr == null ? fallback : Locale.forLanguageTag(locStr.replace('_', '-'));
         } catch (Throwable t) {
             return fallback;
         }

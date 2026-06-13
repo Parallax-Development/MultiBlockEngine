@@ -23,7 +23,6 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -78,7 +77,7 @@ public class SimpleAddonContext implements AddonContext {
 
     @Override
     public String getEngineVersion() {
-        return MultiBlockEngine.getInstance().getPluginMeta().getVersion();
+        return MultiBlockEngine.getInstance().getDescription().getVersion();
     }
 
     @Override

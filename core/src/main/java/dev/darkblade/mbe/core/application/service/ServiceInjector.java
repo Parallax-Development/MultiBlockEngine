@@ -17,15 +17,15 @@ import java.util.function.BiFunction;
 
 public final class ServiceInjector {
     private static final BiFunction<String, Class<?>, Optional<?>> NO_EXTERNAL_RESOLVER = (ownerId, type) -> Optional.empty();
-    private final MBEServiceRegistry registry;
+    private final dev.darkblade.mbe.api.service.UnifiedServiceRegistry registry;
     private final BiFunction<String, Class<?>, Optional<?>> externalResolver;
     private final CoreLogger log;
 
-    public ServiceInjector(MBEServiceRegistry registry, CoreLogger log) {
+    public ServiceInjector(dev.darkblade.mbe.api.service.UnifiedServiceRegistry registry, CoreLogger log) {
         this(registry, log, NO_EXTERNAL_RESOLVER);
     }
 
-    public ServiceInjector(MBEServiceRegistry registry, CoreLogger log, BiFunction<String, Class<?>, Optional<?>> externalResolver) {
+    public ServiceInjector(dev.darkblade.mbe.api.service.UnifiedServiceRegistry registry, CoreLogger log, BiFunction<String, Class<?>, Optional<?>> externalResolver) {
         this.registry = Objects.requireNonNull(registry, "registry");
         this.externalResolver = externalResolver == null ? NO_EXTERNAL_RESOLVER : externalResolver;
         this.log = Objects.requireNonNull(log, "log");
@@ -57,7 +57,7 @@ public final class ServiceInjector {
                         field.set(target, Optional.empty());
                         return;
                     }
-                    java.util.List<?> matches = registry.getByType(wrappedType);
+                    java.util.List<?> matches = registry.resolveAll(wrappedType);
                     if (matches.isEmpty()) {
                         Optional<?> external = resolveExternal(ownerId, wrappedType);
                         if (external.isPresent()) {
@@ -72,7 +72,7 @@ public final class ServiceInjector {
                     return;
                 }
 
-                java.util.List<?> matches = registry.getByType(field.getType());
+                java.util.List<?> matches = registry.resolveAll(field.getType());
                 if (!matches.isEmpty()) {
                     field.set(target, matches.get(0));
                     return;
@@ -93,7 +93,7 @@ public final class ServiceInjector {
                     field.set(target, Optional.empty());
                     return;
                 }
-                Object value = registry.get(id, wrappedType);
+                Object value = registry.resolveById(id).filter(wrappedType::isInstance).map(wrappedType::cast);
                 if (((Optional<?>) value).isEmpty()) {
                     Optional<?> external = resolveExternal(ownerId, wrappedType);
                     if (external.isPresent()) {
@@ -107,7 +107,7 @@ public final class ServiceInjector {
                 return;
             }
 
-            Optional<?> resolved = registry.get(id, field.getType());
+            Optional<?> resolved = registry.resolveById(id).filter(field.getType()::isInstance).map(field.getType()::cast);
             if (resolved.isEmpty()) {
                 resolved = resolveExternal(ownerId, field.getType());
             }

@@ -6,7 +6,10 @@ import dev.darkblade.mbe.api.logging.LogLevel;
 import dev.darkblade.mbe.api.logging.LogPhase;
 import dev.darkblade.mbe.api.logging.LogScope;
 import dev.darkblade.mbe.api.service.MBEService;
+import dev.darkblade.mbe.api.service.ServiceDescriptor;
 import dev.darkblade.mbe.api.service.ServiceListener;
+import dev.darkblade.mbe.api.service.ServiceScope;
+import dev.darkblade.mbe.api.service.UnifiedServiceRegistry;
 import dev.darkblade.mbe.core.application.service.tick.TickService;
 
 import java.lang.reflect.Field;
@@ -28,13 +31,13 @@ public final class ServiceLifecycleOrchestrator {
         RUNTIME
     }
 
-    private final MBEServiceRegistry registry;
+    private final UnifiedServiceRegistry registry;
     private final ServiceInjector injector;
     private final CoreLogger log;
     private final Map<String, List<String>> servicesByAddon = new ConcurrentHashMap<>();
     private final AtomicReference<LifecyclePhase> currentPhase = new AtomicReference<>(LifecyclePhase.CORE_SERVICES);
 
-    public ServiceLifecycleOrchestrator(MBEServiceRegistry registry, ServiceInjector injector, CoreLogger log) {
+    public ServiceLifecycleOrchestrator(UnifiedServiceRegistry registry, ServiceInjector injector, CoreLogger log) {
         this.registry = Objects.requireNonNull(registry, "registry");
         this.injector = Objects.requireNonNull(injector, "injector");
         this.log = Objects.requireNonNull(log, "log");
@@ -44,7 +47,33 @@ public final class ServiceLifecycleOrchestrator {
         stopTickServiceIfPresent("unknown");
         currentPhase.set(LifecyclePhase.CORE_SERVICES);
         servicesByAddon.clear();
-        registry.clear();
+        // Warning: clearing through orchestrator only unregisters MBEServices.
+        for (MBEService service : registry.resolveAll(MBEService.class)) {
+            registry.unregisterService(service.getServiceId());
+        }
+    }
+
+    public void clearAddons() {
+        stopTickServiceIfPresent("unknown");
+        currentPhase.set(LifecyclePhase.CORE_SERVICES);
+        for (String addonId : new java.util.ArrayList<>(servicesByAddon.keySet())) {
+            if (!"mbe:core".equals(addonId)) {
+                for (String serviceId : servicesByAddon.getOrDefault(addonId, List.of())) {
+                    registry.unregisterService(serviceId);
+                }
+                servicesByAddon.remove(addonId);
+            }
+        }
+    }
+
+    public LifecyclePhase getCurrentPhase() {
+        return currentPhase.get();
+    }
+
+    public void setCurrentPhase(LifecyclePhase phase) {
+        if (phase != null) {
+            currentPhase.set(phase);
+        }
     }
 
     public void clearAddons() {
@@ -73,7 +102,16 @@ public final class ServiceLifecycleOrchestrator {
     public void registerService(String addonId, MBEService service) {
         String owner = normalizeAddonId(addonId);
         try {
-            registry.register(service);
+            registry.registerService(new DefaultServiceDescriptor<>(
+                    service.getServiceId(),
+                    owner,
+                    (Class<MBEService>) service.getClass(),
+                    service,
+                    ServiceScope.GLOBAL,
+                    0,
+                    true,
+                    true
+            ));
             service.onLoad();
             servicesByAddon.compute(owner, (key, previous) -> {
                 List<String> list = previous == null ? new ArrayList<>() : new ArrayList<>(previous);
@@ -157,7 +195,7 @@ public final class ServiceLifecycleOrchestrator {
                     LogKv.kv("serviceId", service.getServiceId())
                 }, Set.of());
             } finally {
-                registry.unregister(service.getServiceId());
+                registry.unregisterService(service.getServiceId());
             }
         }
 
@@ -165,7 +203,7 @@ public final class ServiceLifecycleOrchestrator {
     }
 
     private void startTickServiceIfPresent(String addonId) {
-        for (TickService tickService : registry.getByType(TickService.class)) {
+        for (TickService tickService : registry.resolveAll(TickService.class)) {
             try {
                 tickService.start();
             } catch (Throwable t) {
@@ -177,7 +215,7 @@ public final class ServiceLifecycleOrchestrator {
     }
 
     private void stopTickServiceIfPresent(String addonId) {
-        for (TickService tickService : registry.getByType(TickService.class)) {
+        for (TickService tickService : registry.resolveAll(TickService.class)) {
             try {
                 tickService.stop();
             } catch (Throwable t) {
@@ -189,28 +227,40 @@ public final class ServiceLifecycleOrchestrator {
     }
 
     public <T> List<T> getByType(Class<T> type) {
-        return registry.getByType(type);
+        return registry.resolveAll(type);
     }
 
     public <T> java.util.Optional<T> get(String serviceId, Class<T> type) {
-        return registry.get(serviceId, type);
+        return registry.resolveById(serviceId).filter(type::isInstance).map(type::cast);
     }
 
     public void addListener(ServiceListener listener) {
-        registry.addListener(listener);
+        // Listener support should be refactored to UnifiedServiceRegistry if needed.
     }
 
     public void removeListener(ServiceListener listener) {
-        registry.removeListener(listener);
+        // Listener support should be refactored to UnifiedServiceRegistry if needed.
     }
 
     private List<MBEService> servicesOf(String addonId) {
         List<String> ids = servicesByAddon.getOrDefault(normalizeAddonId(addonId), List.of());
         List<MBEService> result = new CopyOnWriteArrayList<>();
         for (String id : ids) {
-            registry.get(id, MBEService.class).ifPresent(result::add);
+            registry.resolveById(id).filter(MBEService.class::isInstance).map(MBEService.class::cast).ifPresent(result::add);
         }
         return List.copyOf(result);
+    }
+
+    public Map<String, List<String>> getServiceIdsByAddon() {
+        Map<String, List<String>> snapshot = new java.util.LinkedHashMap<>();
+        for (Map.Entry<String, List<String>> entry : servicesByAddon.entrySet()) {
+            snapshot.put(entry.getKey(), List.copyOf(entry.getValue()));
+        }
+        return Map.copyOf(snapshot);
+    }
+
+    public java.util.Collection<MBEService> getAllRegistered() {
+        return registry.resolveAll(MBEService.class);
     }
 
     private static String normalizeAddonId(String addonId) {

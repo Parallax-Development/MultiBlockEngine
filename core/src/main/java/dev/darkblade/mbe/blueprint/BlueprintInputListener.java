@@ -1,5 +1,6 @@
 package dev.darkblade.mbe.blueprint;
 
+import dev.darkblade.mbe.api.tool.ActionTrigger;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -33,6 +34,15 @@ public final class BlueprintInputListener implements Listener {
         if (!controller.handleInput(player)) {
             return;
         }
+
+        ActionTrigger trigger = resolveTrigger(event);
+        if (trigger == ActionTrigger.SHIFT_RIGHT_CLICK) {
+            if (controller.handleRotation(player)) {
+                event.setCancelled(true);
+                return;
+            }
+        }
+
         if (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK) {
             event.setCancelled(true);
             controller.handleLeftClick(player);
@@ -42,6 +52,22 @@ public final class BlueprintInputListener implements Listener {
             event.setCancelled(true);
             controller.handleRightClick(player);
         }
+    }
+
+    private ActionTrigger resolveTrigger(PlayerInteractEvent event) {
+        boolean isRightClick = event.getAction() == Action.RIGHT_CLICK_BLOCK || event.getAction() == Action.RIGHT_CLICK_AIR;
+        boolean isLeftClick = event.getAction() == Action.LEFT_CLICK_BLOCK || event.getAction() == Action.LEFT_CLICK_AIR;
+
+        if (isRightClick && event.getPlayer().isSneaking()) {
+            return ActionTrigger.SHIFT_RIGHT_CLICK;
+        }
+        if (isLeftClick && event.getPlayer().isSneaking()) {
+            return ActionTrigger.SHIFT_LEFT_CLICK;
+        }
+        if (isRightClick) {
+            return ActionTrigger.RIGHT_CLICK;
+        }
+        return ActionTrigger.LEFT_CLICK;
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

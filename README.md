@@ -4,10 +4,9 @@
 
 *A high-performance, modular, and service-oriented ecosystem for multi-block structures in Minecraft.*
 
-[![PaperMC](https://img.shields.io/badge/PaperMC-1.19.4%20|%201.21.x-lightgrey.svg)](https://papermc.io/)
+[![PaperMC](https://img.shields.io/badge/PaperMC-1.19.4%20|%201.21.1-lightgrey.svg)](https://papermc.io/)
 [![Architecture](https://img.shields.io/badge/Architecture-Service%20Oriented-blue)](#)
 [![License](https://img.shields.io/badge/License-MBE--L-green.svg)](https://github.com/Parallax-Development/MultiBlockEngine/blob/main/LICENSE)
-[![CodeFactor](https://www.codefactor.io/repository/github/parallax-development/multiblockengine/badge)](https://www.codefactor.io/repository/github/parallax-development/multiblockengine)
 
 </div>
 
@@ -63,10 +62,17 @@ graph TD
     end
     
     subgraph Addons Ecosystem
-        D --> E[Addons]
+        D --> E[mbe-energy]
+        D --> F[mbe-wiring]
+        D --> G[mbe-crafting]
+        D --> H[mbe-ui]
+        D --> I[mbe-blueprints]
     end
     
     C -.-> E
+    C -.-> F
+    C -.-> G
+    C -.-> H
 ```
 
 ---
@@ -120,5 +126,5 @@ Built with passion for next-level Minecraft server engineering. Thanks to the op
 
 - [PaperMC](https://papermc.io/) - High-performance Minecraft server software.
 - [HikariCP](https://github.com/brettwooldridge/HikariCP) - "Zero-overhead" JDBC connection pool.
-- [ProtocolLib](https://github.com/dmulloy2/ProtocolLib) - Protocol manipulation library.
+- [PacketEvents](https://modrinth.com/plugin/packetevents) - Protocol manipulation library.
 - [PlaceholderAPI](https://placeholderapi.com) - PlaceholderAPI integration.

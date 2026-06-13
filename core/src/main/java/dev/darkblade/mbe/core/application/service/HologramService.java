@@ -65,7 +65,7 @@ public class HologramService {
                     } catch (Throwable ignored) {}
                 }
 
-                display.text(StringUtil.legacyText(resolvedText));
+                display.setText(StringUtil.toLegacy(StringUtil.legacyText(resolvedText)));
                 display.setBillboard(Display.Billboard.CENTER);
                 display.setPersistent(false); // Don't save to disk, we manage it
                 

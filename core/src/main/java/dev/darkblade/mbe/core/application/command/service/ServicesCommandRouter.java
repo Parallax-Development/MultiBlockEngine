@@ -51,6 +51,12 @@ public final class ServicesCommandRouter implements Listener {
     private static final MessageKey MSG_OVERVIEW_EXAMPLE = MessageKey.of(ORIGIN, "services.router.overview.example");
     private static final MessageKey MSG_LIST_TITLE = MessageKey.of(ORIGIN, "services.router.list.title");
     private static final MessageKey MSG_LIST_ENTRY = MessageKey.of(ORIGIN, "services.router.list.entry");
+    private static final MessageKey MSG_LIST_CORE_TITLE = MessageKey.of(ORIGIN, "services.router.list.core_title");
+    private static final MessageKey MSG_LIST_CORE_LINE = MessageKey.of(ORIGIN, "services.router.list.core_line");
+    private static final MessageKey MSG_LIST_ADDON_TITLE = MessageKey.of(ORIGIN, "services.router.list.addon_title");
+    private static final MessageKey MSG_LIST_ADDON_ENTRY = MessageKey.of(ORIGIN, "services.router.list.addon_entry");
+    private static final MessageKey MSG_LIST_COMMAND_TITLE = MessageKey.of(ORIGIN, "services.router.list.command_title");
+    private static final MessageKey MSG_LIST_NONE = MessageKey.of(ORIGIN, "services.router.list.none");
     private static final MessageKey MSG_ERROR_GENERIC = MessageKey.of(ORIGIN, "services.router.error.generic");
 
     private final MultiBlockEngine plugin;
@@ -59,6 +65,7 @@ public final class ServicesCommandRouter implements Listener {
     private final ServiceCallParser parser = new ServiceCallParser();
     private final ServiceRegistry registry = new ServiceRegistry();
     private final DynamicCommandServiceRegistry externalRegistry;
+    private final Map<String, ServicesSubcommand> extraSubcommands = new HashMap<>();
 
     public ServicesCommandRouter(MultiBlockEngine plugin) {
         Objects.requireNonNull(plugin, "plugin");
@@ -71,6 +78,16 @@ public final class ServicesCommandRouter implements Listener {
 
     public void registerInternal(MbeCommandService service) {
         registry.register(service);
+    }
+
+    /**
+     * Register an additional subcommand for {@code /mbe services <name>}.
+     * Duplicate names are rejected silently.
+     */
+    public void registerSubcommand(ServicesSubcommand subcommand) {
+        Objects.requireNonNull(subcommand, "subcommand");
+        String name = subcommand.name().trim().toLowerCase(Locale.ROOT);
+        extraSubcommands.putIfAbsent(name, subcommand);
     }
 
     public List<String> serviceIds() {
@@ -163,6 +180,15 @@ public final class ServicesCommandRouter implements Listener {
             return true;
         }
 
+        ServicesSubcommand extra = extraSubcommands.get(op);
+        if (extra != null) {
+            List<String> remaining = safeArgs.length <= 2
+                    ? List.of()
+                    : List.of(Arrays.copyOfRange(safeArgs, 2, safeArgs.length));
+            extra.execute(sender, label, remaining);
+            return true;
+        }
+
         if (op.equals("help")) {
             sendServicesOverview(sender, label);
             return true;
@@ -209,7 +235,9 @@ public final class ServicesCommandRouter implements Listener {
         }
 
         if (safeArgs.length == 2) {
-            return filter(List.of("call", "list", "help"), safeArgs[1]);
+            List<String> opts = new ArrayList<>(List.of("call", "list", "help"));
+            opts.addAll(extraSubcommands.keySet());
+            return filter(opts, safeArgs[1]);
         }
 
         if (safeArgs.length == 3 && "call".equalsIgnoreCase(safeArgs[1])) {
@@ -433,13 +461,58 @@ public final class ServicesCommandRouter implements Listener {
     }
 
     private void sendServicesList(CommandSender sender) {
-        List<MbeCommandService> all = new ArrayList<>(registry.list());
-        all.addAll(externalRegistry.services());
+        send(sender, MSG_LIST_TITLE);
 
-        all.sort((a, b) -> a.id().compareToIgnoreCase(b.id()));
-        send(sender, MSG_LIST_TITLE, Map.of("count", all.size()));
-        for (MbeCommandService svc : all) {
-            send(sender, MSG_LIST_ENTRY, Map.of("id", svc.id(), "description", safe(svc.description())));
+        // --- Core MBEServices (compact: single line) ---
+        var orchestrator = plugin.getAddonLifecycleService().getServiceLifecycleOrchestrator();
+        Map<String, List<String>> servicesByAddon = orchestrator.getServiceIdsByAddon();
+        List<String> coreServiceIds = servicesByAddon.getOrDefault("mbe:core", List.of());
+
+        if (!coreServiceIds.isEmpty()) {
+            List<String> shortIds = new ArrayList<>();
+            for (String sid : coreServiceIds) {
+                int colon = sid.indexOf(':');
+                shortIds.add(colon >= 0 ? sid.substring(colon + 1) : sid);
+            }
+            java.util.Collections.sort(shortIds, String::compareToIgnoreCase);
+            send(sender, MSG_LIST_CORE_TITLE, Map.of("count", coreServiceIds.size()));
+            send(sender, MSG_LIST_CORE_LINE, Map.of("ids", String.join(", ", shortIds)));
+        }
+
+        // --- Addon MBEServices (detailed: one per line with addon attribution) ---
+        List<Map.Entry<String, String>> addonEntries = new ArrayList<>();
+        for (Map.Entry<String, List<String>> entry : servicesByAddon.entrySet()) {
+            String addonId = entry.getKey();
+            if ("mbe:core".equals(addonId)) {
+                continue;
+            }
+            for (String serviceId : entry.getValue()) {
+                addonEntries.add(Map.entry(serviceId, addonId));
+            }
+        }
+        addonEntries.sort((a, b) -> a.getKey().compareToIgnoreCase(b.getKey()));
+
+        if (!addonEntries.isEmpty()) {
+            send(sender, MSG_LIST_ADDON_TITLE, Map.of("count", addonEntries.size()));
+            for (Map.Entry<String, String> entry : addonEntries) {
+                send(sender, MSG_LIST_ADDON_ENTRY, Map.of("id", entry.getKey(), "addon", entry.getValue()));
+            }
+        }
+
+        // --- Command Services (existing behavior) ---
+        List<MbeCommandService> commandServices = new ArrayList<>(registry.list());
+        commandServices.addAll(externalRegistry.services());
+        commandServices.sort((a, b) -> a.id().compareToIgnoreCase(b.id()));
+
+        if (!commandServices.isEmpty()) {
+            send(sender, MSG_LIST_COMMAND_TITLE, Map.of("count", commandServices.size()));
+            for (MbeCommandService svc : commandServices) {
+                send(sender, MSG_LIST_ENTRY, Map.of("id", svc.id(), "description", safe(svc.description())));
+            }
+        }
+
+        if (coreServiceIds.isEmpty() && addonEntries.isEmpty() && commandServices.isEmpty()) {
+            send(sender, MSG_LIST_NONE);
         }
     }
 

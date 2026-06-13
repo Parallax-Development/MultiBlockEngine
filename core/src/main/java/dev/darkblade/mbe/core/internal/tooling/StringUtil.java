@@ -23,6 +23,13 @@ public class StringUtil {
         return LEGACY_AMP.deserialize(text);
     }
 
+    public static String toLegacy(Component component) {
+        if (component == null) {
+            return "";
+        }
+        return LEGACY_SECTION.serialize(component);
+    }
+
     public static String parsePlaceholders(String text, MultiblockInstance instance) {
         if (text == null || text.isEmpty()) return text;
 
