@@ -33,6 +33,7 @@ import dev.darkblade.mbe.core.domain.assembly.AssemblyCoordinator;
 import dev.darkblade.mbe.core.infrastructure.bridge.item.ItemStackBridge;
 import dev.darkblade.mbe.core.platform.interaction.BukkitInteractionIntentFactory;
 import dev.darkblade.mbe.core.domain.MultiblockInstance;
+import dev.darkblade.mbe.api.service.lifecycle.MultiblockLifecycleService;
 import org.bukkit.Bukkit;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -67,50 +68,10 @@ public class MultiblockListener implements Listener {
     private ItemStackBridge itemStackBridge;
     private ToolRegistry toolRegistry;
     private dev.darkblade.mbe.api.platform.PlatformService platformService;
+    private final MultiblockLifecycleService lifecycleService;
 
     public MultiblockListener(MultiblockRuntimeService manager) {
-        this(manager, e -> {}, null, null, null);
-    }
-
-    public MultiblockListener(MultiblockRuntimeService manager, Consumer<dev.darkblade.mbe.api.event.MBEEvent> eventCaller) {
-        this(manager, eventCaller, null, null, null);
-    }
-
-    public MultiblockListener(MultiblockRuntimeService manager, Consumer<dev.darkblade.mbe.api.event.MBEEvent> eventCaller,
-            WrenchDispatcher wrenchDispatcher) {
-        this(manager, eventCaller, wrenchDispatcher, null, null);
-    }
-
-    public MultiblockListener(MultiblockRuntimeService manager, WrenchDispatcher wrenchDispatcher) {
-        this(manager, e -> {}, wrenchDispatcher, null, null);
-    }
-
-    public MultiblockListener(MultiblockRuntimeService manager, WrenchDispatcher wrenchDispatcher,
-            AssemblyCoordinator assembly) {
-        this(manager, e -> {}, wrenchDispatcher, assembly, null);
-    }
-
-    public MultiblockListener(MultiblockRuntimeService manager, WrenchDispatcher wrenchDispatcher,
-            AssemblyCoordinator assembly, I18nService i18n) {
-        this(manager, e -> {}, wrenchDispatcher, assembly, i18n);
-    }
-
-    public MultiblockListener(MultiblockRuntimeService manager, Consumer<dev.darkblade.mbe.api.event.MBEEvent> eventCaller,
-            WrenchDispatcher wrenchDispatcher, AssemblyCoordinator assembly) {
-        this(manager, eventCaller, wrenchDispatcher, assembly, null);
-    }
-
-    public MultiblockListener(MultiblockRuntimeService manager, Consumer<dev.darkblade.mbe.api.event.MBEEvent> eventCaller,
-            WrenchDispatcher wrenchDispatcher, AssemblyCoordinator assembly, I18nService i18n) {
-        this(
-                manager,
-                eventCaller,
-                assembly,
-                i18n,
-                new DefaultInteractionPipelineService(assembly, wrenchDispatcher, new InteractionRouter(), null,
-                        manager, null, null),
-                new BukkitInteractionIntentFactory(),
-                null);
+        this(manager, e -> {}, null, null, null, null, null, null);
     }
 
     public MultiblockListener(
@@ -120,7 +81,8 @@ public class MultiblockListener implements Listener {
             I18nService i18n,
             InteractionPipelineService interactionPipeline,
             BukkitInteractionIntentFactory intentFactory,
-            dev.darkblade.mbe.api.platform.PlatformService platformService) {
+            dev.darkblade.mbe.api.platform.PlatformService platformService,
+            MultiblockLifecycleService lifecycleService) {
         this.manager = manager;
         this.eventCaller = eventCaller;
         this.assembly = assembly;
@@ -128,6 +90,7 @@ public class MultiblockListener implements Listener {
         this.interactionPipeline = interactionPipeline;
         this.intentFactory = intentFactory == null ? new BukkitInteractionIntentFactory() : intentFactory;
         this.platformService = platformService;
+        this.lifecycleService = lifecycleService;
     }
 
     @EventHandler
@@ -150,7 +113,6 @@ public class MultiblockListener implements Listener {
         if (event.getHand() != EquipmentSlot.HAND) {
             return;
         }
-        event.setUseInteractedBlock(Event.Result.ALLOW);
         InteractionIntent intent = intentFactory.from(event);
         if (intent == null) {
             return;
@@ -177,80 +139,35 @@ public class MultiblockListener implements Listener {
         }
     }
 
-    private ActionTrigger resolveTrigger(PlayerInteractEvent event) {
-        boolean isRightClick = event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK || event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_AIR;
-        boolean isLeftClick = event.getAction() == org.bukkit.event.block.Action.LEFT_CLICK_BLOCK || event.getAction() == org.bukkit.event.block.Action.LEFT_CLICK_AIR;
-
-        if (isRightClick && event.getPlayer().isSneaking()) {
-            return ActionTrigger.SHIFT_RIGHT_CLICK;
+    private void sendAssemblyFailureMessage(Player player, dev.darkblade.mbe.api.assembly.AssemblyReport report) {
+        if (player == null || report == null || report.reasonKey() == null || report.reasonKey().isBlank()) {
+            return;
         }
-        if (isLeftClick && event.getPlayer().isSneaking()) {
-            return ActionTrigger.SHIFT_LEFT_CLICK;
+        if (i18n == null) {
+            return;
         }
-        if (isRightClick) {
-            return ActionTrigger.RIGHT_CLICK;
+        dev.darkblade.mbe.api.i18n.MessageKey key = dev.darkblade.mbe.api.i18n.MessageKey.of("mbe", "commands.error." + report.reasonKey());
+        String translated = i18n.tr(player, key);
+        if (translated == null || translated.isBlank() || translated.equals(key.path())) {
+            return;
         }
-        return ActionTrigger.LEFT_CLICK;
+        PlayerMessageService messageService = resolveMessageService();
+        if (messageService != null) {
+            messageService.send(player, new dev.darkblade.mbe.api.message.PlayerMessage(key, dev.darkblade.mbe.api.message.MessageChannel.CHAT, dev.darkblade.mbe.api.message.MessagePriority.HIGH, java.util.Map.of()));
+            return;
+        }
+        i18n.send(player, key);
     }
 
-    private boolean isToolItem(ItemStack item) {
-        if (item == null || item.getType().isAir()) {
-            return false;
-        }
-        ItemStackBridge bridge = resolveItemStackBridge();
-        ToolRegistry registry = resolveToolRegistry();
-        if (bridge == null || registry == null) {
-            return false;
-        }
-        ItemInstance instance;
-        try {
-            instance = bridge.fromItemStack(item);
-        } catch (Throwable t) {
-            return false;
-        }
-        if (instance == null || instance.definition() == null || instance.definition().key() == null
-                || instance.definition().key().id() == null) {
-            return false;
-        }
-        String inferredToolId = instance.definition().key().id().key();
-        return registry.get(inferredToolId) != null;
-    }
-
-    private ToolDispatcher resolveToolDispatcher() {
-        if (toolDispatcher != null) {
-            return toolDispatcher;
-        }
-        MultiBlockEngine plugin = MultiBlockEngine.getInstance();
+    private PlayerMessageService resolveMessageService() {
+        dev.darkblade.mbe.core.MultiBlockEngine plugin = dev.darkblade.mbe.core.MultiBlockEngine.getInstance();
         if (plugin == null || plugin.getAddonLifecycleService() == null) {
             return null;
         }
-        toolDispatcher = plugin.getAddonLifecycleService().getCoreService(ToolDispatcher.class);
-        return toolDispatcher;
+        return plugin.getAddonLifecycleService().getCoreService(PlayerMessageService.class);
     }
 
-    private ItemStackBridge resolveItemStackBridge() {
-        if (itemStackBridge != null) {
-            return itemStackBridge;
-        }
-        MultiBlockEngine plugin = MultiBlockEngine.getInstance();
-        if (plugin == null || plugin.getAddonLifecycleService() == null) {
-            return null;
-        }
-        itemStackBridge = plugin.getAddonLifecycleService().getCoreService(ItemStackBridge.class);
-        return itemStackBridge;
-    }
 
-    private ToolRegistry resolveToolRegistry() {
-        if (toolRegistry != null) {
-            return toolRegistry;
-        }
-        MultiBlockEngine plugin = MultiBlockEngine.getInstance();
-        if (plugin == null || plugin.getAddonLifecycleService() == null) {
-            return null;
-        }
-        toolRegistry = plugin.getAddonLifecycleService().getCoreService(ToolRegistry.class);
-        return toolRegistry;
-    }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
@@ -260,162 +177,19 @@ public class MultiblockListener implements Listener {
             MultiblockInstance instance = instanceOpt.get();
 
             dev.darkblade.mbe.api.platform.MBEPlayer mbePlayer = platformService != null ? platformService.wrap(event.getPlayer(), dev.darkblade.mbe.api.platform.MBEPlayer.class) : null;
-            MultiblockBreakEvent mbEvent = new MultiblockBreakEvent(instance, mbePlayer);
-            eventCaller.accept(mbEvent);
-            if (mbEvent.isCancelled()) {
-                event.setCancelled(true);
-                return;
-            }
-
-            for (dev.darkblade.mbe.core.domain.action.Action action : instance.type().onBreakActions()) {
-                executeActionSafely("BREAK", action, instance, null);
-            }
-            unregisterLimit(instance, event.getPlayer());
-            manager.destroyInstance(instance);
-            sendDisassembledMessage(event.getPlayer(), instance);
-        }
-    }
-
-    private void sendDisassembledMessage(Player player, MultiblockInstance instance) {
-        if (player == null || instance == null || instance.type() == null) {
-            return;
-        }
-        String typeId = instance.type().id() == null ? "" : instance.type().id();
-        PlayerMessageService messageService = resolveMessageService();
-        if (messageService != null) {
-            messageService.send(player, new PlayerMessage(
-                    MSG_DISASSEMBLED,
-                    MessageChannel.CHAT,
-                    MessagePriority.NORMAL,
-                    Map.of("type", typeId)));
-            return;
-        }
-        I18nService service = resolveI18n();
-        if (service != null) {
-            service.send(player, MSG_DISASSEMBLED, Map.of("type", typeId));
-        }
-    }
-
-    private I18nService resolveI18n() {
-        if (i18n != null) {
-            return i18n;
-        }
-        MultiBlockEngine plugin = MultiBlockEngine.getInstance();
-        if (plugin == null || plugin.getAddonLifecycleService() == null) {
-            return null;
-        }
-        return plugin.getAddonLifecycleService().getCoreService(I18nService.class);
-    }
-
-    private void sendAssemblyFailureMessage(Player player, AssemblyReport report) {
-        if (player == null || report == null || report.reasonKey() == null || report.reasonKey().isBlank()) {
-            return;
-        }
-        I18nService service = resolveI18n();
-        if (service == null) {
-            return;
-        }
-        MessageKey key = MessageKey.of("mbe", "commands.error." + report.reasonKey());
-        String translated = service.tr(player, key);
-        if (translated == null || translated.isBlank() || translated.equals(key.path())) {
-            return;
-        }
-        PlayerMessageService messageService = resolveMessageService();
-        if (messageService != null) {
-            messageService.send(player, new PlayerMessage(key, MessageChannel.CHAT, MessagePriority.HIGH, Map.of()));
-            return;
-        }
-        service.send(player, key);
-    }
-
-    private PlayerMessageService resolveMessageService() {
-        MultiBlockEngine plugin = MultiBlockEngine.getInstance();
-        if (plugin == null || plugin.getAddonLifecycleService() == null) {
-            return null;
-        }
-        return plugin.getAddonLifecycleService().getCoreService(PlayerMessageService.class);
-    }
-
-    private void unregisterLimit(MultiblockInstance instance, Player player) {
-        if (instance == null || instance.type() == null) {
-            return;
-        }
-        MultiblockLimitService limitService = resolveLimitService();
-        if (limitService == null) {
-            return;
-        }
-        UUID ownerId = resolveOwnerId(instance, player);
-        if (ownerId == null) {
-            return;
-        }
-        limitService.unregisterAssembly(ownerId, instance.type().id());
-    }
-
-    private MultiblockLimitService resolveLimitService() {
-        MultiBlockEngine plugin = MultiBlockEngine.getInstance();
-        if (plugin == null || plugin.getAddonLifecycleService() == null) {
-            return null;
-        }
-        return plugin.getAddonLifecycleService().getCoreService(MultiblockLimitService.class);
-    }
-
-    private UUID resolveOwnerId(MultiblockInstance instance, Player player) {
-        if (player != null) {
-            return player.getUniqueId();
-        }
-        Object owner = instance.getVariable("owner_uuid");
-        if (owner == null) {
-            return null;
-        }
-        try {
-            return UUID.fromString(String.valueOf(owner));
-        } catch (Throwable ignored) {
-            return null;
-        }
-    }
-
-    private void executeActionSafely(String runtimePhase, dev.darkblade.mbe.core.domain.action.Action action,
-            MultiblockInstance instance, Player player) {
-        try {
-            if (player != null) {
-                action.execute(instance, player);
-            } else {
-                action.execute(instance);
-            }
-        } catch (Throwable t) {
-            String ownerId = action != null ? action.ownerId() : null;
-            String typeKey = action != null ? action.typeKey() : null;
-
-            String actionName = "unknown";
-            if (typeKey != null && !typeKey.isBlank()) {
-                int idx = typeKey.lastIndexOf(':');
-                actionName = idx >= 0 ? typeKey.substring(idx + 1) : typeKey;
-            } else if (action != null) {
-                actionName = action.getClass().getSimpleName();
-            }
-
-            Object counter = instance != null ? instance.getVariable("counter") : null;
-            String msg = "[" + runtimePhase + "] Action '" + actionName + "' failed Context: counter=" + counter
-                    + " Multiblock=" + (instance != null ? instance.type().id() : "unknown") + " Execution continued";
-
-            if (ownerId != null && !ownerId.isBlank()
-                    && MultiBlockEngine.getInstance().getAddonLifecycleService() != null) {
-                MultiBlockEngine.getInstance().getAddonLifecycleService().failAddon(ownerId,
-                        AddonException.Phase.RUNTIME, msg, t, false);
-            } else {
-                CoreLogger core = MultiBlockEngine.getInstance().getLoggingService() != null
-                        ? MultiBlockEngine.getInstance().getLoggingService().core()
-                        : null;
-                if (core != null) {
-                    core.logInternal(new LogScope.Core(), LogPhase.RUNTIME, LogLevel.ERROR, msg, t, new LogKv[] {
-                            LogKv.kv("phase", runtimePhase),
-                            LogKv.kv("multiblock", instance != null ? instance.type().id() : "unknown"),
-                            LogKv.kv("action", actionName)
-                    }, Set.of());
-                } else {
-                    MultiBlockEngine.getInstance().getLogger().log(java.util.logging.Level.SEVERE,
-                            "[Runtime] " + msg + " Cause: " + t.getClass().getSimpleName() + ": " + t.getMessage(), t);
+            if (lifecycleService != null) {
+                boolean success = lifecycleService.tryDisassemble(instance, mbePlayer);
+                if (!success) {
+                    event.setCancelled(true);
                 }
+            } else {
+                MultiblockBreakEvent mbEvent = new MultiblockBreakEvent(instance, mbePlayer);
+                eventCaller.accept(mbEvent);
+                if (mbEvent.isCancelled()) {
+                    event.setCancelled(true);
+                    return;
+                }
+                manager.destroyInstance(instance);
             }
         }
     }

@@ -551,6 +551,17 @@ public class MultiBlockEngine extends JavaPlugin {
         InteractionPipelineService pipelineService = new DefaultInteractionPipelineService(assemblyCoordinator, null,
                 interactionRouter, itemStackBridge, manager, platformService, eventBus);
         addonManager.registerCoreService(InteractionPipelineService.class, pipelineService);
+
+        dev.darkblade.mbe.api.service.lifecycle.MultiblockLifecycleService lifecycleService = 
+                new dev.darkblade.mbe.core.application.service.lifecycle.DefaultMultiblockLifecycleService(
+                        manager,
+                        addonManager.getCoreService(dev.darkblade.mbe.core.application.service.limit.MultiblockLimitService.class),
+                        eventBus::publish,
+                        addonManager.getCoreService(dev.darkblade.mbe.api.message.PlayerMessageService.class),
+                        i18n
+                );
+        addonManager.registerCoreService(dev.darkblade.mbe.api.service.lifecycle.MultiblockLifecycleService.class, lifecycleService);
+
         panelBindings = new PanelBindingService(new File(getDataFolder(), "panel-bindings.yml"), interactionRouter);
         coreServiceLifecycleCoordinator.register(panelBindings);
         addonManager.registerCoreService(EditorSessionManager.class, editorSessions);
@@ -658,8 +669,9 @@ public class MultiBlockEngine extends JavaPlugin {
 
         metadataService.setEventBus(eventBus);
         InteractionPipelineService interactionPipeline = addonManager.getCoreService(InteractionPipelineService.class);
+        dev.darkblade.mbe.api.service.lifecycle.MultiblockLifecycleService mbeLifecycleService = addonManager.getCoreService(dev.darkblade.mbe.api.service.lifecycle.MultiblockLifecycleService.class);
         getServer().getPluginManager().registerEvents(
-                createMultiblockListener(interactionPipeline, i18n, platformService),
+                createMultiblockListener(interactionPipeline, i18n, platformService, mbeLifecycleService, eventBus),
                 this);
         getServer().getPluginManager().registerEvents(createEditorInputListener(), this);
         getServer().getPluginManager().registerEvents(new ExportInteractListener(exportSelections), this);
@@ -1095,7 +1107,9 @@ public class MultiBlockEngine extends JavaPlugin {
     }
 
     private Listener createMultiblockListener(InteractionPipelineService interactionPipeline, I18nService i18n,
-            dev.darkblade.mbe.api.platform.PlatformService platformService) {
+            dev.darkblade.mbe.api.platform.PlatformService platformService,
+            dev.darkblade.mbe.api.service.lifecycle.MultiblockLifecycleService lifecycleService,
+            dev.darkblade.mbe.core.application.event.MBEEventBus eventBus) {
         try {
             Class<?> listenerClass = Class.forName("dev.darkblade.mbe.core.platform.listener.MultiblockListener");
             Class<?> intentFactoryClass = Class
@@ -1108,8 +1122,9 @@ public class MultiBlockEngine extends JavaPlugin {
                     I18nService.class,
                     InteractionPipelineService.class,
                     intentFactoryClass,
-                    dev.darkblade.mbe.api.platform.PlatformService.class);
-            java.util.function.Consumer<org.bukkit.event.Event> eventCaller = Bukkit.getPluginManager()::callEvent;
+                    dev.darkblade.mbe.api.platform.PlatformService.class,
+                    dev.darkblade.mbe.api.service.lifecycle.MultiblockLifecycleService.class);
+            java.util.function.Consumer<dev.darkblade.mbe.api.event.MBEEvent> eventCaller = eventBus::publish;
             return (Listener) constructor.newInstance(
                     manager,
                     eventCaller,
@@ -1117,7 +1132,8 @@ public class MultiBlockEngine extends JavaPlugin {
                     i18n,
                     interactionPipeline,
                     intentFactory,
-                    platformService);
+                    platformService,
+                    lifecycleService);
         } catch (ReflectiveOperationException e) {
             throw new IllegalStateException("Failed to initialize multiblock platform listener", e);
         }
