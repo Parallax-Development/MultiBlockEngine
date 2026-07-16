@@ -3,7 +3,7 @@ package dev.darkblade.mbe.api;
 import dev.darkblade.mbe.core.domain.BlockMatcher;
 import dev.darkblade.mbe.core.domain.action.Action;
 import dev.darkblade.mbe.core.domain.condition.Condition;
-
+import dev.darkblade.mbe.api.event.EventBusService;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -14,4 +14,5 @@ public interface MultiblockAPI {
     
     dev.darkblade.mbe.api.assembly.MultiblockBuilder createMultiblock(String id);
     void registerMultiblock(dev.darkblade.mbe.core.domain.MultiblockType type);
+    EventBusService getEventBus();
 }

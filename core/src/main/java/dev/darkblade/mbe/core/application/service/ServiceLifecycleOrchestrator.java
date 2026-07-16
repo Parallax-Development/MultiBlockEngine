@@ -76,6 +76,8 @@ public final class ServiceLifecycleOrchestrator {
         }
     }
 
+
+
     public void registerService(String addonId, MBEService service) {
         String owner = normalizeAddonId(addonId);
         try {

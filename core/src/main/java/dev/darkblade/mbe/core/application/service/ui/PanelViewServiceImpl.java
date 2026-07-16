@@ -11,7 +11,7 @@ import dev.darkblade.mbe.api.ui.runtime.PanelOpenService;
 import dev.darkblade.mbe.core.application.service.ServiceLifecycleOrchestrator;
 import dev.darkblade.mbe.core.application.service.addon.AddonLifecycleService;
 import dev.darkblade.mbe.core.application.service.ui.runtime.UIRuntimeRegistry;
-import org.bukkit.Bukkit;
+import dev.darkblade.mbe.api.event.EventBusService;
 import org.bukkit.entity.Player;
 
 import java.util.Map;
@@ -77,10 +77,14 @@ public final class PanelViewServiceImpl implements PanelViewService, MBEService 
     }
 
     private void publishPanelEvent(PanelId id, ComponentChangeType changeType) {
-        if (id == null || Bukkit.getServer() == null) {
+        if (id == null) {
             return;
         }
-        Bukkit.getPluginManager().callEvent(new ComponentAvailabilityEvent(
+        EventBusService eventBus = addonLifecycleService.getCoreService(EventBusService.class);
+        if (eventBus == null) {
+            return;
+        }
+        eventBus.publish(new ComponentAvailabilityEvent(
                 "mbe:core",
                 id.value(),
                 ComponentKind.UI_PANEL,

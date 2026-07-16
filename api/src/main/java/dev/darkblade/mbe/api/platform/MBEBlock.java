@@ -1,7 +1,5 @@
 package dev.darkblade.mbe.api.platform;
 
-import org.bukkit.Material;
-
 /**
  * Platform-agnostic representation of a Block.
  */
@@ -33,7 +31,7 @@ public interface MBEBlock {
     int getZ();
 
     /**
-     * @return the material of the block
+     * @return the material of the block as a namespaced string (e.g. "minecraft:stone")
      */
-    Material getType();
+    String getType();
 }

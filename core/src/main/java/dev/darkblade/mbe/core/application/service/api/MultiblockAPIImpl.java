@@ -4,6 +4,7 @@ import dev.darkblade.mbe.api.MultiblockAPI;
 import dev.darkblade.mbe.core.domain.BlockMatcher;
 import dev.darkblade.mbe.core.domain.action.Action;
 import dev.darkblade.mbe.core.domain.condition.Condition;
+import dev.darkblade.mbe.api.event.EventBusService;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -13,6 +14,16 @@ public class MultiblockAPIImpl implements MultiblockAPI {
     private final Map<String, Function<Map<String, Object>, Action>> actionRegistry = new HashMap<>();
     private final Map<String, Function<Map<String, Object>, Condition>> conditionRegistry = new HashMap<>();
     private final Map<String, Function<String, BlockMatcher>> matcherRegistry = new HashMap<>();
+    private EventBusService eventBus;
+
+    public void setEventBus(EventBusService eventBus) {
+        this.eventBus = eventBus;
+    }
+
+    @Override
+    public EventBusService getEventBus() {
+        return eventBus;
+    }
 
     @Override
     public void registerAction(String type, Function<Map<String, Object>, Action> factory) {

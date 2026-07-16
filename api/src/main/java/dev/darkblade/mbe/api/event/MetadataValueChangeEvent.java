@@ -1,13 +1,11 @@
 package dev.darkblade.mbe.api.event;
 
 import dev.darkblade.mbe.core.domain.MultiblockInstance;
-import org.bukkit.event.Event;
-import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class MetadataValueChangeEvent extends Event {
-    private static final HandlerList handlers = new HandlerList();
+public class MetadataValueChangeEvent implements MBEEvent {
+
     private final MultiblockInstance instance;
     private final String metadataId;
     private final Object oldValue;
@@ -38,14 +36,4 @@ public class MetadataValueChangeEvent extends Event {
         return newValue;
     }
 
-    @NotNull
-    @Override
-    public HandlerList getHandlers() {
-        return handlers;
-    }
-
-    @NotNull
-    public static HandlerList getHandlerList() {
-        return handlers;
-    }
 }

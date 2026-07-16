@@ -160,6 +160,8 @@ public class MultiblockRuntimeService implements Tickable {
     public Collection<MultiblockInstance> getActiveInstancesSnapshot() {
         return instanceRegistry.getActiveInstancesSnapshot();
     }
+
+
     
     public void destroyInstance(MultiblockInstance instance) {
         instanceRegistry.destroyInstance(instance);

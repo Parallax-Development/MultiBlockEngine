@@ -11,6 +11,7 @@ import dev.darkblade.mbe.preview.StructurePreviewServiceImpl;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
+import dev.darkblade.mbe.api.event.EventBusService;
 
 import dev.darkblade.mbe.api.platform.PlatformService;
 import java.util.Objects;
@@ -22,6 +23,7 @@ public final class BlueprintController {
     private final PreviewOriginResolver originResolver;
     private final BlueprintHeldItemResolver heldItemResolver;
     private final PlatformService platformService;
+    private final EventBusService eventBus;
 
     public BlueprintController(
             BuildContextService contextService,
@@ -29,7 +31,8 @@ public final class BlueprintController {
             BlueprintDefinitionResolver definitionResolver,
             PreviewOriginResolver originResolver,
             BlueprintHeldItemResolver heldItemResolver,
-            PlatformService platformService
+            PlatformService platformService,
+            EventBusService eventBus
     ) {
         this.contextService = Objects.requireNonNull(contextService, "contextService");
         this.previewService = Objects.requireNonNull(previewService, "previewService");
@@ -37,6 +40,7 @@ public final class BlueprintController {
         this.originResolver = Objects.requireNonNull(originResolver, "originResolver");
         this.heldItemResolver = Objects.requireNonNull(heldItemResolver, "heldItemResolver");
         this.platformService = Objects.requireNonNull(platformService, "platformService");
+        this.eventBus = Objects.requireNonNull(eventBus, "eventBus");
     }
 
     public boolean handleInput(Player player) {
@@ -72,7 +76,7 @@ public final class BlueprintController {
         dev.darkblade.mbe.api.platform.MBEPlayer mbePlayer = platformService.wrap(player, dev.darkblade.mbe.api.platform.MBEPlayer.class);
         dev.darkblade.mbe.api.platform.MBELocation mbeOrigin = platformService.wrap(origin, dev.darkblade.mbe.api.platform.MBELocation.class);
         BlueprintConfirmEvent confirmEvent = new BlueprintConfirmEvent(mbePlayer, definition, mbeOrigin);
-        Bukkit.getPluginManager().callEvent(confirmEvent);
+        eventBus.publish(confirmEvent);
         if (confirmEvent.isCancelled()) {
             return false;
         }
@@ -141,7 +145,7 @@ public final class BlueprintController {
         }
         dev.darkblade.mbe.api.platform.MBEPlayer mbePlayer = platformService.wrap(player, dev.darkblade.mbe.api.platform.MBEPlayer.class);
         BlueprintStartEvent startEvent = new BlueprintStartEvent(mbePlayer, definition);
-        Bukkit.getPluginManager().callEvent(startEvent);
+        eventBus.publish(startEvent);
         if (startEvent.isCancelled()) {
             return false;
         }
@@ -239,7 +243,7 @@ public final class BlueprintController {
         MultiblockDefinition definition = resolveContextDefinition(contextService.get(player));
         dev.darkblade.mbe.api.platform.MBEPlayer mbePlayer = platformService.wrap(player, dev.darkblade.mbe.api.platform.MBEPlayer.class);
         BlueprintCancelEvent cancelEvent = new BlueprintCancelEvent(mbePlayer, definition);
-        Bukkit.getPluginManager().callEvent(cancelEvent);
+        eventBus.publish(cancelEvent);
         if (cancelEvent.isCancelled()) {
             return false;
         }

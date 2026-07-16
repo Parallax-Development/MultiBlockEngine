@@ -104,7 +104,7 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
     private final MultiblockRuntimeService manager;
     private final ItemStackBridge itemStackBridge;
     private final I18nService i18n;
-    private final Consumer<Event> eventCaller;
+    private final Consumer<dev.darkblade.mbe.api.event.MBEEvent> eventCaller;
     private final AssemblyCoordinator assembly;
     private final Map<String, WrenchInteractable> actions = new ConcurrentHashMap<>();
     private final Map<java.util.UUID, Instant> cooldowns = new ConcurrentHashMap<>();
@@ -121,18 +121,18 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
     }
 
     public DefaultWrenchDispatcher(MultiblockRuntimeService manager, ItemStackBridge itemStackBridge, I18nService i18n) {
-        this(manager, itemStackBridge, i18n, null, Bukkit.getPluginManager()::callEvent);
+        this(manager, itemStackBridge, i18n, null, e -> {});
     }
 
     public DefaultWrenchDispatcher(MultiblockRuntimeService manager, ItemStackBridge itemStackBridge, I18nService i18n, AssemblyCoordinator assembly) {
-        this(manager, itemStackBridge, i18n, assembly, Bukkit.getPluginManager()::callEvent);
+        this(manager, itemStackBridge, i18n, assembly, e -> {});
     }
 
-    public DefaultWrenchDispatcher(MultiblockRuntimeService manager, ItemStackBridge itemStackBridge, I18nService i18n, Consumer<Event> eventCaller) {
+    public DefaultWrenchDispatcher(MultiblockRuntimeService manager, ItemStackBridge itemStackBridge, I18nService i18n, Consumer<dev.darkblade.mbe.api.event.MBEEvent> eventCaller) {
         this(manager, itemStackBridge, i18n, null, eventCaller);
     }
 
-    public DefaultWrenchDispatcher(MultiblockRuntimeService manager, ItemStackBridge itemStackBridge, I18nService i18n, AssemblyCoordinator assembly, Consumer<Event> eventCaller) {
+    public DefaultWrenchDispatcher(MultiblockRuntimeService manager, ItemStackBridge itemStackBridge, I18nService i18n, AssemblyCoordinator assembly, Consumer<dev.darkblade.mbe.api.event.MBEEvent> eventCaller) {
         this.manager = Objects.requireNonNull(manager, "manager");
         this.itemStackBridge = Objects.requireNonNull(itemStackBridge, "itemStackBridge");
         this.i18n = i18n;

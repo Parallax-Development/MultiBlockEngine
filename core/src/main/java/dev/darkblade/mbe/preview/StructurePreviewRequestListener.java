@@ -1,19 +1,18 @@
 package dev.darkblade.mbe.preview;
 
 import dev.darkblade.mbe.api.event.StructurePreviewRequestEvent;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.Listener;
+import dev.darkblade.mbe.api.event.EventBusService;
 
-public final class StructurePreviewRequestListener implements Listener {
+public final class StructurePreviewRequestListener {
     private final StructurePreviewService previewService;
     private final dev.darkblade.mbe.api.platform.PlatformService platformService;
 
-    public StructurePreviewRequestListener(StructurePreviewService previewService, dev.darkblade.mbe.api.platform.PlatformService platformService) {
+    public StructurePreviewRequestListener(EventBusService eventBus, StructurePreviewService previewService, dev.darkblade.mbe.api.platform.PlatformService platformService) {
         this.previewService = previewService;
         this.platformService = platformService;
+        eventBus.subscribe(StructurePreviewRequestEvent.class, this::onPreviewRequest);
     }
 
-    @EventHandler
     public void onPreviewRequest(StructurePreviewRequestEvent event) {
         if (event.isCancelled()) {
             return;

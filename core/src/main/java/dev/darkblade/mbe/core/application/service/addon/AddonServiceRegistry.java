@@ -82,6 +82,7 @@ public final class AddonServiceRegistry {
      * @deprecated Validation removed to allow addons to expose their own service
      *             APIs.
      */
+    @Deprecated
     private void validateApiType(String addonId, LogPhase phase, String op, Class<?> type) {
     }
 }

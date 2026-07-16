@@ -99,6 +99,7 @@ public final class PdcItemStackBridge implements ItemStackBridge {
                 if (!flags.isEmpty()) {
                     meta.addItemFlags(flags.toArray(ItemFlag[]::new));
                 }
+
             }
 
             PersistentDataContainer pdc = meta.getPersistentDataContainer();

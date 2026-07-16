@@ -17,6 +17,7 @@ import dev.darkblade.mbe.core.application.service.wrench.DefaultWrenchDispatcher
 import dev.darkblade.mbe.core.domain.MultiblockInstance;
 import dev.darkblade.mbe.core.domain.assembly.AssemblyCoordinator;
 import dev.darkblade.mbe.core.infrastructure.bridge.item.ItemStackBridge;
+import dev.darkblade.mbe.api.event.EventBusService;
 import org.bukkit.event.block.Action;
 
 import java.util.List;
@@ -31,6 +32,7 @@ public final class DefaultInteractionPipelineService implements InteractionPipel
     private final ItemStackBridge itemStackBridge;
     private final MultiblockRuntimeService multiblockRuntimeService;
     private final dev.darkblade.mbe.api.platform.PlatformService platformService;
+    private final EventBusService eventBus;
     private final List<InteractionHandler> handlers = new CopyOnWriteArrayList<>();
 
     public DefaultInteractionPipelineService(
@@ -39,7 +41,8 @@ public final class DefaultInteractionPipelineService implements InteractionPipel
             InteractionRouter interactionRouter,
             ItemStackBridge itemStackBridge,
             MultiblockRuntimeService multiblockRuntimeService,
-            dev.darkblade.mbe.api.platform.PlatformService platformService
+            dev.darkblade.mbe.api.platform.PlatformService platformService,
+            EventBusService eventBus
     ) {
         this.assemblyCoordinator = assemblyCoordinator;
         this.wrenchDispatcher = wrenchDispatcher;
@@ -47,6 +50,7 @@ public final class DefaultInteractionPipelineService implements InteractionPipel
         this.itemStackBridge = itemStackBridge;
         this.multiblockRuntimeService = multiblockRuntimeService;
         this.platformService = platformService;
+        this.eventBus = eventBus;
     }
 
     @Override
@@ -104,7 +108,7 @@ public final class DefaultInteractionPipelineService implements InteractionPipel
                     dev.darkblade.mbe.api.platform.MBEPlayer mbePlayer = platformService != null ? platformService.wrap(effectiveIntent.player(), dev.darkblade.mbe.api.platform.MBEPlayer.class) : null;
                     dev.darkblade.mbe.api.platform.MBEBlock mbeBlock = platformService != null ? platformService.wrap(effectiveIntent.targetBlock(), dev.darkblade.mbe.api.platform.MBEBlock.class) : null;
                     dev.darkblade.mbe.api.event.MultiblockInteractEvent mbEvent = new dev.darkblade.mbe.api.event.MultiblockInteractEvent(instance, mbePlayer, effectiveIntent.type(), mbeBlock);
-                    org.bukkit.Bukkit.getPluginManager().callEvent(mbEvent);
+                    eventBus.publish(mbEvent);
                     if (mbEvent.isCancelled()) {
                         cancelVanilla = true;
                     } else {

@@ -3,7 +3,7 @@ package dev.darkblade.mbe.platform.bukkit.adapter;
 import dev.darkblade.mbe.api.platform.MBEBlock;
 import dev.darkblade.mbe.api.platform.MBELocation;
 import dev.darkblade.mbe.api.platform.MBEWorld;
-import org.bukkit.Material;
+
 import org.bukkit.block.Block;
 
 public class BukkitMBEBlock implements MBEBlock {
@@ -40,8 +40,8 @@ public class BukkitMBEBlock implements MBEBlock {
     }
 
     @Override
-    public Material getType() {
-        return bukkitBlock.getType();
+    public String getType() {
+        return bukkitBlock.getType().getKey().toString();
     }
 
     public Block getBukkitBlock() {

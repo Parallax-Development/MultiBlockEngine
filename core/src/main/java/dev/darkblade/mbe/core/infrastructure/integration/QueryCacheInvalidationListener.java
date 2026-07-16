@@ -3,18 +3,18 @@ package dev.darkblade.mbe.core.infrastructure.integration;
 import dev.darkblade.mbe.api.event.MultiblockBreakEvent;
 import dev.darkblade.mbe.api.event.MultiblockFormEvent;
 import dev.darkblade.mbe.core.application.service.query.PlayerMultiblockQueryServiceImpl;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.Listener;
+import dev.darkblade.mbe.api.event.EventBusService;
 import org.bukkit.entity.Player;
 
-public final class QueryCacheInvalidationListener implements Listener {
+public final class QueryCacheInvalidationListener {
     private final PlayerMultiblockQueryServiceImpl queryService;
 
-    public QueryCacheInvalidationListener(PlayerMultiblockQueryServiceImpl queryService) {
+    public QueryCacheInvalidationListener(EventBusService eventBus, PlayerMultiblockQueryServiceImpl queryService) {
         this.queryService = queryService;
+        eventBus.subscribe(MultiblockFormEvent.class, this::onForm);
+        eventBus.subscribe(MultiblockBreakEvent.class, this::onBreak);
     }
 
-    @EventHandler(ignoreCancelled = true)
     public void onForm(MultiblockFormEvent event) {
         // If a player forms a multiblock, we might need to invalidate their caches
         // or track ownership.
@@ -30,7 +30,6 @@ public final class QueryCacheInvalidationListener implements Listener {
         }
     }
 
-    @EventHandler(ignoreCancelled = true)
     public void onBreak(MultiblockBreakEvent event) {
         // When a multiblock is destroyed, we remove it from the query cache tracking
         queryService.removeOwnership(event.getMultiblock());

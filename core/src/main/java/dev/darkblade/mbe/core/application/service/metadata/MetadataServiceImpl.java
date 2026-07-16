@@ -7,7 +7,7 @@ import dev.darkblade.mbe.api.metadata.MetadataKey;
 import dev.darkblade.mbe.api.metadata.MetadataService;
 import dev.darkblade.mbe.core.application.service.ManagedCoreService;
 import dev.darkblade.mbe.core.domain.MultiblockInstance;
-import org.bukkit.Bukkit;
+import dev.darkblade.mbe.api.event.EventBusService;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Locale;
@@ -22,9 +22,14 @@ public final class MetadataServiceImpl implements MetadataService, ManagedCoreSe
     private final Map<MultiblockInstance, MetadataContainer> byInstance = new ConcurrentHashMap<>();
     private final Map<PlaceholderCacheKey, CacheEntry> placeholderCache = new ConcurrentHashMap<>();
     private final long placeholderCacheTtlMs;
+    private EventBusService eventBus;
 
     public MetadataServiceImpl(long placeholderCacheTtlMs) {
         this.placeholderCacheTtlMs = Math.max(0L, placeholderCacheTtlMs);
+    }
+
+    public void setEventBus(EventBusService eventBus) {
+        this.eventBus = eventBus;
     }
 
     @Override
@@ -213,10 +218,10 @@ public final class MetadataServiceImpl implements MetadataService, ManagedCoreSe
         if (Objects.equals(oldValue, newValue)) {
             return;
         }
-        if (Bukkit.getServer() == null) {
+        if (eventBus == null) {
             return;
         }
-        Bukkit.getPluginManager().callEvent(new MetadataValueChangeEvent(instance, normalizeId(keyId), oldValue, newValue));
+        eventBus.publish(new MetadataValueChangeEvent(instance, normalizeId(keyId), oldValue, newValue));
     }
 
     private @Nullable String readFromCache(PlaceholderCacheKey key) {

@@ -12,6 +12,7 @@ import dev.darkblade.mbe.core.application.service.tool.ToolModeContextResolver;
 import dev.darkblade.mbe.core.application.service.tool.ToolSessionService;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
+import dev.darkblade.mbe.api.event.EventBusService;
 import org.bukkit.event.block.Action;
 
 import java.util.LinkedHashSet;
@@ -27,11 +28,16 @@ public final class SplitNetworkMode implements ToolMode {
     private final NetworkService networkService;
     private final ToolSessionService sessionService;
     private final ToolModeContextResolver contextResolver;
+    private EventBusService eventBus;
 
     public SplitNetworkMode(NetworkService networkService, ToolSessionService sessionService, ToolModeContextResolver contextResolver) {
         this.networkService = networkService;
         this.sessionService = sessionService;
         this.contextResolver = contextResolver;
+    }
+
+    public void setEventBus(EventBusService eventBus) {
+        this.eventBus = eventBus;
     }
 
     @Override
@@ -87,8 +93,8 @@ public final class SplitNetworkMode implements ToolMode {
         if (b != null) {
             resulting.add(b);
         }
-        if (original != null && resulting.size() > 1) {
-            Bukkit.getPluginManager().callEvent(new IONetworkSplitEvent(sessionType, original, List.copyOf(resulting)));
+        if (original != null && resulting.size() > 1 && eventBus != null) {
+            eventBus.publish(new IONetworkSplitEvent(sessionType, original, List.copyOf(resulting)));
         }
         return WrenchResult.success(null);
     }
