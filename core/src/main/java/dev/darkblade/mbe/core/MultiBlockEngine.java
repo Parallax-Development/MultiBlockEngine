@@ -298,6 +298,7 @@ public class MultiBlockEngine extends JavaPlugin {
         dev.darkblade.mbe.core.application.event.MBEEventBus eventBus = new dev.darkblade.mbe.core.application.event.MBEEventBus();
         api.setEventBus(eventBus);
         addonManager.registerCoreService(dev.darkblade.mbe.api.event.EventBusService.class, eventBus);
+        addonManager.registerCoreService(dev.darkblade.mbe.api.platform.PlatformService.class, platformService);
         addonManager.registerCoreMbeService(eventBus);
 
         coreServiceLifecycleCoordinator = new CoreServiceLifecycleCoordinator();
@@ -666,9 +667,7 @@ public class MultiBlockEngine extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new PreviewPlacementController(blueprintController), this);
         getServer().getPluginManager()
                 .registerEvents(new PreviewBlockPlaceListener(structurePreviewService, buildContextService), this);
-        getServer().getPluginManager().registerEvents(
-                new StructurePreviewRequestListener(structurePreviewService, platformService),
-                this);
+        new StructurePreviewRequestListener(eventBus, structurePreviewService, platformService);
         getServer().getPluginManager().registerEvents(
                 new InventoryUIListener(inventorySessions, blueprintService, inventoryCompatService), this);
         getServer().getPluginManager().registerEvents(
@@ -678,14 +677,10 @@ public class MultiBlockEngine extends JavaPlugin {
                         craftingService,
                         addonManager.getCoreService(dev.darkblade.mbe.api.message.PlayerMessageService.class)),
                 this);
-        getServer().getPluginManager()
-                .registerEvents(new PlaceholderCacheInvalidationListener(playerMultiblockQueryService), this);
-        getServer().getPluginManager()
-                .registerEvents(new dev.darkblade.mbe.core.infrastructure.integration.QueryCacheInvalidationListener(
-                        playerMultiblockQueryService), this);
-        getServer().getPluginManager().registerEvents(new MetadataInvalidationListener(metadataService), this);
-        getServer().getPluginManager().registerEvents(new IOPortLifecycleListener(ioService, portResolutionService),
-                this);
+        new PlaceholderCacheInvalidationListener(eventBus, playerMultiblockQueryService);
+        new dev.darkblade.mbe.core.infrastructure.integration.QueryCacheInvalidationListener(eventBus, playerMultiblockQueryService);
+        new MetadataInvalidationListener(eventBus, metadataService);
+        new IOPortLifecycleListener(eventBus, ioService, portResolutionService);
         for (MultiblockInstance inst : instances) {
             eventBus.publish(new MultiblockFormEvent(inst, null));
         }

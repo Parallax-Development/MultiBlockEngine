@@ -15,26 +15,26 @@ import dev.darkblade.mbe.core.application.service.io.SimpleIOPort;
 import dev.darkblade.mbe.core.domain.MultiblockInstance;
 import org.bukkit.Location;
 import org.bukkit.block.BlockFace;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.EventPriority;
-import org.bukkit.event.Listener;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Locale;
 import java.util.UUID;
 
-public final class IOPortLifecycleListener implements Listener {
+import dev.darkblade.mbe.api.event.EventBusService;
+
+public final class IOPortLifecycleListener {
 
     private final IOService ioService;
     private final PortResolutionService portResolutionService;
 
-    public IOPortLifecycleListener(IOService ioService, PortResolutionService portResolutionService) {
+    public IOPortLifecycleListener(EventBusService eventBus, IOService ioService, PortResolutionService portResolutionService) {
         this.ioService = ioService;
         this.portResolutionService = portResolutionService;
+        eventBus.subscribe(MultiblockFormEvent.class, this::onMultiblockForm);
+        eventBus.subscribe(MultiblockBreakEvent.class, this::onMultiblockBreak);
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onMultiblockForm(MultiblockFormEvent event) {
         MultiblockInstance instance = event.getMultiblock();
         if (instance == null || instance.type() == null || instance.type().ports().isEmpty()) {
@@ -68,7 +68,6 @@ public final class IOPortLifecycleListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onMultiblockBreak(MultiblockBreakEvent event) {
         MultiblockInstance instance = event.getMultiblock();
         if (instance == null) {

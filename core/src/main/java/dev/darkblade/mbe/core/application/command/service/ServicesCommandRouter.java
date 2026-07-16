@@ -67,12 +67,15 @@ public final class ServicesCommandRouter implements Listener {
     private final DynamicCommandServiceRegistry externalRegistry;
     private final Map<String, ServicesSubcommand> extraSubcommands = new HashMap<>();
 
-    public ServicesCommandRouter(MultiBlockEngine plugin) {
+    public ServicesCommandRouter(MultiBlockEngine plugin, dev.darkblade.mbe.api.event.EventBusService eventBus) {
         Objects.requireNonNull(plugin, "plugin");
         this.plugin = plugin;
         this.log = plugin.getLoggingService().core();
         this.externalRegistry = new DynamicCommandServiceRegistry(this::loadExternalCommandServices);
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
+        if (eventBus != null) {
+            eventBus.subscribe(ComponentAvailabilityEvent.class, this::onComponentAvailability);
+        }
         refreshExternalCommandServices();
     }
 
@@ -309,7 +312,6 @@ public final class ServicesCommandRouter implements Listener {
         refreshExternalCommandServices();
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onComponentAvailability(ComponentAvailabilityEvent event) {
         if (event == null) {
             return;

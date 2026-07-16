@@ -149,7 +149,7 @@ public class MiscCommand {
         );
 
         // Services wrapper
-        dev.darkblade.mbe.core.application.command.service.ServicesCommandRouter services = new dev.darkblade.mbe.core.application.command.service.ServicesCommandRouter(plugin);
+        dev.darkblade.mbe.core.application.command.service.ServicesCommandRouter services = new dev.darkblade.mbe.core.application.command.service.ServicesCommandRouter(plugin, plugin.getAddonLifecycleService().getCoreService(dev.darkblade.mbe.api.event.EventBusService.class));
         services.registerInternal(new dev.darkblade.mbe.core.application.command.service.impl.UiCommandService(plugin));
         services.registerInternal(new dev.darkblade.mbe.core.application.command.service.impl.ItemsCommandService(plugin));
         services.registerInternal(new dev.darkblade.mbe.core.application.command.service.impl.BlueprintCommandService(plugin));
