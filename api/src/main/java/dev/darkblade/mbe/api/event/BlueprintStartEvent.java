@@ -2,15 +2,12 @@ package dev.darkblade.mbe.api.event;
 
 import dev.darkblade.mbe.preview.MultiblockDefinition;
 import dev.darkblade.mbe.api.platform.MBEPlayer;
-import org.bukkit.event.Cancellable;
-import org.bukkit.event.Event;
-import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Objects;
 
-public final class BlueprintStartEvent extends Event implements Cancellable {
-    private static final HandlerList handlers = new HandlerList();
+public final class BlueprintStartEvent implements MBEEvent {
+
     private final MBEPlayer player;
     private final MultiblockDefinition definition;
     private boolean cancelled;
@@ -40,14 +37,4 @@ public final class BlueprintStartEvent extends Event implements Cancellable {
         this.cancelled = cancel;
     }
 
-    @NotNull
-    @Override
-    public HandlerList getHandlers() {
-        return handlers;
-    }
-
-    @NotNull
-    public static HandlerList getHandlerList() {
-        return handlers;
-    }
 }

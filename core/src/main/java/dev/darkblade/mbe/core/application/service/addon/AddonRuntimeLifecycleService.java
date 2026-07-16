@@ -450,10 +450,11 @@ public class AddonRuntimeLifecycleService {
                 || changeType == null) {
             return;
         }
-        if (Bukkit.getServer() == null) {
+        dev.darkblade.mbe.api.event.EventBusService eventBus = facade.getCoreService(dev.darkblade.mbe.api.event.EventBusService.class);
+        if (eventBus == null) {
             return;
         }
-        Bukkit.getPluginManager().callEvent(new ComponentAvailabilityEvent(addonId, componentId, kind, changeType));
+        eventBus.publish(new ComponentAvailabilityEvent(addonId, componentId, kind, changeType));
     }
 
 

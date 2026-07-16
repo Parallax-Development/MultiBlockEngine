@@ -1,14 +1,11 @@
 package dev.darkblade.mbe.api.event;
 
-import org.bukkit.event.Event;
-import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Locale;
 import java.util.Objects;
 
-public class ComponentAvailabilityEvent extends Event {
-    private static final HandlerList HANDLERS = new HandlerList();
+public class ComponentAvailabilityEvent implements MBEEvent {
 
     private final String addonId;
     private final String componentId;
@@ -47,14 +44,7 @@ public class ComponentAvailabilityEvent extends Event {
         return changeType;
     }
 
-    @Override
-    public @NotNull HandlerList getHandlers() {
-        return HANDLERS;
-    }
 
-    public static @NotNull HandlerList getHandlerList() {
-        return HANDLERS;
-    }
 
     private static String normalize(String value) {
         String normalized = value.trim().toLowerCase(Locale.ROOT);

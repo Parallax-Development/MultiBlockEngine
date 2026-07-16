@@ -1,17 +1,14 @@
 package dev.darkblade.mbe.api.io.event;
 
 import dev.darkblade.mbe.api.wiring.NetworkType;
-import org.bukkit.event.Event;
-import org.bukkit.event.HandlerList;
+import dev.darkblade.mbe.api.event.MBEEvent;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-public final class IONetworkSplitEvent extends Event {
-
-    private static final HandlerList HANDLERS = new HandlerList();
+public final class IONetworkSplitEvent implements MBEEvent {
 
     private final NetworkType type;
     private final UUID original;
@@ -35,14 +32,4 @@ public final class IONetworkSplitEvent extends Event {
         return resulting;
     }
 
-    @NotNull
-    @Override
-    public HandlerList getHandlers() {
-        return HANDLERS;
-    }
-
-    @NotNull
-    public static HandlerList getHandlerList() {
-        return HANDLERS;
-    }
 }

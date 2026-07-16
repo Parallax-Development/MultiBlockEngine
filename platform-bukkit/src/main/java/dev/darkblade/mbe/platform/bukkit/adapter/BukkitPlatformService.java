@@ -9,6 +9,7 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -61,6 +62,9 @@ public class BukkitPlatformService implements PlatformService, ManagedRuntimeSer
         if (wrapped instanceof BukkitMBEBlock bukkitBlock && Block.class.isAssignableFrom(type)) {
             return (T) bukkitBlock.getBukkitBlock();
         }
+        if (wrapped instanceof BukkitMBEItemStack bukkitItemStack && ItemStack.class.isAssignableFrom(type)) {
+            return (T) bukkitItemStack.getBukkitItemStack();
+        }
         return null;
     }
 
@@ -78,6 +82,9 @@ public class BukkitPlatformService implements PlatformService, ManagedRuntimeSer
         }
         if (raw instanceof Block block && dev.darkblade.mbe.api.platform.MBEBlock.class.isAssignableFrom(type)) {
             return (T) new BukkitMBEBlock(block);
+        }
+        if (raw instanceof ItemStack itemStack && dev.darkblade.mbe.api.platform.MBEItemStack.class.isAssignableFrom(type)) {
+            return (T) new BukkitMBEItemStack(itemStack);
         }
         return null;
     }

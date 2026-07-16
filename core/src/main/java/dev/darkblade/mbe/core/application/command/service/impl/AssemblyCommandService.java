@@ -18,7 +18,7 @@ import dev.darkblade.mbe.core.application.service.limit.MultiblockLimitService;
 import dev.darkblade.mbe.core.application.service.MultiblockRuntimeService;
 import dev.darkblade.mbe.core.domain.MultiblockInstance;
 import dev.darkblade.mbe.core.domain.assembly.AssemblyCoordinator;
-import org.bukkit.Bukkit;
+import dev.darkblade.mbe.api.event.EventBusService;
 import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -37,6 +37,7 @@ public final class AssemblyCommandService implements MbeCommandService {
     private final PlayerMessageService messageService;
     private final CoreLogger log;
     private final MultiBlockEngine plugin;
+    private final EventBusService eventBus;
 
     public AssemblyCommandService(MultiBlockEngine plugin) {
         this.plugin = plugin;
@@ -45,6 +46,7 @@ public final class AssemblyCommandService implements MbeCommandService {
         this.i18n = plugin.getAddonLifecycleService().getCoreService(I18nService.class);
         this.messageService = plugin.getAddonLifecycleService().getCoreService(PlayerMessageService.class);
         this.log = plugin.getLoggingService().core();
+        this.eventBus = plugin.getAddonLifecycleService().getCoreService(EventBusService.class);
     }
 
     @Override
@@ -187,7 +189,9 @@ public final class AssemblyCommandService implements MbeCommandService {
         dev.darkblade.mbe.api.platform.PlatformService platformService = plugin.getAddonLifecycleService().getCoreService(dev.darkblade.mbe.api.platform.PlatformService.class);
         dev.darkblade.mbe.api.platform.MBEPlayer mbePlayer = platformService != null ? platformService.wrap(player, dev.darkblade.mbe.api.platform.MBEPlayer.class) : null;
         MultiblockBreakEvent event = new MultiblockBreakEvent(instance, mbePlayer);
-        Bukkit.getPluginManager().callEvent(event);
+        if (eventBus != null) {
+            eventBus.publish(event);
+        }
         if (event.isCancelled()) {
             send(player, CoreMessageKeys.ACTION_CANCELLED);
             return;

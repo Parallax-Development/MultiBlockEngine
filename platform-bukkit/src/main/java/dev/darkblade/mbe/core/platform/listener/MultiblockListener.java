@@ -58,7 +58,7 @@ public class MultiblockListener implements Listener {
     private static final MessageKey MSG_DISASSEMBLED = MessageKey.of("mbe", "core.wrench.disassembled");
 
     private final MultiblockRuntimeService manager;
-    private final Consumer<Event> eventCaller;
+    private final Consumer<dev.darkblade.mbe.api.event.MBEEvent> eventCaller;
     private final AssemblyCoordinator assembly;
     private final I18nService i18n;
     private final InteractionPipelineService interactionPipeline;
@@ -69,38 +69,38 @@ public class MultiblockListener implements Listener {
     private dev.darkblade.mbe.api.platform.PlatformService platformService;
 
     public MultiblockListener(MultiblockRuntimeService manager) {
-        this(manager, Bukkit.getPluginManager()::callEvent, null, null, null);
+        this(manager, e -> {}, null, null, null);
     }
 
-    public MultiblockListener(MultiblockRuntimeService manager, Consumer<Event> eventCaller) {
+    public MultiblockListener(MultiblockRuntimeService manager, Consumer<dev.darkblade.mbe.api.event.MBEEvent> eventCaller) {
         this(manager, eventCaller, null, null, null);
     }
 
-    public MultiblockListener(MultiblockRuntimeService manager, Consumer<Event> eventCaller,
+    public MultiblockListener(MultiblockRuntimeService manager, Consumer<dev.darkblade.mbe.api.event.MBEEvent> eventCaller,
             WrenchDispatcher wrenchDispatcher) {
         this(manager, eventCaller, wrenchDispatcher, null, null);
     }
 
     public MultiblockListener(MultiblockRuntimeService manager, WrenchDispatcher wrenchDispatcher) {
-        this(manager, Bukkit.getPluginManager()::callEvent, wrenchDispatcher, null, null);
+        this(manager, e -> {}, wrenchDispatcher, null, null);
     }
 
     public MultiblockListener(MultiblockRuntimeService manager, WrenchDispatcher wrenchDispatcher,
             AssemblyCoordinator assembly) {
-        this(manager, Bukkit.getPluginManager()::callEvent, wrenchDispatcher, assembly, null);
+        this(manager, e -> {}, wrenchDispatcher, assembly, null);
     }
 
     public MultiblockListener(MultiblockRuntimeService manager, WrenchDispatcher wrenchDispatcher,
             AssemblyCoordinator assembly, I18nService i18n) {
-        this(manager, Bukkit.getPluginManager()::callEvent, wrenchDispatcher, assembly, i18n);
+        this(manager, e -> {}, wrenchDispatcher, assembly, i18n);
     }
 
-    public MultiblockListener(MultiblockRuntimeService manager, Consumer<Event> eventCaller,
+    public MultiblockListener(MultiblockRuntimeService manager, Consumer<dev.darkblade.mbe.api.event.MBEEvent> eventCaller,
             WrenchDispatcher wrenchDispatcher, AssemblyCoordinator assembly) {
         this(manager, eventCaller, wrenchDispatcher, assembly, null);
     }
 
-    public MultiblockListener(MultiblockRuntimeService manager, Consumer<Event> eventCaller,
+    public MultiblockListener(MultiblockRuntimeService manager, Consumer<dev.darkblade.mbe.api.event.MBEEvent> eventCaller,
             WrenchDispatcher wrenchDispatcher, AssemblyCoordinator assembly, I18nService i18n) {
         this(
                 manager,
@@ -108,14 +108,14 @@ public class MultiblockListener implements Listener {
                 assembly,
                 i18n,
                 new DefaultInteractionPipelineService(assembly, wrenchDispatcher, new InteractionRouter(), null,
-                        manager, null),
+                        manager, null, null),
                 new BukkitInteractionIntentFactory(),
                 null);
     }
 
     public MultiblockListener(
             MultiblockRuntimeService manager,
-            Consumer<Event> eventCaller,
+            Consumer<dev.darkblade.mbe.api.event.MBEEvent> eventCaller,
             AssemblyCoordinator assembly,
             I18nService i18n,
             InteractionPipelineService interactionPipeline,

@@ -2,14 +2,11 @@ package dev.darkblade.mbe.api.event;
 
 import dev.darkblade.mbe.core.domain.MultiblockInstance;
 import dev.darkblade.mbe.api.platform.MBEPlayer;
-import org.bukkit.event.Cancellable;
-import org.bukkit.event.Event;
-import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class MultiblockFormEvent extends Event implements Cancellable {
-    private static final HandlerList handlers = new HandlerList();
+public class MultiblockFormEvent implements MBEEvent {
+
     private final MultiblockInstance instance;
     private final MBEPlayer player;
     private boolean cancelled;
@@ -39,14 +36,4 @@ public class MultiblockFormEvent extends Event implements Cancellable {
         this.cancelled = cancel;
     }
 
-    @NotNull
-    @Override
-    public HandlerList getHandlers() {
-        return handlers;
-    }
-
-    @NotNull
-    public static HandlerList getHandlerList() {
-        return handlers;
-    }
 }

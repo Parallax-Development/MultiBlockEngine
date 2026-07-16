@@ -12,6 +12,7 @@ import dev.darkblade.mbe.api.logging.LogScope;
 import dev.darkblade.mbe.api.item.ItemService;
 import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.LocaleProvider;
+import dev.darkblade.mbe.api.event.EventBusService;
 import dev.darkblade.mbe.api.message.PlayerMessageService;
 import dev.darkblade.mbe.api.blueprint.BlueprintService;
 import dev.darkblade.mbe.api.compat.DisplayCompatService;
@@ -44,7 +45,7 @@ import dev.darkblade.mbe.catalog.PreviewOriginResolver;
 import dev.darkblade.mbe.catalog.RaycastPreviewOriginResolver;
 import dev.darkblade.mbe.catalog.StructureCatalogService;
 import dev.darkblade.mbe.catalog.StructureCatalogServiceImpl;
-import dev.darkblade.mbe.core.application.command.MultiblockCommand;
+
 import dev.darkblade.mbe.core.infrastructure.i18n.BukkitLocaleProvider;
 import dev.darkblade.mbe.core.infrastructure.i18n.YamlI18nService;
 import dev.darkblade.mbe.core.infrastructure.integration.MetadataInvalidationListener;
@@ -293,6 +294,12 @@ public class MultiBlockEngine extends JavaPlugin {
 
         addonManager = new AddonLifecycleService(this, api, log);
         manager.setAddonLifecycleService(addonManager);
+
+        dev.darkblade.mbe.core.application.event.MBEEventBus eventBus = new dev.darkblade.mbe.core.application.event.MBEEventBus();
+        api.setEventBus(eventBus);
+        addonManager.registerCoreService(dev.darkblade.mbe.api.event.EventBusService.class, eventBus);
+        addonManager.registerCoreMbeService(eventBus);
+
         coreServiceLifecycleCoordinator = new CoreServiceLifecycleCoordinator();
         tickService = new TickService(this, log);
         addonManager.registerCoreService(dev.darkblade.mbe.api.tick.TickService.class, tickService);
@@ -441,6 +448,13 @@ public class MultiBlockEngine extends JavaPlugin {
         if (assemblyCoordinator == null) {
             log.fatal("Assembly coordinator initialization failed");
         }
+        dev.darkblade.mbe.core.application.command.MBECommandManager commandManager = new dev.darkblade.mbe.core.application.command.MBECommandManager(this);
+        commandManager.parserRegistry().registerParserSupplier(
+                io.leangen.geantyref.TypeToken.get(dev.darkblade.mbe.core.domain.MultiblockType.class),
+                parserParameters -> new dev.darkblade.mbe.core.application.command.parser.MultiblockTypeParser<>(manager)
+        );
+        addonManager.registerCoreService(dev.darkblade.mbe.core.application.command.MBECommandManager.class, commandManager);
+        new dev.darkblade.mbe.core.application.command.debug.DebugCommand(commandManager, manager, debugManager, playerMessageService).register();
 
         ((DefaultToolActionRegistry) toolActionRegistry)
                 .register(new AssembleAction(assemblyCoordinator, playerMessageService));
@@ -463,6 +477,31 @@ public class MultiBlockEngine extends JavaPlugin {
         tickService.register(structurePreviewService);
         structureCatalogService = new StructureCatalogServiceImpl(manager);
         addonManager.registerCoreService(StructureCatalogService.class, structureCatalogService);
+        
+        dev.darkblade.mbe.core.application.command.service.impl.BlueprintCommandService blueprintCommandService = new dev.darkblade.mbe.core.application.command.service.impl.BlueprintCommandService(this);
+        new dev.darkblade.mbe.core.application.command.blueprint.BlueprintCommand(
+                commandManager,
+                blueprintCommandService,
+                structureCatalogService,
+                addonManager.getCoreService(dev.darkblade.mbe.api.item.ItemService.class),
+                itemStackBridge,
+                playerMessageService
+        ).register();
+
+        new dev.darkblade.mbe.core.application.command.export.ExportCommand(
+                commandManager,
+                exportSelections,
+                structureExporter,
+                playerMessageService,
+                getDataFolder().toPath().resolve("exports")
+        ).register();
+
+        new dev.darkblade.mbe.core.application.command.misc.MiscCommand(
+                this,
+                commandManager,
+                playerMessageService
+        ).register();
+        
         BuildContextService buildContextService = new InMemoryBuildContextService();
         addonManager.registerCoreService(BuildContextService.class, buildContextService);
         BlueprintDefinitionResolver blueprintDefinitionResolver = new BlueprintDefinitionResolver(
@@ -495,7 +534,8 @@ public class MultiBlockEngine extends JavaPlugin {
                 blueprintDefinitionResolver,
                 previewOriginResolver,
                 new BlueprintHeldItemResolver(itemStackBridge),
-                platformService);
+                platformService,
+                eventBus);
         BlueprintServiceImpl blueprintService = new BlueprintServiceImpl(blueprintController, inventoryUIService,
                 craftingPanelRenderer);
         addonManager.registerCoreService(BlueprintService.class, blueprintService);
@@ -508,7 +548,7 @@ public class MultiBlockEngine extends JavaPlugin {
         interactionRouter = new InteractionRouter();
         interactionRouter.setPanelViewService(panelViewService);
         InteractionPipelineService pipelineService = new DefaultInteractionPipelineService(assemblyCoordinator, null,
-                interactionRouter, itemStackBridge, manager, platformService);
+                interactionRouter, itemStackBridge, manager, platformService, eventBus);
         addonManager.registerCoreService(InteractionPipelineService.class, pipelineService);
         panelBindings = new PanelBindingService(new File(getDataFolder(), "panel-bindings.yml"), interactionRouter);
         coreServiceLifecycleCoordinator.register(panelBindings);
@@ -615,7 +655,7 @@ public class MultiBlockEngine extends JavaPlugin {
 
         manager.initializePendingCapabilities();
 
-        // Register Listeners
+        metadataService.setEventBus(eventBus);
         InteractionPipelineService interactionPipeline = addonManager.getCoreService(InteractionPipelineService.class);
         getServer().getPluginManager().registerEvents(
                 createMultiblockListener(interactionPipeline, i18n, platformService),
@@ -647,13 +687,10 @@ public class MultiBlockEngine extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new IOPortLifecycleListener(ioService, portResolutionService),
                 this);
         for (MultiblockInstance inst : instances) {
-            Bukkit.getPluginManager().callEvent(new MultiblockFormEvent(inst, null));
+            eventBus.publish(new MultiblockFormEvent(inst, null));
         }
 
         // Register Commands
-        MultiblockCommand cmd = new MultiblockCommand(this, exportSelections, structureExporter);
-        getCommand("multiblock").setExecutor(cmd);
-        getCommand("multiblock").setTabCompleter(cmd);
         Bukkit.getScheduler().runTaskTimerAsynchronously(this, () -> {
             try {
                 if (persistence != null) {

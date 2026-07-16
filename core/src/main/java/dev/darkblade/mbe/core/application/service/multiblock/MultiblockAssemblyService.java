@@ -9,9 +9,9 @@ import dev.darkblade.mbe.core.domain.action.Action;
 import dev.darkblade.mbe.core.infrastructure.persistence.InstanceStorageService;
 import dev.darkblade.mbe.core.application.service.HologramService;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
+import dev.darkblade.mbe.api.event.EventBusService;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.Directional;
 import org.bukkit.entity.Player;
@@ -35,6 +35,7 @@ public class MultiblockAssemblyService {
     
     private InstanceStorageService storage;
     private dev.darkblade.mbe.api.platform.PlatformService platformService;
+    private EventBusService eventBus;
 
     public MultiblockAssemblyService(MultiblockTypeRegistry typeRegistry,
                                      MultiblockInstanceRegistry instanceRegistry,
@@ -52,6 +53,10 @@ public class MultiblockAssemblyService {
 
     public void setPlatformService(dev.darkblade.mbe.api.platform.PlatformService platformService) {
         this.platformService = platformService;
+    }
+
+    public void setEventBus(EventBusService eventBus) {
+        this.eventBus = eventBus;
     }
 
     public Optional<MultiblockInstance> tryCreate(Block anchor, MultiblockType type, Player player) {
@@ -78,7 +83,9 @@ public class MultiblockAssemblyService {
                 
                 dev.darkblade.mbe.api.platform.MBEPlayer mbePlayer = player != null && platformService != null ? platformService.wrap(player, dev.darkblade.mbe.api.platform.MBEPlayer.class) : null;
                 MultiblockFormEvent event = new MultiblockFormEvent(instance, mbePlayer);
-                Bukkit.getPluginManager().callEvent(event);
+                if (eventBus != null) {
+                    eventBus.publish(event);
+                }
                 if (event.isCancelled()) {
                     return Optional.empty();
                 }
@@ -168,7 +175,9 @@ public class MultiblockAssemblyService {
         }
         dev.darkblade.mbe.api.platform.MBEPlayer mbePlayer = player != null && platformService != null ? platformService.wrap(player, dev.darkblade.mbe.api.platform.MBEPlayer.class) : null;
         MultiblockFormEvent event = new MultiblockFormEvent(next, mbePlayer);
-        Bukkit.getPluginManager().callEvent(event);
+        if (eventBus != null) {
+            eventBus.publish(event);
+        }
         if (event.isCancelled()) {
             return Optional.empty();
         }
