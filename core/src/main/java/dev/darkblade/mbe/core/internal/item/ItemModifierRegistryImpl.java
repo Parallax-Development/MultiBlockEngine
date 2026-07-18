@@ -2,7 +2,7 @@ package dev.darkblade.mbe.core.internal.item;
 
 import dev.darkblade.mbe.api.item.ItemModifier;
 import dev.darkblade.mbe.api.item.ItemModifierRegistry;
-import dev.darkblade.mbe.api.persistence.item.NamespacedKey;
+import dev.darkblade.mbe.api.util.NamespacedKey;
 import net.kyori.adventure.key.Key;
 
 import java.util.Collection;

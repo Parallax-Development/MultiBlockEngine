@@ -207,17 +207,17 @@ public final class AssemblyCommandService implements MbeCommandService {
                         "Disassemble break action failed",
                         t,
                         LogKv.kv("player", player.getName()),
-                        LogKv.kv("multiblock", instance.type().id()),
+                        LogKv.kv("multiblock", instance.type().id().toString()),
                         LogKv.kv("action", action.getClass().getSimpleName())
                 );
             }
         }
         MultiblockLimitService limitService = resolveLimitService();
         if (limitService != null) {
-            limitService.unregisterAssembly(player.getUniqueId(), instance.type().id());
+            limitService.unregisterAssembly(player.getUniqueId(), instance.type().id().toString());
         }
         manager.destroyInstance(instance);
-        log.info("Disassemble command succeeded", LogKv.kv("player", player.getName()), LogKv.kv("multiblock", instance.type().id()));
+        log.info("Disassemble command succeeded", LogKv.kv("player", player.getName()), LogKv.kv("multiblock", instance.type().id().toString()));
         send(player, CoreMessageKeys.DISASSEMBLED);
     }
 

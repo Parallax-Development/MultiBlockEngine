@@ -1,7 +1,7 @@
 package dev.darkblade.mbe.core.internal.item.modifier;
 
 import dev.darkblade.mbe.api.item.ItemModifier;
-import dev.darkblade.mbe.api.persistence.item.NamespacedKey;
+import dev.darkblade.mbe.api.util.NamespacedKey;
 import dev.darkblade.mbe.core.application.service.MultiblockRuntimeService;
 import dev.darkblade.mbe.core.domain.MultiblockType;
 import net.kyori.adventure.key.Key;
@@ -41,7 +41,7 @@ public class BlueprintMultiblockModifier implements ItemModifier<CommandSender, 
     @Override
     public List<String> suggestions(CommandContext<CommandSender> context) {
         return runtimeService.getTypes().stream()
-                .map(MultiblockType::id)
+                .map(t -> t.id().toString())
                 .collect(Collectors.toList());
     }
 }

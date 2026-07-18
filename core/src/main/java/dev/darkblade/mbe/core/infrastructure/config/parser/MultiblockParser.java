@@ -234,6 +234,11 @@ public class MultiblockParser {
                         config.set("id", id);
                     }
                 }
+                if (id != null && !id.isBlank() && !id.contains(":")) {
+                    String ns = "mbe";
+                    id = ns + ":" + id;
+                    config.set("id", id);
+                }
                 if (id == null || id.isBlank()) {
                     log.logInternal(new LogScope.Core(), LogPhase.LOAD, LogLevel.WARN, "Multiblock file has empty id (skipping)", null, new LogKv[] {
                             LogKv.kv("file", rel)
@@ -528,7 +533,7 @@ public class MultiblockParser {
         
         int tickInterval = config.getInt("tick_interval", 20);
         
-        return new MultiblockType(id, version, assemblyTrigger, new Vector(0, 0, 0), controllerMatcher, pattern, true, behaviorConfig, defaultVariables, ports, extensions, onCreateActions, onTickActions, onInteractActions, onBreakActions, displayName, tickInterval);
+        return new MultiblockType(dev.darkblade.mbe.api.util.NamespacedKey.parse(id), version, assemblyTrigger, new Vector(0, 0, 0), controllerMatcher, pattern, true, behaviorConfig, defaultVariables, ports, extensions, onCreateActions, onTickActions, onInteractActions, onBreakActions, displayName, tickInterval);
     }
 
     private String parseAssemblyTrigger(YamlConfiguration config, String id) {

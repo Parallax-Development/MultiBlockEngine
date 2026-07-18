@@ -64,7 +64,8 @@ public class AdminCommand {
 
     @Command("mbe admin status")
     @Permission("multiblockengine.status")
-    public void handleStatus(CommandSender sender) {
+    public void handleStatus(dev.darkblade.mbe.core.application.command.MBESender mbeSender) {
+        CommandSender sender = mbeSender.getSender();
         MultiblockRuntimeService runtime = plugin.getManager();
         MetricsService metrics = runtime.getMetrics();
         
@@ -78,13 +79,14 @@ public class AdminCommand {
 
     @Command("mbe admin stats")
     @Permission("multiblockengine.status")
-    public void handleStats(CommandSender sender) {
-        handleStatus(sender);
+    public void handleStats(dev.darkblade.mbe.core.application.command.MBESender mbeSender) {
+        handleStatus(mbeSender);
     }
 
     @Command("mbe admin reload")
     @Permission("multiblockengine.admin.reload")
-    public void handleReload(CommandSender sender) {
+    public void handleReload(dev.darkblade.mbe.core.application.command.MBESender mbeSender) {
+        CommandSender sender = mbeSender.getSender();
         sendMessage(sender, MSG_RELOAD_START, Map.of());
         
         plugin.reloadConfig();
@@ -107,7 +109,7 @@ public class AdminCommand {
                 continue;
             }
             newTypes.add(lt.type());
-            sources.put(lt.type().id(), lt.source());
+            sources.put(lt.type().id().toString(), lt.source());
         }
 
         plugin.getManager().reloadTypesWithSources(newTypes, sources);
@@ -120,10 +122,11 @@ public class AdminCommand {
     @Command("mbe admin report [target]")
     @Permission("multiblockengine.report")
     public void handleReport(
-            CommandSender sender,
+            dev.darkblade.mbe.core.application.command.MBESender mbeSender,
             @Argument("target") String targetName,
             @Flag("console") boolean console
     ) {
+        CommandSender sender = mbeSender.getSender();
         if (console && sender instanceof Player && !sender.hasPermission("multiblockengine.report.console")) {
             sendMessage(sender, CoreMessageKeys.COMMAND_NO_PERMISSION, Map.of());
             return;

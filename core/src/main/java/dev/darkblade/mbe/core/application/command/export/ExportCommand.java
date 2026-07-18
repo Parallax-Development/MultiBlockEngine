@@ -42,14 +42,14 @@ public class ExportCommand {
     }
 
     public void register() {
-        Command.Builder<Player> builder = manager.commandBuilder("mbe", "multiblock")
+        Command.Builder<dev.darkblade.mbe.core.application.command.MBESender> builder = manager.commandBuilder("mbe", "multiblock")
                 .literal("export")
-                .permission("multiblockengine.export")
-                .senderType(Player.class);
+                .permission("multiblockengine.export");
 
         manager.command(builder.literal("start")
                 .handler(context -> {
-                    Player player = context.sender();
+                    if (!context.sender().isPlayer()) return;
+                    Player player = context.sender().getPlayer();
                     exportSelections.start(player);
                     sendMessage(player, CoreMessageKeys.EXPORT_STARTED, Map.of());
                 })
@@ -57,7 +57,8 @@ public class ExportCommand {
 
         manager.command(builder.literal("cancel")
                 .handler(context -> {
-                    Player player = context.sender();
+                    if (!context.sender().isPlayer()) return;
+                    Player player = context.sender().getPlayer();
                     boolean cancelled = exportSelections.cancel(player);
                     sendMessage(player, cancelled ? CoreMessageKeys.EXPORT_CANCELLED : CoreMessageKeys.EXPORT_NO_ACTIVE, Map.of());
                 })
@@ -65,7 +66,8 @@ public class ExportCommand {
 
         manager.command(builder.literal("pos1")
                 .handler(context -> {
-                    Player player = context.sender();
+                    if (!context.sender().isPlayer()) return;
+                    Player player = context.sender().getPlayer();
                     ExportSession s = ensureSession(player);
                     if (s == null) return;
                     Block b = player.getTargetBlockExact(10);
@@ -80,7 +82,8 @@ public class ExportCommand {
 
         manager.command(builder.literal("pos2")
                 .handler(context -> {
-                    Player player = context.sender();
+                    if (!context.sender().isPlayer()) return;
+                    Player player = context.sender().getPlayer();
                     ExportSession s = ensureSession(player);
                     if (s == null) return;
                     Block b = player.getTargetBlockExact(10);
@@ -96,7 +99,8 @@ public class ExportCommand {
         manager.command(builder.literal("mark")
                 .required("role", StringParser.stringParser())
                 .handler(context -> {
-                    Player player = context.sender();
+                    if (!context.sender().isPlayer()) return;
+                    Player player = context.sender().getPlayer();
                     ExportSession s = ensureSession(player);
                     if (s == null) return;
                     String role = context.get("role");
@@ -108,7 +112,8 @@ public class ExportCommand {
         manager.command(builder.literal("save")
                 .required("id", StringParser.stringParser())
                 .handler(context -> {
-                    Player player = context.sender();
+                    if (!context.sender().isPlayer()) return;
+                    Player player = context.sender().getPlayer();
                     ExportSession s = ensureSession(player);
                     if (s == null) return;
                     String id = context.get("id");
@@ -137,7 +142,7 @@ public class ExportCommand {
         if (sender instanceof Player p) {
             messageService.send(p, new PlayerMessage(key, MessageChannel.SYSTEM, MessagePriority.NORMAL, params));
         } else {
-            sender.sendMessage(key.fullKey() + " " + params.toString());
+            org.bukkit.Bukkit.getLogger().info(key.fullKey() + " " + params.toString());
         }
     }
 }

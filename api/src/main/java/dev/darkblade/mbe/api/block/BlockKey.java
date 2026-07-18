@@ -1,6 +1,6 @@
 package dev.darkblade.mbe.api.block;
 
-import dev.darkblade.mbe.api.persistence.item.NamespacedKey;
+import dev.darkblade.mbe.api.util.NamespacedKey;
 
 import java.util.Objects;
 

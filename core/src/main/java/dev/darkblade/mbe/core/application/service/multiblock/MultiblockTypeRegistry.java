@@ -24,11 +24,11 @@ public class MultiblockTypeRegistry {
         if (source == null) {
             source = new MultiblockSource(MultiblockSource.Type.USER_DEFINED, "<runtime>");
         }
-        if (types.containsKey(type.id())) {
-            throw new IllegalArgumentException("Duplicate multiblock id: " + type.id());
+        if (types.containsKey(type.id().toString())) {
+            throw new IllegalArgumentException("Duplicate multiblock id: " + type.id().toString());
         }
-        types.put(type.id(), type);
-        sourcesByTypeId.put(type.id(), source);
+        types.put(type.id().toString(), type);
+        sourcesByTypeId.put(type.id().toString(), source);
         String sig = computeSignature(type);
         variantsBySignature.compute(sig, (k, list) -> {
             List<MultiblockType> next = list == null ? new ArrayList<>() : new ArrayList<>(list);
@@ -83,10 +83,10 @@ public class MultiblockTypeRegistry {
             if (type == null) {
                 continue;
             }
-            if (runtimeTypes.containsKey(type.id())) {
+            if (runtimeTypes.containsKey(type.id().toString())) {
                 continue;
             }
-            MultiblockSource source = src.get(type.id());
+            MultiblockSource source = src.get(type.id().toString());
             registerType(type, source);
         }
 
@@ -111,14 +111,14 @@ public class MultiblockTypeRegistry {
         if (aSrc != bSrc) {
             return aSrc == MultiblockSource.Type.CORE_DEFAULT ? -1 : 1;
         }
-        return a.id().compareToIgnoreCase(b.id());
+        return a.id().compareTo(b.id());
     }
 
     private MultiblockSource.Type sourceTypeOf(MultiblockType type) {
-        if (type == null || type.id() == null) {
+        if (type == null || type.id().toString() == null) {
             return MultiblockSource.Type.USER_DEFINED;
         }
-        MultiblockSource source = sourcesByTypeId.get(type.id());
+        MultiblockSource source = sourcesByTypeId.get(type.id().toString());
         return source == null ? MultiblockSource.Type.USER_DEFINED : source.type();
     }
 

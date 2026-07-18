@@ -49,22 +49,28 @@ public class StructureCommand {
 
     @Command("mbe structure assemble")
     @Permission("multiblockengine.assemble")
-    public void assemble(Player player) {
+    public void assemble(dev.darkblade.mbe.core.application.command.MBESender mbeSender) {
+        if (!mbeSender.isPlayer()) return;
+        Player player = mbeSender.getPlayer();
         assemblyCommands.executeAssemble(player);
     }
 
     @Command("mbe structure disassemble")
     @Permission("multiblockengine.disassemble")
-    public void disassemble(Player player) {
+    public void disassemble(dev.darkblade.mbe.core.application.command.MBESender mbeSender) {
+        if (!mbeSender.isPlayer()) return;
+        Player player = mbeSender.getPlayer();
         assemblyCommands.executeDisassemble(player);
     }
 
     @Command("mbe structure inspect [level]")
     @Permission("multiblockengine.inspect")
     public void inspect(
-            Player player,
+            dev.darkblade.mbe.core.application.command.MBESender mbeSender,
             @Argument("level") @Default("player") String levelStr
     ) {
+        if (!mbeSender.isPlayer()) return;
+        Player player = mbeSender.getPlayer();
         Block target = player.getTargetBlockExact(5);
         if (target == null) {
             sendMessage(player, MessageKey.of(ORIGIN, "commands.inspect.must_look_at_block"), Map.of());

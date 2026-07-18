@@ -35,7 +35,7 @@ public class MultiblockTypeParser<C> implements ArgumentParser<C, MultiblockType
     public @NonNull CompletableFuture<Iterable<@NonNull Suggestion>> suggestionsFuture(@NonNull CommandContext<C> context, @NonNull CommandInput input) {
         return CompletableFuture.completedFuture(
                 runtimeService.getTypes().stream()
-                        .map(type -> Suggestion.suggestion(type.id()))
+                        .map(type -> Suggestion.suggestion(type.id().toString()))
                         .collect(Collectors.toList())
         );
     }

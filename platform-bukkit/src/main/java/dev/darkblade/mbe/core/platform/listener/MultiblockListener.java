@@ -280,7 +280,7 @@ public class MultiblockListener implements Listener {
         if (player == null || instance == null || instance.type() == null) {
             return;
         }
-        String typeId = instance.type().id() == null ? "" : instance.type().id();
+        String typeId = instance.type().id() == null ? "" : instance.type().id().toString();
         PlayerMessageService messageService = resolveMessageService();
         if (messageService != null) {
             messageService.send(player, new PlayerMessage(
@@ -348,7 +348,7 @@ public class MultiblockListener implements Listener {
         if (ownerId == null) {
             return;
         }
-        limitService.unregisterAssembly(ownerId, instance.type().id());
+        limitService.unregisterAssembly(ownerId, instance.type().id().toString());
     }
 
     private MultiblockLimitService resolveLimitService() {

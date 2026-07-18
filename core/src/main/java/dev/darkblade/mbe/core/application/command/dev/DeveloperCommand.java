@@ -57,10 +57,11 @@ public class DeveloperCommand {
     @Command("mbe dev addons [args]")
     @Permission("multiblockengine.admin.addons")
     public void addons(
-            CommandSender sender,
-            @Argument("args") @Greedy @Default("") String argsStr
+            dev.darkblade.mbe.core.application.command.MBESender mbeSender,
+            @Argument("args") @Greedy String argsStr
     ) {
-        String[] rawArgs = argsStr.isEmpty() ? new String[]{"addons"} : ("addons " + argsStr).split(" ");
+        CommandSender sender = mbeSender.getSender();
+        String[] rawArgs = (argsStr == null || argsStr.isEmpty()) ? new String[]{"addons"} : ("addons " + argsStr).split(" ");
         addonsRouter.handle(sender, "mbe", rawArgs);
     }
 
@@ -68,16 +69,18 @@ public class DeveloperCommand {
     @Command("mbe dev services [args]")
     @Permission("multiblockengine.admin.services")
     public void services(
-            CommandSender sender,
-            @Argument("args") @Greedy @Default("") String argsStr
+            dev.darkblade.mbe.core.application.command.MBESender mbeSender,
+            @Argument("args") @Greedy String argsStr
     ) {
-        String[] rawArgs = argsStr.isEmpty() ? new String[]{"services"} : ("services " + argsStr).split(" ");
+        CommandSender sender = mbeSender.getSender();
+        String[] rawArgs = (argsStr == null || argsStr.isEmpty()) ? new String[]{"services"} : ("services " + argsStr).split(" ");
         servicesRouter.handle(sender, "mbe", rawArgs);
     }
 
     @Command("mbe dev ui panels")
     @Permission("multiblockengine.ui.debug")
-    public void uiPanels(CommandSender sender) {
+    public void uiPanels(dev.darkblade.mbe.core.application.command.MBESender mbeSender) {
+        CommandSender sender = mbeSender.getSender();
         dev.darkblade.mbe.api.ui.PanelViewService panelViewService = plugin.getAddonLifecycleService().getCoreService(dev.darkblade.mbe.api.ui.PanelViewService.class);
         if (panelViewService == null) {
             sendMessage(sender, MessageKey.of(ORIGIN, "commands.ui.debug.unavailable"), Map.of());
@@ -97,14 +100,15 @@ public class DeveloperCommand {
     @Command("mbe dev type <type> [target]")
     @Permission("multiblockengine.debug.session")
     public void debugType(
-            Player player,
+            dev.darkblade.mbe.core.application.command.MBESender mbeSender,
             @Argument("type") MultiblockType type,
             @Argument("target") Player targetArg
     ) {
+        Player player = mbeSender.getPlayer();
         Player target = targetArg != null ? targetArg : player;
         MultiblockRuntimeService runtimeService = plugin.getManager();
 
-        runtimeService.getSource(type.id()).ifPresent(src -> {
+        runtimeService.getSource(type.id().toString()).ifPresent(src -> {
             sendMessage(player, CoreMessageKeys.DEBUG_SOURCE, MessageUtils.params("sourceType", src.type().name(), "path", src.path()));
         });
         sendMessage(player, CoreMessageKeys.DEBUG_SIGNATURE, MessageUtils.params("signature", runtimeService.signatureOf(type)));

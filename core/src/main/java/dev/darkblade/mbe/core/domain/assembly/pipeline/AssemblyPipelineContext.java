@@ -45,7 +45,7 @@ public final class AssemblyPipelineContext {
 
     public String multiblockId() {
         MultiblockType type = type();
-        return type == null || type.id() == null ? "" : type.id();
+        return type == null || type.id().toString() == null ? "" : type.id().toString();
     }
 
     public String triggerId() {

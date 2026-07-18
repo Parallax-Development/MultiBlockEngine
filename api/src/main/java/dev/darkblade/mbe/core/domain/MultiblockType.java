@@ -12,7 +12,7 @@ import java.util.Collections;
 import java.util.function.Function;
 
 public record MultiblockType(
-    String id,
+    dev.darkblade.mbe.api.util.NamespacedKey id,
     String version,
     String assemblyTrigger,
     Vector controllerOffset,
@@ -48,19 +48,19 @@ public record MultiblockType(
     }
     
     // Constructor for YAML parser (no capabilities)
-    public MultiblockType(String id, String version, String assemblyTrigger, Vector controllerOffset, BlockMatcher controllerMatcher, List<PatternEntry> pattern, boolean persistent, Map<String, Object> behaviorConfig, Map<String, Object> defaultVariables, Map<String, PortDefinition> ports, Map<String, Object> extensions, List<Action> onCreateActions, List<Action> onTickActions, List<Action> onInteractActions, List<Action> onBreakActions, DisplayNameConfig displayName, int tickInterval) {
+    public MultiblockType(dev.darkblade.mbe.api.util.NamespacedKey id, String version, String assemblyTrigger, Vector controllerOffset, BlockMatcher controllerMatcher, List<PatternEntry> pattern, boolean persistent, Map<String, Object> behaviorConfig, Map<String, Object> defaultVariables, Map<String, PortDefinition> ports, Map<String, Object> extensions, List<Action> onCreateActions, List<Action> onTickActions, List<Action> onInteractActions, List<Action> onBreakActions, DisplayNameConfig displayName, int tickInterval) {
         this(id, version, assemblyTrigger, controllerOffset, controllerMatcher, pattern, persistent, behaviorConfig, defaultVariables, ports, extensions, onCreateActions, onTickActions, onInteractActions, onBreakActions, displayName, tickInterval, List.of());
     }
 
-    public MultiblockType(String id, String version, String assemblyTrigger, Vector controllerOffset, BlockMatcher controllerMatcher, List<PatternEntry> pattern, boolean persistent, Map<String, Object> behaviorConfig, Map<String, Object> defaultVariables, List<Action> onCreateActions, List<Action> onTickActions, List<Action> onInteractActions, List<Action> onBreakActions, DisplayNameConfig displayName, int tickInterval) {
+    public MultiblockType(dev.darkblade.mbe.api.util.NamespacedKey id, String version, String assemblyTrigger, Vector controllerOffset, BlockMatcher controllerMatcher, List<PatternEntry> pattern, boolean persistent, Map<String, Object> behaviorConfig, Map<String, Object> defaultVariables, List<Action> onCreateActions, List<Action> onTickActions, List<Action> onInteractActions, List<Action> onBreakActions, DisplayNameConfig displayName, int tickInterval) {
         this(id, version, assemblyTrigger, controllerOffset, controllerMatcher, pattern, persistent, behaviorConfig, defaultVariables, Map.of(), Map.of(), onCreateActions, onTickActions, onInteractActions, onBreakActions, displayName, tickInterval, List.of());
     }
 
-    public MultiblockType(String id, String version, Vector controllerOffset, BlockMatcher controllerMatcher, List<PatternEntry> pattern, boolean persistent, Map<String, Object> behaviorConfig, Map<String, Object> defaultVariables, List<Action> onCreateActions, List<Action> onTickActions, List<Action> onInteractActions, List<Action> onBreakActions, DisplayNameConfig displayName, int tickInterval, List<CapabilityFactory> capabilityFactories) {
+    public MultiblockType(dev.darkblade.mbe.api.util.NamespacedKey id, String version, Vector controllerOffset, BlockMatcher controllerMatcher, List<PatternEntry> pattern, boolean persistent, Map<String, Object> behaviorConfig, Map<String, Object> defaultVariables, List<Action> onCreateActions, List<Action> onTickActions, List<Action> onInteractActions, List<Action> onBreakActions, DisplayNameConfig displayName, int tickInterval, List<CapabilityFactory> capabilityFactories) {
         this(id, version, AssemblyTriggerType.WRENCH_USE.id(), controllerOffset, controllerMatcher, pattern, persistent, behaviorConfig, defaultVariables, Map.of(), Map.of(), onCreateActions, onTickActions, onInteractActions, onBreakActions, displayName, tickInterval, capabilityFactories);
     }
 
-    public MultiblockType(String id, String version, Vector controllerOffset, BlockMatcher controllerMatcher, List<PatternEntry> pattern, boolean persistent, Map<String, Object> behaviorConfig, Map<String, Object> defaultVariables, List<Action> onCreateActions, List<Action> onTickActions, List<Action> onInteractActions, List<Action> onBreakActions, DisplayNameConfig displayName, int tickInterval) {
+    public MultiblockType(dev.darkblade.mbe.api.util.NamespacedKey id, String version, Vector controllerOffset, BlockMatcher controllerMatcher, List<PatternEntry> pattern, boolean persistent, Map<String, Object> behaviorConfig, Map<String, Object> defaultVariables, List<Action> onCreateActions, List<Action> onTickActions, List<Action> onInteractActions, List<Action> onBreakActions, DisplayNameConfig displayName, int tickInterval) {
         this(id, version, AssemblyTriggerType.WRENCH_USE.id(), controllerOffset, controllerMatcher, pattern, persistent, behaviorConfig, defaultVariables, Map.of(), Map.of(), onCreateActions, onTickActions, onInteractActions, onBreakActions, displayName, tickInterval, List.of());
     }
 }

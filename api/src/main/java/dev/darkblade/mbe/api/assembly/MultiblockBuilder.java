@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.function.Function;
 
 public class MultiblockBuilder {
-    private final String id;
+    private final dev.darkblade.mbe.api.util.NamespacedKey id;
     private final String defaultCapabilityOwnerId;
     private String version = "1.0";
     private int tickInterval = 20;
@@ -28,11 +28,15 @@ public class MultiblockBuilder {
     private final List<MultiblockType.CapabilityFactory> capabilityFactories = new ArrayList<>();
     private DisplayNameConfig displayName;
 
-    public MultiblockBuilder(String id) {
-        this(id, "core");
+    public MultiblockBuilder(dev.darkblade.mbe.api.util.NamespacedKey id) {
+        this(id, id.namespace());
     }
 
-    public MultiblockBuilder(String id, String defaultCapabilityOwnerId) {
+    public MultiblockBuilder(String id) {
+        this(dev.darkblade.mbe.api.util.NamespacedKey.parse(id));
+    }
+
+    public MultiblockBuilder(dev.darkblade.mbe.api.util.NamespacedKey id, String defaultCapabilityOwnerId) {
         this.id = id;
         this.defaultCapabilityOwnerId = defaultCapabilityOwnerId;
     }

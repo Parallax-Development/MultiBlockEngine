@@ -152,7 +152,7 @@ public final class PlayerMultiblockQueryServiceImpl implements PlayerMultiblockQ
             if (instance == null || instance.type() == null || instance.type().id() == null) {
                 continue;
             }
-            if (!matchesMultiblock(instance.type().id(), key.multiblockId())) {
+            if (!matchesMultiblock(instance.type().id().toString(), key.multiblockId())) {
                 continue;
             }
             if (!belongsToPlayer(instance, key.playerId())) {

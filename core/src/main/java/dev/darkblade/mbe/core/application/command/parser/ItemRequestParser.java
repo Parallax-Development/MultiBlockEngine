@@ -5,7 +5,7 @@ import dev.darkblade.mbe.api.item.ItemKey;
 import dev.darkblade.mbe.api.item.ItemModifier;
 import dev.darkblade.mbe.api.item.ItemRequest;
 import dev.darkblade.mbe.api.item.ItemService;
-import dev.darkblade.mbe.api.persistence.item.NamespacedKey;
+import dev.darkblade.mbe.api.util.NamespacedKey;
 import dev.darkblade.mbe.core.internal.item.ItemRequestImpl;
 import net.kyori.adventure.key.Key;
 import org.bukkit.command.CommandSender;
@@ -26,7 +26,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-public class ItemRequestParser<C extends CommandSender> implements ArgumentParser<C, ItemRequest>, SuggestionProvider<C> {
+public class ItemRequestParser<C> implements ArgumentParser<C, ItemRequest>, SuggestionProvider<C> {
 
     private final ItemService itemService;
 
@@ -183,7 +183,7 @@ public class ItemRequestParser<C extends CommandSender> implements ArgumentParse
 
             Optional<ItemModifier<CommandSender, ?>> optMod = itemService.modifiers().getModifier(itemId, modKey);
             if (optMod.isPresent()) {
-                List<String> validValues = optMod.get().suggestions((CommandContext<CommandSender>) context);
+                List<String> validValues = optMod.get().suggestions((CommandContext<CommandSender>) (Object) context);
                 List<Suggestion> suggestions = validValues.stream()
                     .filter(v -> v.toLowerCase().startsWith(typedValue.toLowerCase()))
                     .map(v -> Suggestion.suggestion(valuePrefix + v))

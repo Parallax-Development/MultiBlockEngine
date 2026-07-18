@@ -46,19 +46,21 @@ public class ItemCommand {
     @Command("mbe item give <item>")
     @Permission("multiblockengine.item.give")
     public void giveSelf(
-            CommandSender sender,
+            dev.darkblade.mbe.core.application.command.MBESender mbeSender,
             @Argument(value = "item", suggestions = "itemRequest") @org.incendo.cloud.annotation.specifier.Greedy String itemString
     ) {
+        CommandSender sender = mbeSender.getSender();
         give(sender, itemString, null);
     }
 
     @Command("mbe item give to <target> <item>")
     @Permission("multiblockengine.item.give")
     public void giveOther(
-            CommandSender sender,
+            dev.darkblade.mbe.core.application.command.MBESender mbeSender,
             @Argument("target") Player targetArg,
             @Argument(value = "item", suggestions = "itemRequest") @org.incendo.cloud.annotation.specifier.Greedy String itemString
     ) {
+        CommandSender sender = mbeSender.getSender();
         give(sender, itemString, targetArg);
     }
 

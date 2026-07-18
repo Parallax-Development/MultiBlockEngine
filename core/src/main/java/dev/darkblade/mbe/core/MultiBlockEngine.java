@@ -455,7 +455,7 @@ public class MultiBlockEngine extends JavaPlugin {
                 io.leangen.geantyref.TypeToken.get(dev.darkblade.mbe.core.domain.MultiblockType.class),
                 parserParameters -> new dev.darkblade.mbe.core.application.command.parser.MultiblockTypeParser<>(manager)
         );
-        dev.darkblade.mbe.core.application.command.parser.ItemRequestParser<org.bukkit.command.CommandSender> itemRequestParser = new dev.darkblade.mbe.core.application.command.parser.ItemRequestParser<>(itemService);
+        dev.darkblade.mbe.core.application.command.parser.ItemRequestParser<dev.darkblade.mbe.core.application.command.MBESender> itemRequestParser = new dev.darkblade.mbe.core.application.command.parser.ItemRequestParser<>(itemService);
         commandManager.parserRegistry().registerParserSupplier(
                 io.leangen.geantyref.TypeToken.get(dev.darkblade.mbe.api.item.ItemRequest.class),
                 parserParameters -> itemRequestParser
@@ -474,7 +474,7 @@ public class MultiBlockEngine extends JavaPlugin {
         commandManager.registerCommandClass(itemCmd);
 
         itemService.modifiers().register(
-                dev.darkblade.mbe.api.persistence.item.NamespacedKey.of("mbe", "blueprint"),
+                dev.darkblade.mbe.api.util.NamespacedKey.of("mbe", "blueprint"),
                 new dev.darkblade.mbe.core.internal.item.modifier.BlueprintMultiblockModifier(manager)
         );
 
