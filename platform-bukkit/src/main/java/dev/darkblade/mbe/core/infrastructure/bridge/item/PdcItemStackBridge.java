@@ -256,14 +256,25 @@ public final class PdcItemStackBridge implements ItemStackBridge {
         if (raw == null || raw.isBlank()) {
             return raw;
         }
-        MessageKey key = parseMessageKey(raw);
+        
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("^(.*?)([a-z0-9_.-]+:[a-zA-Z0-9_.-]+)$").matcher(raw.trim());
+        if (!matcher.matches()) {
+            return raw;
+        }
+        
+        String prefix = matcher.group(1);
+        String keyString = matcher.group(2);
+
+        MessageKey key = parseMessageKey(keyString);
         if (key == null) {
             return raw;
         }
+        
         I18nService i18n = resolveI18n();
         if (i18n == null) {
             return raw;
         }
+        
         try {
             Locale target = locale != null ? locale : (i18n.localeProvider() != null ? i18n.localeProvider().fallbackLocale() : Locale.US);
             String translated = i18n.resolve(key, target);
@@ -276,7 +287,7 @@ public final class PdcItemStackBridge implements ItemStackBridge {
             if (translated.equals("??" + key.fullKey() + "??")) {
                 return raw;
             }
-            return translated;
+            return prefix + translated;
         } catch (Throwable ignored) {
             return raw;
         }

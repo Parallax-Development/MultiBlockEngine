@@ -11,7 +11,7 @@ import org.incendo.cloud.context.CommandContext;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class BlueprintMultiblockModifier implements ItemModifier<CommandSender, Key> {
+public class BlueprintMultiblockModifier implements ItemModifier<CommandSender, String> {
 
     private final MultiblockRuntimeService runtimeService;
     private final Key id = Key.key("mbe", "multiblock");
@@ -26,25 +26,22 @@ public class BlueprintMultiblockModifier implements ItemModifier<CommandSender, 
     }
 
     @Override
-    public Class<Key> type() {
-        return Key.class;
+    public Class<String> type() {
+        return String.class;
     }
 
     @Override
-    public Key parse(String value) throws IllegalArgumentException {
+    public String parse(String value) throws IllegalArgumentException {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException("Multiblock ID cannot be blank");
         }
-        return Key.key(value);
+        return value;
     }
 
     @Override
     public List<String> suggestions(CommandContext<CommandSender> context) {
         return runtimeService.getTypes().stream()
-                .map(t -> {
-                    String typeId = t.id();
-                    return typeId.contains(":") ? typeId : "mbe:" + typeId;
-                })
+                .map(MultiblockType::id)
                 .collect(Collectors.toList());
     }
 }
