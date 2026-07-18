@@ -310,7 +310,7 @@ public final class ItemsCommandService implements MbeCommandService {
 
         ItemStack proto;
         try {
-            proto = itemStackBridge.toItemStack(instance);
+            proto = itemStackBridge.toItemStack(instance, player);
         } catch (RuntimeException ex) {
             send(player, MSG_CONVERT_FAILED);
             return;

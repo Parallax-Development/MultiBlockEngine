@@ -26,21 +26,21 @@ public class DebugCommand {
     }
 
     public void register() {
-        Command.Builder<CommandSender> builder = manager.commandBuilder("mbe")
+        Command.Builder<dev.darkblade.mbe.core.application.command.MBESender> builder = manager.commandBuilder("mbe")
                 .literal("debug")
                 .permission("multiblockengine.debug");
 
         manager.command(builder.literal("type")
                 .permission("multiblockengine.debug.session")
-                .senderType(Player.class)
                 .required(manager.componentBuilder(MultiblockType.class, "type"))
                 .optional("target", org.incendo.cloud.bukkit.parser.PlayerParser.playerParser())
                 .handler(context -> {
-                    Player sender = (Player) context.sender();
+                    if (!context.sender().isPlayer()) return;
+                    Player sender = context.sender().getPlayer();
                     MultiblockType type = context.get("type");
                     Player target = context.getOrDefault("target", sender);
 
-                    runtimeService.getSource(type.id()).ifPresent(src -> {
+                    runtimeService.getSource(type.id().toString()).ifPresent(src -> {
                         messageService.send(sender, new dev.darkblade.mbe.api.message.PlayerMessage(CoreMessageKeys.DEBUG_SOURCE, dev.darkblade.mbe.api.message.MessageChannel.SYSTEM, dev.darkblade.mbe.api.message.MessagePriority.NORMAL, dev.darkblade.mbe.api.i18n.MessageUtils.params("sourceType", src.type().name(), "path", src.path())));
                     });
                     messageService.send(sender, new dev.darkblade.mbe.api.message.PlayerMessage(CoreMessageKeys.DEBUG_SIGNATURE, dev.darkblade.mbe.api.message.MessageChannel.SYSTEM, dev.darkblade.mbe.api.message.MessagePriority.NORMAL, dev.darkblade.mbe.api.i18n.MessageUtils.params("signature", runtimeService.signatureOf(type))));

@@ -76,7 +76,7 @@ public class MultiblockAssemblyService {
             if (checkPattern(anchor, type, facing)) {
                 MultiblockInstance instance = new MultiblockInstance(type, anchor.getLocation(), facing);
                 instance.setVariable("signature", typeRegistry.signatureOf(type));
-                instance.setVariable("variant", type.id());
+                instance.setVariable("variant", type.id().toString());
                 if (player != null) {
                     instance.setVariable("owner_uuid", player.getUniqueId().toString());
                 }
@@ -154,7 +154,7 @@ public class MultiblockAssemblyService {
         }
         int idx = 0;
         for (int i = 0; i < variants.size(); i++) {
-            if (variants.get(i).id().equalsIgnoreCase(current.type().id())) {
+            if (variants.get(i).id().equals(current.type().id())) {
                 idx = i;
                 break;
             }
@@ -169,7 +169,7 @@ public class MultiblockAssemblyService {
         Map<String, Object> preserved = new HashMap<>(current.getVariables());
         MultiblockInstance next = new MultiblockInstance(nextType, current.anchorLocation(), facing, current.state(), preserved);
         next.setVariable("signature", sig);
-        next.setVariable("variant", nextType.id());
+        next.setVariable("variant", nextType.id().toString());
         if (player != null) {
             next.setVariable("owner_uuid", player.getUniqueId().toString());
         }

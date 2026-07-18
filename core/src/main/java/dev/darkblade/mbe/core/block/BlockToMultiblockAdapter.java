@@ -17,7 +17,7 @@ public class BlockToMultiblockAdapter {
         }
 
         return new MultiblockType(
-                block.key().toString(),
+                block.key().id(),
                 block.version(),
                 block.assemblyTrigger(),
                 new Vector(0, 0, 0),

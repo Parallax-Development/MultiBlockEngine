@@ -149,7 +149,7 @@ class MetadataServiceImplTest {
 
     private static MultiblockType dummyType(String id) {
         return new MultiblockType(
-                id,
+                dev.darkblade.mbe.api.util.NamespacedKey.parse(id.contains(":") ? id : "mbe:" + id),
                 "1.0",
                 new Vector(0, 0, 0),
                 block -> false,

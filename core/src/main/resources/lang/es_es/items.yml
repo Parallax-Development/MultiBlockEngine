@@ -3,17 +3,21 @@ core:
     wrench:
       display_name: "Llave inglesa"
       lore:
+        mode: "&7Modo actual: &6{mode}"
         execute: "&eClick derecho: &aEjecutar acción del modo"
         change_mode: "&eShift + Click derecho: &bCambiar modo"
         disassemble: "&eClick izquierdo: &cDesensamblar multibloque"
     wire_cutter:
       display_name: "Corta-cables"
       lore:
+        mode: "&7Modo actual: &6{mode}"
         execute: "&eClick derecho: &aEjecutar acción del modo"
         change_mode: "&eShift + Click derecho: &bCambiar modo"
     blueprint:
       display_name: "Blueprint"
       lore:
-        hold: "&bSostener: &fPreview dinámica"
+        blueprint: "&7Blueprint para: &6{multiblock_display_name}"
+        construction: "&7Progreso de construcción: &b{count}/{total}"
+        hold: "&eSostener: &fPreview dinámica"
         right_click: "&aClick derecho en el suelo: &fConfirmar posición"
         left_click: "&cClick izquierdo: &fCancelar guía"

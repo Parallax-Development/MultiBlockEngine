@@ -59,7 +59,7 @@ public final class StructureCatalogServiceImpl implements StructureCatalogServic
                 unique.put(controllerPosition, new PreviewBlock(controllerPosition, controllerData));
             }
         }
-        return new SimpleMultiblockDefinition(type.id(), new ArrayList<>(unique.values()));
+        return new SimpleMultiblockDefinition(type.id().toString(), new ArrayList<>(unique.values()));
     }
 
     private BlockData toBlockData(BlockMatcher matcher) {

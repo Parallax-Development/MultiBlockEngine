@@ -50,8 +50,8 @@ final class MultiblockParserNestedFoldersTest {
         var loaded = parser.loadAllWithSources(multiblocks.toFile());
 
         assertEquals(2, loaded.size());
-        assertTrue(loaded.stream().anyMatch(t -> t.type().id().equalsIgnoreCase("mana_generator")));
-        assertTrue(loaded.stream().anyMatch(t -> t.type().id().equalsIgnoreCase("crusher")));
+        assertTrue(loaded.stream().anyMatch(t -> t.type().id().key().equalsIgnoreCase("mana_generator")));
+        assertTrue(loaded.stream().anyMatch(t -> t.type().id().key().equalsIgnoreCase("crusher")));
     }
 
     @Test
@@ -76,8 +76,8 @@ final class MultiblockParserNestedFoldersTest {
         MultiblockParser parser = new MultiblockParser(new MultiblockAPIImpl(), testLogger());
         var loaded = parser.loadAllWithSources(multiblocks.toFile());
 
-        var furnace = loaded.stream().filter(t -> t.type().id().equalsIgnoreCase("furnace")).findFirst().orElseThrow();
-        var smelter = loaded.stream().filter(t -> t.type().id().equalsIgnoreCase("smelter")).findFirst().orElseThrow();
+        var furnace = loaded.stream().filter(t -> t.type().id().key().equalsIgnoreCase("furnace")).findFirst().orElseThrow();
+        var smelter = loaded.stream().filter(t -> t.type().id().key().equalsIgnoreCase("smelter")).findFirst().orElseThrow();
 
         assertEquals(MultiblockSource.Type.CORE_DEFAULT, furnace.source().type());
         assertEquals(MultiblockSource.Type.USER_DEFINED, smelter.source().type());
@@ -106,7 +106,7 @@ final class MultiblockParserNestedFoldersTest {
         var loaded = parser.loadAllWithSources(multiblocks.toFile());
 
         assertEquals(1, loaded.size());
-        assertEquals("mana_generator", loaded.get(0).type().id());
+        assertEquals("mana_generator", loaded.get(0).type().id().key());
         assertEquals(MultiblockSource.Type.CORE_DEFAULT, loaded.get(0).source().type());
     }
 
@@ -126,7 +126,7 @@ final class MultiblockParserNestedFoldersTest {
 
         assertEquals(1, loaded.size());
         MultiblockType type = loaded.get(0).type();
-        assertEquals("custom_machine", type.id());
+        assertEquals("custom_machine", type.id().key());
     }
 
     @Test
@@ -163,7 +163,7 @@ final class MultiblockParserNestedFoldersTest {
         assertEquals(1, loaded.size());
 
         MultiblockType type = loaded.get(0).type();
-        assertEquals("with_ports", type.id());
+        assertEquals("with_ports", type.id().key());
         assertEquals(2, type.ports().size());
 
         var in = type.ports().get("energy_in");
@@ -209,7 +209,7 @@ final class MultiblockParserNestedFoldersTest {
         assertEquals(1, loaded.size());
 
         MultiblockType type = loaded.get(0).type();
-        assertEquals("legacy_roles", type.id());
+        assertEquals("legacy_roles", type.id().key());
         assertEquals(3, type.ports().size());
 
         assertTrue(type.ports().containsKey("port_in_1"));
@@ -240,7 +240,7 @@ final class MultiblockParserNestedFoldersTest {
         assertEquals(1, loaded.size());
 
         MultiblockType type = loaded.get(0).type();
-        assertEquals("legacy_io", type.id());
+        assertEquals("legacy_io", type.id().key());
         assertEquals(2, type.ports().size());
 
         assertTrue(type.ports().containsKey("input_energy"));

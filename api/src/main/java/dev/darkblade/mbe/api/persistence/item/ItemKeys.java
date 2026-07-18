@@ -1,5 +1,6 @@
 package dev.darkblade.mbe.api.persistence.item;
 
+import dev.darkblade.mbe.api.util.NamespacedKey;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;

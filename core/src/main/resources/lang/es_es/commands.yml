@@ -36,6 +36,11 @@ commands:
     creation_cancelled: "&cLa creación del multibloque fue cancelada."
     no_multiblock_matched: "&eNo se encontró un multibloque coincidente en esta ubicación."
     unknown_subcommand: "Subcomando desconocido. Usa /mbe para ver ayuda."
+    invalid_argument: "&cArgumento inválido: {message}"
+    item_creation_failed: "&cNo se pudo crear el item."
+    console_needs_player: "&cDebes especificar un jugador cuando ejecutas esto desde la consola."
+  item:
+    given: "&aItem {id} entregado a {player}."
   admin:
     usage: "Uso: /{label} admin <reload|export|services|<servicio>>"
   debug:

@@ -79,39 +79,41 @@ public class MiscCommand {
     }
 
     public void register() {
-        Command.Builder<CommandSender> builder = manager.commandBuilder("mbe", "multiblock");
+        Command.Builder<dev.darkblade.mbe.core.application.command.MBESender> builder = manager.commandBuilder("mbe", "multiblock");
 
         // Status
         manager.command(builder.literal("status")
                 .permission("multiblockengine.status")
-                .handler(context -> handleStatus(context.sender()))
+                .handler(context -> handleStatus(context.sender().getSender()))
         );
 
         // Stats alias
         manager.command(builder.literal("stats")
                 .permission("multiblockengine.status")
-                .handler(context -> handleStatus(context.sender()))
+                .handler(context -> handleStatus(context.sender().getSender()))
         );
 
         // Reload
         manager.command(builder.literal("reload")
                 .permission("multiblockengine.admin.reload")
-                .handler(context -> handleReload(context.sender()))
+                .handler(context -> handleReload(context.sender().getSender()))
         );
 
         // Assemble
         AssemblyCommandService assemblyCommands = new AssemblyCommandService(plugin);
         manager.command(builder.literal("assemble")
-                .senderType(Player.class)
                 .permission("multiblockengine.assemble")
-                .handler(context -> assemblyCommands.executeAssemble(context.sender()))
+                .handler(context -> {
+                    if (context.sender().isPlayer()) assemblyCommands.executeAssemble(context.sender().getPlayer());
+                })
         );
 
         // Disassemble
         manager.command(builder.literal("disassemble")
-                .senderType(Player.class)
                 .permission("multiblockengine.disassemble")
-                .handler(context -> assemblyCommands.executeDisassemble(context.sender()))
+                .handler(context -> {
+                    if (context.sender().isPlayer()) assemblyCommands.executeDisassemble(context.sender().getPlayer());
+                })
         );
 
         // Report
@@ -120,7 +122,7 @@ public class MiscCommand {
                 .optional("target", StringParser.stringParser())
                 .flag(manager.flagBuilder("console").withAliases("c").build())
                 .handler(context -> {
-                    CommandSender sender = context.sender();
+                    CommandSender sender = context.sender().getSender();
                     String targetName = context.getOrDefault("target", null);
                     boolean console = context.flags().isPresent("console");
                     handleReport(sender, targetName, console);
@@ -132,7 +134,7 @@ public class MiscCommand {
                 .literal("debug")
                 .literal("panels")
                 .permission("multiblockengine.ui.debug")
-                .handler(context -> handleUi(context.sender()))
+                .handler(context -> handleUi(context.sender().getSender()))
         );
 
         // Addons wrapper
@@ -141,7 +143,7 @@ public class MiscCommand {
                 .permission("multiblockengine.admin.addons")
                 .optional("args", StringParser.greedyStringParser())
                 .handler(context -> {
-                    CommandSender sender = context.sender();
+                    CommandSender sender = context.sender().getSender();
                     String argsStr = context.getOrDefault("args", "");
                     String[] rawArgs = argsStr.isEmpty() ? new String[]{"addons"} : ("addons " + argsStr).split(" ");
                     addons.handle(sender, "mbe", rawArgs);
@@ -159,7 +161,7 @@ public class MiscCommand {
                 .permission("multiblockengine.admin.services")
                 .optional("args", StringParser.greedyStringParser())
                 .handler(context -> {
-                    CommandSender sender = context.sender();
+                    CommandSender sender = context.sender().getSender();
                     String argsStr = context.getOrDefault("args", "");
                     String[] rawArgs = argsStr.isEmpty() ? new String[]{"services"} : ("services " + argsStr).split(" ");
                     services.handle(sender, "mbe", rawArgs);
@@ -167,21 +169,21 @@ public class MiscCommand {
         );
 
         manager.command(builder.literal("inspect")
-                .senderType(Player.class)
                 .permission("multiblockengine.inspect")
                 .optional("level", StringParser.stringParser())
                 .handler(context -> {
-                    Player player = context.sender();
+                    if (!context.sender().isPlayer()) return;
+                    Player player = context.sender().getPlayer();
                     String levelStr = context.getOrDefault("level", "player");
                     handleInspect(player, levelStr);
                 })
         );
 
         manager.command(builder.literal("tool")
-                .senderType(Player.class)
                 .permission("multiblockengine.tool")
                 .handler(context -> {
-                    Player player = context.sender();
+                    if (!context.sender().isPlayer()) return;
+                    Player player = context.sender().getPlayer();
                     // Fallback stub for /mbe tool if it was intended
                     sendMessage(player, MessageKey.of(ORIGIN, "commands.tool.not_implemented"), Map.of());
                 })
@@ -224,7 +226,7 @@ public class MiscCommand {
                 continue;
             }
             newTypes.add(lt.type());
-            sources.put(lt.type().id(), lt.source());
+            sources.put(lt.type().id().toString(), lt.source());
         }
 
         plugin.getManager().reloadTypesWithSources(newTypes, sources);
@@ -357,7 +359,7 @@ public class MiscCommand {
         if (pipeline != null) {
             Inspectable inspectable = ctx -> {
                 java.util.Map<String, InspectionEntry> out = new java.util.LinkedHashMap<>();
-                out.put("type", new InspectionEntry("type", instance.type() == null ? "" : instance.type().id(), EntryType.TEXT, InspectionLevel.PLAYER));
+                out.put("type", new InspectionEntry("type", instance.type() == null ? "" : instance.type().id().toString(), EntryType.TEXT, InspectionLevel.PLAYER));
                 out.put("state", new InspectionEntry("state", instance.state() == null ? "" : instance.state().name(), EntryType.TEXT, InspectionLevel.PLAYER));
                 out.put("facing", new InspectionEntry("facing", instance.facing() == null ? "" : instance.facing().name(), EntryType.TEXT, InspectionLevel.PLAYER));
                 out.put("anchor", new InspectionEntry("anchor", formatLoc(instance.anchorLocation()), EntryType.TEXT, InspectionLevel.PLAYER));
@@ -391,7 +393,7 @@ public class MiscCommand {
             pipeline.inspect(player, InteractionSource.COMMAND, requestedLevel, inspectable, renderer);
         } else {
             sendMessage(player, MessageKey.of(ORIGIN, "commands.inspect.title"), Map.of());
-            sendMessage(player, MessageKey.of(ORIGIN, "commands.inspect.type"), MessageUtils.params("value", instance.type().id()));
+            sendMessage(player, MessageKey.of(ORIGIN, "commands.inspect.type"), MessageUtils.params("value", instance.type().id().toString()));
             sendMessage(player, MessageKey.of(ORIGIN, "commands.inspect.state"), MessageUtils.params("value", String.valueOf(instance.state())));
             sendMessage(player, MessageKey.of(ORIGIN, "commands.inspect.facing"), MessageUtils.params("value", String.valueOf(instance.facing())));
             sendMessage(player, MessageKey.of(ORIGIN, "commands.inspect.anchor"), MessageUtils.params("value", formatLoc(instance.anchorLocation())));
@@ -440,7 +442,7 @@ public class MiscCommand {
         if (sender instanceof Player p) {
             messageService.send(p, new PlayerMessage(key, MessageChannel.SYSTEM, MessagePriority.NORMAL, params));
         } else {
-            sender.sendMessage(key.fullKey() + " " + params.toString());
+            org.bukkit.Bukkit.getLogger().info(key.fullKey() + " " + params.toString());
         }
     }
 }

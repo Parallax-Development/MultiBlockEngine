@@ -337,7 +337,7 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
             return WrenchResult.fail(MSG_NOT_FOUND);
         }
         playDisassemble(player, context.clickedBlock().getLocation());
-        return WrenchResult.success(MSG_DISASSEMBLED, Map.of("type", safe(instance.type().id())));
+        return WrenchResult.success(MSG_DISASSEMBLED, Map.of("type", safe(instance.type().id().toString())));
     }
 
     private boolean runInteractActions(MultiblockInstance instance, Player player, Block block, org.bukkit.event.block.Action action) {
@@ -541,7 +541,7 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
                         "instance_create",
                         true,
                         "Instance created",
-                        java.util.Map.of("multiblockId", type.id(), "trigger", AssemblyTriggerType.WRENCH_USE.id())
+                        java.util.Map.of("multiblockId", type.id().toString(), "trigger", AssemblyTriggerType.WRENCH_USE.id())
                 )));
             }
         }
@@ -573,7 +573,7 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
 
         if (pipeline == null) {
             send(player, MSG_INSPECT_TITLE, Map.of());
-            send(player, MSG_INSPECT_TYPE, Map.of("type", safe(instance.type().id())));
+            send(player, MSG_INSPECT_TYPE, Map.of("type", safe(instance.type().id().toString())));
             send(player, MSG_INSPECT_STATE, Map.of("state", instance.state() == null ? "" : instance.state().name()));
             send(player, MSG_INSPECT_FACING, Map.of("facing", instance.facing() == null ? "" : instance.facing().name()));
             Location loc = instance.anchorLocation();
@@ -593,7 +593,7 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
         Inspectable inspectable = ctx -> {
             Map<String, InspectionEntry> out = new LinkedHashMap<>();
 
-            out.put("type", new InspectionEntry("type", safe(instance.type().id()), EntryType.TEXT, InspectionLevel.PLAYER));
+            out.put("type", new InspectionEntry("type", safe(instance.type().id().toString()), EntryType.TEXT, InspectionLevel.PLAYER));
             out.put("state", new InspectionEntry("state", instance.state() == null ? "" : instance.state().name(), EntryType.TEXT, InspectionLevel.PLAYER));
             out.put("facing", new InspectionEntry("facing", instance.facing() == null ? "" : instance.facing().name(), EntryType.TEXT, InspectionLevel.PLAYER));
 
@@ -1008,7 +1008,7 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
             }
 
             Object counter = instance != null ? instance.getVariable("counter") : null;
-            String msg = "[" + runtimePhase + "] Action '" + actionName + "' failed Context: counter=" + counter + " Multiblock=" + (instance != null ? instance.type().id() : "unknown") + " Execution continued";
+            String msg = "[" + runtimePhase + "] Action '" + actionName + "' failed Context: counter=" + counter + " Multiblock=" + (instance != null ? instance.type().id().toString() : "unknown") + " Execution continued";
 
             MultiBlockEngine plugin = MultiBlockEngine.getInstance();
             if (plugin != null && plugin.getAddonLifecycleService() != null && ownerId != null && !ownerId.isBlank() && !"core".equalsIgnoreCase(ownerId)) {
@@ -1020,7 +1020,7 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
             if (core != null) {
                 core.logInternal(new LogScope.Core(), LogPhase.RUNTIME, LogLevel.ERROR, msg, t, new LogKv[] {
                         LogKv.kv("phase", runtimePhase),
-                        LogKv.kv("multiblock", instance != null ? instance.type().id() : "unknown"),
+                        LogKv.kv("multiblock", instance != null ? instance.type().id().toString() : "unknown"),
                         LogKv.kv("action", actionName)
                 }, Set.of("wrench"));
             } else if (plugin != null) {

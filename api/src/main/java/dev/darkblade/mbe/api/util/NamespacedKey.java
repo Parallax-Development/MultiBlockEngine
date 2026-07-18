@@ -1,4 +1,4 @@
-package dev.darkblade.mbe.api.persistence.item;
+package dev.darkblade.mbe.api.util;
 
 import java.util.Locale;
 import java.util.Objects;

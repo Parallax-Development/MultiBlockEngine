@@ -186,11 +186,8 @@ public class SimpleAddonContext implements AddonContext {
 
     @Override
     public MultiblockBuilder createMultiblock(String id) {
-        String fullId = id.contains(":") ? id : addonNamespace + ":" + id;
-        if (!fullId.startsWith(addonNamespace + ":")) {
-            throw new IllegalArgumentException("Multiblock id must start with addon namespace prefix: " + addonNamespace + ":");
-        }
-        return new MultiblockBuilder(fullId, addonId);
+        String fullId = id.contains(":") ? id : addonId + ":" + id;
+        return new MultiblockBuilder(dev.darkblade.mbe.api.util.NamespacedKey.parse(fullId), addonId);
     }
 
     @Override
@@ -198,7 +195,7 @@ public class SimpleAddonContext implements AddonContext {
         if (type == null) {
             throw new IllegalArgumentException("type");
         }
-        if (!type.id().startsWith(addonNamespace + ":")) {
+        if (!type.id().namespace().equals(addonNamespace)) {
             throw new IllegalArgumentException("MultiblockType id must start with addon namespace prefix: " + addonNamespace + ":");
         }
         api.registerMultiblock(type);

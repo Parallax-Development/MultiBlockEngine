@@ -205,7 +205,7 @@ public class SqlStorage implements InstanceStorageService {
             return;
         }
 
-        String typeId = instance.type().id();
+        String typeId = instance.type().id().toString();
         String worldName = world.getName();
         int x = anchor.getBlockX();
         int y = anchor.getBlockY();
@@ -408,7 +408,7 @@ public class SqlStorage implements InstanceStorageService {
             return;
         }
 
-        String typeId = instance.type().id();
+        String typeId = instance.type().id().toString();
         String worldName = world.getName();
         int x = anchor.getBlockX();
         int y = anchor.getBlockY();

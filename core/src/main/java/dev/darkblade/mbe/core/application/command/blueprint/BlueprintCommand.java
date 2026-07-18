@@ -54,18 +54,21 @@ public class BlueprintCommand {
     }
 
     public void register() {
-        Command.Builder<CommandSender> builder = manager.commandBuilder("mbe", "multiblock")
+        Command.Builder<dev.darkblade.mbe.core.application.command.MBESender> builder = manager.commandBuilder("mbe", "multiblock")
                 .literal("blueprint")
                 .permission("multiblockengine.blueprint");
 
         manager.command(builder.literal("catalog")
-                .senderType(Player.class)
-                .handler(context -> blueprintCommands.openCatalog(context.sender()))
+                .handler(context -> {
+                    if (context.sender().isPlayer()) {
+                        blueprintCommands.openCatalog(context.sender().getPlayer());
+                    }
+                })
         );
 
         manager.command(builder.literal("list")
                 .handler(context -> {
-                    CommandSender sender = context.sender();
+                    CommandSender sender = context.sender().getSender();
                     List<String> ids = new ArrayList<>();
                     for (MultiblockDefinition definition : catalogService.getAll()) {
                         if (definition != null && definition.id() != null && !definition.id().isBlank()) {
@@ -86,7 +89,7 @@ public class BlueprintCommand {
                 .required("id", StringParser.stringParser())
                 .optional("target", org.incendo.cloud.bukkit.parser.PlayerParser.playerParser())
                 .handler(context -> {
-                    CommandSender sender = context.sender();
+                    CommandSender sender = context.sender().getSender();
                     String id = context.get("id");
                     Player receiver = context.getOrDefault("target", null);
 
@@ -128,7 +131,7 @@ public class BlueprintCommand {
             messageService.send(p, new PlayerMessage(key, MessageChannel.SYSTEM, MessagePriority.NORMAL, params));
         } else {
             // For console, just send the raw key for now
-            sender.sendMessage(key.fullKey() + " " + params.toString());
+            org.bukkit.Bukkit.getLogger().info(key.fullKey() + " " + params.toString());
         }
     }
 }

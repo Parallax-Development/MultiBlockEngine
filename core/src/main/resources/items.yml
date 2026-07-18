@@ -4,6 +4,7 @@ items:
     material: IRON_HOE
     display-name: "mbe:core.items.wrench.display_name"
     lore:
+      - "mbe:core.items.wrench.lore.mode"
       - "mbe:core.items.wrench.lore.execute"
       - "mbe:core.items.wrench.lore.change_mode"
       - "mbe:core.items.wrench.lore.disassemble"
@@ -12,6 +13,7 @@ items:
     material: SHEARS
     display-name: "mbe:core.items.wire_cutter.display_name"
     lore:
+      - "mbe:core.items.wire_cutter.lore.mode"
       - "mbe:core.items.wire_cutter.lore.execute"
       - "mbe:core.items.wire_cutter.lore.change_mode"
   blueprint:
@@ -20,6 +22,8 @@ items:
     display-name: "mbe:core.items.blueprint.display_name"
     unstackable: true
     lore:
+      - "mbe:core.items.blueprint.lore.blueprint"
+      - "mbe:core.items.blueprint.lore.construction"
       - "mbe:core.items.blueprint.lore.hold"
       - "mbe:core.items.blueprint.lore.right_click"
       - "mbe:core.items.blueprint.lore.left_click"

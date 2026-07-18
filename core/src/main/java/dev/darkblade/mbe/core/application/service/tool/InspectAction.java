@@ -55,7 +55,7 @@ public final class InspectAction implements ToolAction {
         MultiblockInstance instance = instanceOpt.get();
         if (messageService != null && context.player() != null) {
             messageService.send(context.player(), new PlayerMessage(MSG_TITLE, MessageChannel.CHAT, MessagePriority.NORMAL, Map.of()));
-            messageService.send(context.player(), new PlayerMessage(MSG_TYPE, MessageChannel.CHAT, MessagePriority.NORMAL, Map.of("type", safe(instance.type().id()))));
+            messageService.send(context.player(), new PlayerMessage(MSG_TYPE, MessageChannel.CHAT, MessagePriority.NORMAL, Map.of("type", safe(instance.type().id().toString()))));
             messageService.send(context.player(), new PlayerMessage(MSG_STATE, MessageChannel.CHAT, MessagePriority.NORMAL, Map.of("state", instance.state() == null ? "" : instance.state().name())));
             messageService.send(context.player(), new PlayerMessage(MSG_FACING, MessageChannel.CHAT, MessagePriority.NORMAL, Map.of("facing", instance.facing() == null ? "" : instance.facing().name())));
             messageService.send(context.player(), new PlayerMessage(MSG_ANCHOR, MessageChannel.CHAT, MessagePriority.NORMAL, Map.of("anchor", formatLocation(instance.anchorLocation()))));

@@ -126,7 +126,7 @@ public final class AssemblyCoordinator {
         ));
         Optional<MultiblockInstance> existing = manager.getInstanceAt(controller.getLocation());
         if (existing.isPresent()) {
-            String multiblockId = existing.get().type().id();
+            String multiblockId = existing.get().type().id().toString();
             trace.add("existing_instance", false, "Instance already exists", Map.of("multiblockId", multiblockId));
             return finalizeReport(
                     safeContext,
@@ -160,7 +160,7 @@ public final class AssemblyCoordinator {
 
         Optional<MultiblockInstance> existing = manager.getInstanceAt(controller.getLocation());
         if (existing.isPresent()) {
-            String multiblockId = existing.get().type().id();
+            String multiblockId = existing.get().type().id().toString();
             trace.add("existing_instance", false, "Instance already exists", Map.of("multiblockId", multiblockId));
             return finalizeReport(
                     context,
@@ -183,8 +183,8 @@ public final class AssemblyCoordinator {
         AssemblyTraceCollector trace = new AssemblyTraceCollector();
         Objects.requireNonNull(type, "type");
         if (controller == null) {
-            trace.add("controller_check", false, "No controller block", Map.of("multiblockId", type.id()));
-            return finalizeReport(context, AssemblyReport.fail("no_controller_block", Map.of("multiblockId", type.id()), trace.getTrace()), null);
+            trace.add("controller_check", false, "No controller block", Map.of("multiblockId", type.id().toString()));
+            return finalizeReport(context, AssemblyReport.fail("no_controller_block", Map.of("multiblockId", type.id().toString()), trace.getTrace()), null);
         }
         AssemblyContext safeContext = ensureContext(context);
         List<MultiblockCandidate> candidates = List.of(new MultiblockCandidate(type, controller, resolveTriggerId(type), false));
@@ -233,7 +233,7 @@ public final class AssemblyCoordinator {
             }
             pipelineContext.resetForCandidate(candidate);
             trace.add("candidate_select", true, "Evaluating candidate", Map.of(
-                    "multiblockId", candidate.type().id(),
+                    "multiblockId", candidate.type().id().toString(),
                     "trigger", candidate.triggerId()
             ));
             for (AssemblyStep step : pipelineSteps) {

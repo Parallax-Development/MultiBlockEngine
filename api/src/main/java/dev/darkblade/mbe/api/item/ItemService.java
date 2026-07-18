@@ -5,5 +5,7 @@ public interface ItemService {
     ItemRegistry registry();
 
     ItemFactory factory();
+
+    ItemModifierRegistry<org.bukkit.command.CommandSender> modifiers();
 }
 

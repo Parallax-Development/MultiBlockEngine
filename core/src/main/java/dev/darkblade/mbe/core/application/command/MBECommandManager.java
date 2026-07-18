@@ -6,13 +6,23 @@ import org.incendo.cloud.execution.ExecutionCoordinator;
 import org.incendo.cloud.paper.LegacyPaperCommandManager;
 import org.incendo.cloud.SenderMapper;
 
-public class MBECommandManager extends LegacyPaperCommandManager<CommandSender> {
+public class MBECommandManager extends LegacyPaperCommandManager<MBESender> {
+
+    private final org.incendo.cloud.annotations.AnnotationParser<MBESender> annotationParser;
 
     public MBECommandManager(Plugin owningPlugin) {
         super(
                 owningPlugin,
                 ExecutionCoordinator.simpleCoordinator(),
-                SenderMapper.identity()
+                SenderMapper.create(
+                        MBESender::new,
+                        MBESender::getSender
+                )
+        );
+
+        this.annotationParser = new org.incendo.cloud.annotations.AnnotationParser<>(
+                this,
+                MBESender.class
         );
 
         if (this.hasCapability(org.incendo.cloud.bukkit.CloudBukkitCapabilities.NATIVE_BRIGADIER)) {
@@ -22,5 +32,7 @@ public class MBECommandManager extends LegacyPaperCommandManager<CommandSender> 
         }
     }
     
-    // Future expansion: we can add helper methods here if needed
+    public void registerCommandClass(Object instance) {
+        this.annotationParser.parse(instance);
+    }
 }
