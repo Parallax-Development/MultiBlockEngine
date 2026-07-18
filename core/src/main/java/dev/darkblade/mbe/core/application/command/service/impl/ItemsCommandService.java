@@ -1,7 +1,7 @@
 package dev.darkblade.mbe.core.application.command.service.impl;
 
 import dev.darkblade.mbe.core.MultiBlockEngine;
-import dev.darkblade.mbe.api.command.MbeCommandService;
+
 import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.MessageKey;
 import dev.darkblade.mbe.api.item.ItemDefinition;
@@ -26,7 +26,11 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
-public final class ItemsCommandService implements MbeCommandService {
+import org.incendo.cloud.annotations.Argument;
+import org.incendo.cloud.annotations.Command;
+import org.incendo.cloud.annotations.Permission;
+
+public final class ItemsCommandService {
     private static final String ORIGIN = "mbe";
     private static final MessageKey MSG_INFO_TITLE = MessageKey.of(ORIGIN, "services.items.info.title");
     private static final MessageKey MSG_INFO_DESCRIPTION = MessageKey.of(ORIGIN, "services.items.info.description");
@@ -69,36 +73,12 @@ public final class ItemsCommandService implements MbeCommandService {
         this.messageService = plugin.getAddonLifecycleService().getCoreService(PlayerMessageService.class);
     }
 
-    @Override
-    public String id() {
-        return "items";
-    }
 
-    @Override
-    public String description() {
-        return "Consulta y diagnóstico del registro de items";
-    }
 
-    @Override
-    public List<String> infoUsage() {
-        return List.of(
-                "/mbe services call items info",
-                "/mbe services call items info <list|get|exists>"
-        );
-    }
-
-    @Override
-    public List<String> executeUsage() {
-        return List.of(
-                "/mbe services call items execute list [filtro]",
-                "/mbe services call items execute get <namespace:key> [version]",
-                "/mbe services call items execute exists <namespace:key> [version]",
-                "/mbe services call items execute give <namespace:key> [version] [cantidad]"
-        );
-    }
-
-    @Override
-    public void info(CommandSender sender, List<String> args) {
+    @Command("mbe dev services items info")
+    @Permission("multiblockengine.admin.services")
+    public void info(dev.darkblade.mbe.core.application.command.MBESender mbeSender) {
+        CommandSender sender = mbeSender.getSender();
         send(sender, MSG_INFO_TITLE);
         send(sender, MSG_INFO_DESCRIPTION);
         send(sender, MSG_USAGE_LIST);
@@ -115,81 +95,26 @@ public final class ItemsCommandService implements MbeCommandService {
         send(sender, MSG_REGISTERED, Map.of("count", total));
     }
 
-    @Override
-    public void execute(CommandSender sender, List<String> args) {
+    @org.incendo.cloud.annotations.suggestion.Suggestions("itemKeys")
+    public List<String> suggestItemKeys(org.incendo.cloud.context.CommandContext<dev.darkblade.mbe.core.application.command.MBESender> context, String input) {
         if (itemService == null) {
-            send(sender, MSG_ITEM_SERVICE_UNAVAILABLE);
-            return;
-        }
-
-        if (args == null || args.isEmpty()) {
-            send(sender, MSG_MISSING_SUBACTION);
-            send(sender, MSG_USAGE_LIST);
-            send(sender, MSG_USAGE_GET);
-            send(sender, MSG_USAGE_EXISTS);
-            send(sender, MSG_USAGE_GIVE);
-            return;
-        }
-
-        String sub = args.get(0).toLowerCase(Locale.ROOT);
-        switch (sub) {
-            case "list" -> executeList(sender, args.size() >= 2 ? args.get(1) : "");
-            case "get" -> executeGet(sender, args);
-            case "exists" -> executeExists(sender, args);
-            case "give" -> executeGive(sender, args);
-            default -> {
-                send(sender, MSG_INVALID_SUBACTION, Map.of("sub", sub));
-                send(sender, MSG_USAGE_LIST);
-                send(sender, MSG_USAGE_GET);
-                send(sender, MSG_USAGE_EXISTS);
-                send(sender, MSG_USAGE_GIVE);
-            }
-        }
-    }
-
-    @Override
-    public List<String> tabComplete(CommandSender sender, String mode, List<String> args) {
-        String m = mode == null ? "" : mode.toLowerCase(Locale.ROOT);
-        if (!m.equals("execute")) {
             return List.of();
         }
-
-        if (args == null) {
-            return List.of();
-        }
-
-        if (args.size() <= 1) {
-            return List.of("list", "get", "exists", "give");
-        }
-
-        String sub = args.get(0).toLowerCase(Locale.ROOT);
-        if ((sub.equals("get") || sub.equals("exists") || sub.equals("give")) && args.size() == 2) {
-            if (itemService == null) {
-                return List.of();
+        List<String> keys = new ArrayList<>();
+        for (ItemDefinition def : itemService.registry().all()) {
+            ItemKey k = def == null ? null : def.key();
+            if (k != null) {
+                keys.add(k.id().toString());
             }
-
-            List<String> keys = new ArrayList<>();
-            for (ItemDefinition def : itemService.registry().all()) {
-                ItemKey k = def == null ? null : def.key();
-                if (k != null) {
-                    keys.add(k.id().toString());
-                }
-                if (keys.size() >= 100) {
-                    break;
-                }
-            }
-            keys.sort(String::compareToIgnoreCase);
-            return List.copyOf(keys);
         }
-
-        if (sub.equals("give") && args.size() == 4) {
-            return List.of("1", "64");
-        }
-
-        return List.of();
+        keys.sort(String::compareToIgnoreCase);
+        return keys;
     }
 
-    private void executeList(CommandSender sender, String filter) {
+    @Command("mbe dev services items list [filter]")
+    @Permission("multiblockengine.admin.services")
+    public void executeList(dev.darkblade.mbe.core.application.command.MBESender mbeSender, @Argument("filter") String filter) {
+        CommandSender sender = mbeSender.getSender();
         String f = filter == null ? "" : filter.toLowerCase(Locale.ROOT);
         List<ItemDefinition> defs = new ArrayList<>(itemService.registry().all());
         defs.sort(Comparator.comparing(d -> d.key().id().toString()));
@@ -214,13 +139,11 @@ public final class ItemsCommandService implements MbeCommandService {
         send(sender, MSG_LIST_SUMMARY, Map.of("matched", matched, "shown", shown));
     }
 
-    private void executeGet(CommandSender sender, List<String> args) {
-        if (args.size() < 2) {
-            send(sender, MSG_USAGE_GET);
-            return;
-        }
-
-        ParsedKey parsed = parseKey(args.get(1), args.size() >= 3 ? args.get(2) : null);
+    @Command("mbe dev services items get <key> [version]")
+    @Permission("multiblockengine.admin.services")
+    public void executeGet(dev.darkblade.mbe.core.application.command.MBESender mbeSender, @Argument(value = "key", suggestions = "itemKeys") String key, @Argument("version") String version) {
+        CommandSender sender = mbeSender.getSender();
+        ParsedKey parsed = parseKey(key, version);
         if (!parsed.ok) {
             send(sender, MSG_INVALID_KEY);
             return;
@@ -238,13 +161,11 @@ public final class ItemsCommandService implements MbeCommandService {
         send(sender, MSG_GET_PROPERTIES, Map.of("count", props == null ? 0 : props.size()));
     }
 
-    private void executeExists(CommandSender sender, List<String> args) {
-        if (args.size() < 2) {
-            send(sender, MSG_USAGE_EXISTS);
-            return;
-        }
-
-        ParsedKey parsed = parseKey(args.get(1), args.size() >= 3 ? args.get(2) : null);
+    @Command("mbe dev services items exists <key> [version]")
+    @Permission("multiblockengine.admin.services")
+    public void executeExists(dev.darkblade.mbe.core.application.command.MBESender mbeSender, @Argument(value = "key", suggestions = "itemKeys") String key, @Argument("version") String version) {
+        CommandSender sender = mbeSender.getSender();
+        ParsedKey parsed = parseKey(key, version);
         if (!parsed.ok) {
             send(sender, MSG_INVALID_KEY);
             return;
@@ -254,7 +175,10 @@ public final class ItemsCommandService implements MbeCommandService {
         send(sender, exists ? MSG_EXISTS_OK : MSG_EXISTS_NO);
     }
 
-    private void executeGive(CommandSender sender, List<String> args) {
+    @Command("mbe dev services items give <key> [version] [amount]")
+    @Permission("multiblockengine.admin.services")
+    public void executeGive(dev.darkblade.mbe.core.application.command.MBESender mbeSender, @Argument(value = "key", suggestions = "itemKeys") String key, @Argument("version") String version, @Argument("amount") Integer amountArg) {
+        CommandSender sender = mbeSender.getSender();
         if (!(sender instanceof Player player)) {
             send(sender, MSG_PLAYERS_ONLY);
             return;
@@ -265,12 +189,7 @@ public final class ItemsCommandService implements MbeCommandService {
             return;
         }
 
-        if (args.size() < 2) {
-            send(player, MSG_USAGE_GIVE);
-            return;
-        }
-
-        ParsedKey parsed = parseKey(args.get(1), args.size() >= 3 ? args.get(2) : null);
+        ParsedKey parsed = parseKey(key, version);
         if (!parsed.ok) {
             send(player, MSG_INVALID_KEY);
             return;
@@ -281,15 +200,7 @@ public final class ItemsCommandService implements MbeCommandService {
             return;
         }
 
-        int amount = 1;
-        if (args.size() >= 4) {
-            try {
-                amount = Integer.parseInt(args.get(3));
-            } catch (NumberFormatException ex) {
-                send(player, MSG_INVALID_AMOUNT);
-                return;
-            }
-        }
+        int amount = amountArg != null ? amountArg : 1;
         if (amount <= 0) {
             send(player, MSG_AMOUNT_POSITIVE);
             return;

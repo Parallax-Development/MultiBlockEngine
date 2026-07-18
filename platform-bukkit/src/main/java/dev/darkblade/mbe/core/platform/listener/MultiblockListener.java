@@ -213,63 +213,7 @@ public class MultiblockListener implements Listener {
         toolRegistry = plugin.getAddonLifecycleService().getCoreService(ToolRegistry.class);
         return toolRegistry;
     }
-
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onBlockBreak(BlockBreakEvent event) {
-        Block block = event.getBlock();
-        Optional<MultiblockInstance> instanceOpt = manager.getInstanceAt(block.getLocation());
-        if (instanceOpt.isPresent()) {
-            MultiblockInstance instance = instanceOpt.get();
-
-            dev.darkblade.mbe.api.platform.MBEPlayer mbePlayer = platformService != null ? platformService.wrap(event.getPlayer(), dev.darkblade.mbe.api.platform.MBEPlayer.class) : null;
-            MultiblockBreakEvent mbEvent = new MultiblockBreakEvent(instance, mbePlayer);
-            eventCaller.accept(mbEvent);
-            if (mbEvent.isCancelled()) {
-                event.setCancelled(true);
-                return;
-            }
-
-            for (dev.darkblade.mbe.core.domain.action.Action action : instance.type().onBreakActions()) {
-                executeActionSafely("BREAK", action, instance, null);
-            }
-            unregisterLimit(instance, event.getPlayer());
-            manager.destroyInstance(instance);
-            sendDisassembledMessage(event.getPlayer(), instance);
-        }
-    }
-
-    private void sendDisassembledMessage(Player player, MultiblockInstance instance) {
-        if (player == null || instance == null || instance.type() == null) {
-            return;
-        }
-        String typeId = instance.type().id() == null ? "" : instance.type().id().toString();
-        PlayerMessageService messageService = resolveMessageService();
-        if (messageService != null) {
-            messageService.send(player, new PlayerMessage(
-                    MSG_DISASSEMBLED,
-                    MessageChannel.CHAT,
-                    MessagePriority.NORMAL,
-                    Map.of("type", typeId)));
-            return;
-        }
-        I18nService service = resolveI18n();
-        if (service != null) {
-            service.send(player, MSG_DISASSEMBLED, Map.of("type", typeId));
-        }
-    }
-
-    private I18nService resolveI18n() {
-        if (i18n != null) {
-            return i18n;
-        }
-        MultiBlockEngine plugin = MultiBlockEngine.getInstance();
-        if (plugin == null || plugin.getAddonLifecycleService() == null) {
-            return null;
-        }
-        return plugin.getAddonLifecycleService().getCoreService(I18nService.class);
-    }
-
-    private void sendAssemblyFailureMessage(Player player, AssemblyReport report) {
+    private void sendAssemblyFailureMessage(Player player, dev.darkblade.mbe.api.assembly.AssemblyReport report) {
         if (player == null || report == null || report.reasonKey() == null || report.reasonKey().isBlank()) {
             return;
         }
@@ -296,45 +240,6 @@ public class MultiblockListener implements Listener {
         }
         return plugin.getAddonLifecycleService().getCoreService(PlayerMessageService.class);
     }
-
-    private void unregisterLimit(MultiblockInstance instance, Player player) {
-        if (instance == null || instance.type() == null) {
-            return;
-        }
-        MultiblockLimitService limitService = resolveLimitService();
-        if (limitService == null) {
-            return;
-        }
-        UUID ownerId = resolveOwnerId(instance, player);
-        if (ownerId == null) {
-            return;
-        }
-        limitService.unregisterAssembly(ownerId, instance.type().id().toString());
-    }
-
-    private MultiblockLimitService resolveLimitService() {
-        MultiBlockEngine plugin = MultiBlockEngine.getInstance();
-        if (plugin == null || plugin.getAddonLifecycleService() == null) {
-            return null;
-        }
-        return plugin.getAddonLifecycleService().getCoreService(MultiblockLimitService.class);
-    }
-
-    private UUID resolveOwnerId(MultiblockInstance instance, Player player) {
-        if (player != null) {
-            return player.getUniqueId();
-        }
-        Object owner = instance.getVariable("owner_uuid");
-        if (owner == null) {
-            return null;
-        }
-        try {
-            return UUID.fromString(String.valueOf(owner));
-        } catch (Throwable ignored) {
-            return null;
-        }
-    }
-
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {

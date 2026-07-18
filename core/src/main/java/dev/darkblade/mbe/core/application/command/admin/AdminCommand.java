@@ -123,7 +123,7 @@ public class AdminCommand {
     @Permission("multiblockengine.report")
     public void handleReport(
             dev.darkblade.mbe.core.application.command.MBESender mbeSender,
-            @Argument("target") String targetName,
+            @Argument("target") Player targetArg,
             @Flag("console") boolean console
     ) {
         CommandSender sender = mbeSender.getSender();
@@ -133,12 +133,8 @@ public class AdminCommand {
         }
 
         Player target;
-        if (targetName != null && !targetName.isBlank()) {
-            target = org.bukkit.Bukkit.getPlayer(targetName);
-            if (target == null) {
-                sendMessage(sender, MSG_REPORT_PLAYER_NOT_FOUND, MessageUtils.params("player", targetName));
-                return;
-            }
+        if (targetArg != null) {
+            target = targetArg;
         } else if (sender instanceof Player p) {
             target = p;
         } else {

@@ -67,7 +67,7 @@ public class StructureCommand {
     @Permission("multiblockengine.inspect")
     public void inspect(
             dev.darkblade.mbe.core.application.command.MBESender mbeSender,
-            @Argument("level") @Default("player") String levelStr
+            @Argument("level") @Default("player") InspectionLevel level
     ) {
         if (!mbeSender.isPlayer()) return;
         Player player = mbeSender.getPlayer();
@@ -87,16 +87,7 @@ public class StructureCommand {
 
         MultiblockInstance instance = instanceOpt.get();
 
-        InspectionLevel requestedLevel = InspectionLevel.PLAYER;
-        if (levelStr != null && !levelStr.isBlank()) {
-            requestedLevel = switch (levelStr.toLowerCase(java.util.Locale.ROOT)) {
-                case "player" -> InspectionLevel.PLAYER;
-                case "operator", "op", "admin" -> InspectionLevel.OPERATOR;
-                case "debug" -> InspectionLevel.DEBUG;
-                case "internal" -> InspectionLevel.INTERNAL;
-                default -> InspectionLevel.PLAYER;
-            };
-        }
+        InspectionLevel requestedLevel = level != null ? level : InspectionLevel.PLAYER;
 
         if (requestedLevel == InspectionLevel.OPERATOR && !player.hasPermission("multiblockengine.inspect.operator")) {
             requestedLevel = InspectionLevel.PLAYER;

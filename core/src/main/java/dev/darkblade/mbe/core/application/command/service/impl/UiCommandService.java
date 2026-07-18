@@ -1,6 +1,6 @@
 package dev.darkblade.mbe.core.application.command.service.impl;
 
-import dev.darkblade.mbe.api.command.MbeCommandService;
+
 import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.MessageKey;
 import dev.darkblade.mbe.api.message.MessageChannel;
@@ -20,7 +20,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
-public final class UiCommandService implements MbeCommandService {
+import org.incendo.cloud.annotations.Argument;
+import org.incendo.cloud.annotations.Command;
+import org.incendo.cloud.annotations.Permission;
+
+public final class UiCommandService {
     private static final String ORIGIN = "mbe";
     private static final MessageKey MSG_INFO_TITLE = MessageKey.of(ORIGIN, "services.ui_bindings.info.title");
     private static final MessageKey MSG_INFO_DESCRIPTION = MessageKey.of(ORIGIN, "services.ui_bindings.info.description");
@@ -60,78 +64,22 @@ public final class UiCommandService implements MbeCommandService {
         this.messageService = plugin.getAddonLifecycleService().getCoreService(PlayerMessageService.class);
     }
 
-    @Override
-    public String id() {
-        return "ui-bindings";
-    }
 
-    @Override
-    public String description() {
-        return "Binding between UI and controllers of multiblocks";
-    }
 
-    @Override
-    public List<String> infoUsage() {
-        return List.of("/mbe services call ui-bindings info");
-    }
-
-    @Override
-    public List<String> executeUsage() {
-        return List.of(
-                "/mbe services call ui-bindings execute link <panelId>",
-                "/mbe services call ui-bindings execute cancel",
-                "/mbe services call ui-bindings execute list"
-        );
-    }
-
-    @Override
-    public void info(CommandSender sender, List<String> args) {
+    @Command("mbe dev services ui info")
+    @Permission("multiblockengine.admin.services")
+    public void info(dev.darkblade.mbe.core.application.command.MBESender mbeSender) {
+        CommandSender sender = mbeSender.getSender();
         send(sender, MSG_INFO_TITLE);
         send(sender, MSG_INFO_DESCRIPTION);
         send(sender, MSG_INFO_PANEL_SERVICE, java.util.Map.of("status", panelViewService != null ? "available" : "unavailable"));
         send(sender, MSG_INFO_BINDINGS_COUNT, java.util.Map.of("count", bindings == null ? 0 : bindings.all().size()));
     }
 
-    @Override
-    public void execute(CommandSender sender, List<String> args) {
-        if (args == null || args.isEmpty()) {
-            send(sender, MSG_USAGE_LINK);
-            send(sender, MSG_USAGE_CANCEL);
-            send(sender, MSG_USAGE_LIST);
-            return;
-        }
-        String action = args.get(0).toLowerCase(Locale.ROOT);
-        if (action.equals("link")) {
-            executeLink(sender, args);
-            return;
-        }
-        if (action.equals("cancel")) {
-            executeCancel(sender);
-            return;
-        }
-        if (action.equals("list")) {
-            executeList(sender);
-            return;
-        }
-        send(sender, MSG_ERROR_UNKNOWN_SUBCOMMAND, java.util.Map.of("action", action));
-    }
-
-    @Override
-    public List<String> tabComplete(CommandSender sender, String mode, List<String> args) {
-        if (!"execute".equalsIgnoreCase(mode)) {
-            return List.of();
-        }
-        if (args == null || args.isEmpty()) {
-            return List.of("link", "cancel", "list");
-        }
-        if (args.size() == 1) {
-            String typed = args.get(0).toLowerCase(Locale.ROOT);
-            return List.of("link", "cancel", "list").stream().filter(v -> v.startsWith(typed)).toList();
-        }
-        return List.of();
-    }
-
-    private void executeLink(CommandSender sender, List<String> args) {
+    @Command("mbe dev services ui link <panelId>")
+    @Permission("multiblockengine.admin.services")
+    public void executeLink(dev.darkblade.mbe.core.application.command.MBESender mbeSender, @Argument(value = "panelId", suggestions = "panelIds") String panelId) {
+        CommandSender sender = mbeSender.getSender();
         if (!(sender instanceof Player player)) {
             send(sender, MSG_ERROR_PLAYER_ONLY_LINK);
             return;
@@ -140,15 +88,10 @@ public final class UiCommandService implements MbeCommandService {
             send(sender, MSG_ERROR_SERVICES_UNAVAILABLE);
             return;
         }
-        if (args.size() < 2) {
-            send(sender, MSG_USAGE_LINK);
-            return;
-        }
         if (panelViewService == null) {
             send(sender, MSG_ERROR_PANEL_SERVICE_UNAVAILABLE);
             return;
         }
-        String panelId = args.get(1);
         try {
             if (panelViewService.getPanel(panelId).isEmpty()) {
                 send(sender, MSG_ERROR_PANEL_NOT_FOUND, java.util.Map.of("panel", panelId));
@@ -164,7 +107,10 @@ public final class UiCommandService implements MbeCommandService {
         send(sender, MSG_LINK_CANCEL_HINT);
     }
 
-    private void executeCancel(CommandSender sender) {
+    @Command("mbe dev services ui cancel")
+    @Permission("multiblockengine.admin.services")
+    public void executeCancel(dev.darkblade.mbe.core.application.command.MBESender mbeSender) {
+        CommandSender sender = mbeSender.getSender();
         if (!(sender instanceof Player player)) {
             send(sender, MSG_ERROR_PLAYER_ONLY_CANCEL);
             return;
@@ -176,7 +122,10 @@ public final class UiCommandService implements MbeCommandService {
         sessions.cancelSession(player.getUniqueId());
     }
 
-    private void executeList(CommandSender sender) {
+    @Command("mbe dev services ui list")
+    @Permission("multiblockengine.admin.services")
+    public void executeList(dev.darkblade.mbe.core.application.command.MBESender mbeSender) {
+        CommandSender sender = mbeSender.getSender();
         if (bindings == null) {
             send(sender, MSG_ERROR_BINDING_UNAVAILABLE);
             return;

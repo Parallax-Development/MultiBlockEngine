@@ -2,7 +2,7 @@ package dev.darkblade.mbe.core.application.command.service.impl;
 
 import dev.darkblade.mbe.api.assembly.AssemblyContext;
 import dev.darkblade.mbe.api.assembly.AssemblyReport;
-import dev.darkblade.mbe.api.command.MbeCommandService;
+
 import dev.darkblade.mbe.api.event.MultiblockBreakEvent;
 import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.MessageKey;
@@ -28,7 +28,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
-public final class AssemblyCommandService implements MbeCommandService {
+import org.incendo.cloud.annotations.Command;
+import org.incendo.cloud.annotations.Permission;
+
+public final class AssemblyCommandService {
     private static final MessageKey MSG_UNKNOWN_SUBCOMMAND = CoreMessageKeys.COMMAND_UNKNOWN_SUBCOMMAND;
 
     private final AssemblyCoordinator assembly;
@@ -49,69 +52,27 @@ public final class AssemblyCommandService implements MbeCommandService {
         this.eventBus = plugin.getAddonLifecycleService().getCoreService(EventBusService.class);
     }
 
-    @Override
-    public String id() {
-        return "assembly";
+
+
+    @Command("mbe dev services assembly info")
+    @Permission("multiblockengine.admin.services")
+    public void info(dev.darkblade.mbe.core.application.command.MBESender mbeSender) {
+        CommandSender sender = mbeSender.getSender();
+        send(sender, MessageKey.of("mbe", "/mbe services call assembly execute assemble"));
+        send(sender, MessageKey.of("mbe", "/mbe services call assembly execute disassemble"));
     }
 
-    @Override
-    public List<String> aliases() {
-        return List.of("assemble", "disassemble");
-    }
 
-    @Override
-    public String description() {
-        return "Assembly and disassembly operations";
-    }
 
-    @Override
-    public List<String> infoUsage() {
-        return List.of("/mbe services call assembly info");
-    }
-
-    @Override
-    public List<String> executeUsage() {
-        return List.of(
-                "/mbe services call assembly execute assemble",
-                "/mbe services call assembly execute disassemble"
-        );
-    }
-
-    @Override
-    public void info(CommandSender sender, List<String> args) {
-        for (String line : executeUsage()) {
-            send(sender, MessageKey.of("mbe", line));
-        }
-    }
-
-    @Override
-    public void execute(CommandSender sender, List<String> args) {
+    @Command("mbe dev services assembly assemble")
+    @Permission("multiblockengine.admin.services")
+    public void cmdAssemble(dev.darkblade.mbe.core.application.command.MBESender mbeSender) {
+        CommandSender sender = mbeSender.getSender();
         if (!(sender instanceof Player player)) {
             send(sender, CoreMessageKeys.COMMAND_PLAYER_ONLY);
             return;
         }
-        String action = args == null || args.isEmpty() || args.get(0) == null ? "assemble" : args.get(0).trim().toLowerCase(Locale.ROOT);
-        if ("assemble".equals(action) || "form".equals(action)) {
-            executeAssemble(player);
-            return;
-        }
-        if ("disassemble".equals(action) || "break".equals(action)) {
-            executeDisassemble(player);
-            return;
-        }
-        send(sender, MSG_UNKNOWN_SUBCOMMAND);
-    }
-
-    @Override
-    public List<String> tabComplete(CommandSender sender, String mode, List<String> args) {
-        if (!"execute".equalsIgnoreCase(mode)) {
-            return List.of();
-        }
-        if (args == null || args.size() <= 1) {
-            String input = args == null || args.isEmpty() || args.get(0) == null ? "" : args.get(0).toLowerCase(Locale.ROOT);
-            return List.of("assemble", "disassemble").stream().filter(v -> v.startsWith(input)).toList();
-        }
-        return List.of();
+        executeAssemble(player);
     }
 
     public void executeAssemble(Player player) {
@@ -169,6 +130,17 @@ public final class AssemblyCommandService implements MbeCommandService {
         send(player, CoreMessageKeys.ASSEMBLE_FAILED, Map.of("reason", reason));
     }
 
+    @Command("mbe dev services assembly disassemble")
+    @Permission("multiblockengine.admin.services")
+    public void cmdDisassemble(dev.darkblade.mbe.core.application.command.MBESender mbeSender) {
+        CommandSender sender = mbeSender.getSender();
+        if (!(sender instanceof Player player)) {
+            send(sender, CoreMessageKeys.COMMAND_PLAYER_ONLY);
+            return;
+        }
+        executeDisassemble(player);
+    }
+
     public void executeDisassemble(Player player) {
         if (manager == null) {
             log.error("Disassemble command failed: manager unavailable", LogKv.kv("player", player.getName()));
@@ -214,7 +186,7 @@ public final class AssemblyCommandService implements MbeCommandService {
         }
         MultiblockLimitService limitService = resolveLimitService();
         if (limitService != null) {
-            limitService.unregisterAssembly(player.getUniqueId(), instance.type().id().toString());
+            limitService.unregisterAssembly(player, instance.type().id().toString());
         }
         manager.destroyInstance(instance);
         log.info("Disassemble command succeeded", LogKv.kv("player", player.getName()), LogKv.kv("multiblock", instance.type().id().toString()));

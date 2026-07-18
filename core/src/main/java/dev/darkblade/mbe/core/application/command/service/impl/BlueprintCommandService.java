@@ -1,7 +1,7 @@
 package dev.darkblade.mbe.core.application.command.service.impl;
 
 import dev.darkblade.mbe.api.blueprint.BlueprintService;
-import dev.darkblade.mbe.api.command.MbeCommandService;
+
 import dev.darkblade.mbe.api.i18n.I18nService;
 import dev.darkblade.mbe.api.i18n.MessageKey;
 import dev.darkblade.mbe.api.message.MessageChannel;
@@ -15,7 +15,10 @@ import org.bukkit.entity.Player;
 import java.util.List;
 import java.util.Objects;
 
-public final class BlueprintCommandService implements MbeCommandService {
+import org.incendo.cloud.annotations.Command;
+import org.incendo.cloud.annotations.Permission;
+
+public final class BlueprintCommandService {
     private static final String ORIGIN = "mbe";
     private static final MessageKey MSG_SERVICE_UNAVAILABLE = MessageKey.of(ORIGIN, "services.blueprint.error.service_unavailable");
     private static final MessageKey MSG_INFO_EXECUTE_CATALOG = MessageKey.of(ORIGIN, "services.blueprint.info.execute_catalog");
@@ -45,61 +48,24 @@ public final class BlueprintCommandService implements MbeCommandService {
         blueprintService.openCatalog(player);
     }
 
-    @Override
-    public String id() {
-        return "blueprint";
-    }
 
-    @Override
-    public String description() {
-        return "Operaciones de catálogo de blueprints";
-    }
 
-    @Override
-    public List<String> infoUsage() {
-        return List.of("/mbe services call blueprint info");
-    }
-
-    @Override
-    public List<String> executeUsage() {
-        return List.of("/mbe services call blueprint execute catalog");
-    }
-
-    @Override
-    public void info(CommandSender sender, List<String> args) {
+    @Command("mbe dev services blueprint info")
+    @Permission("multiblockengine.admin.services")
+    public void info(dev.darkblade.mbe.core.application.command.MBESender mbeSender) {
+        CommandSender sender = mbeSender.getSender();
         send(sender, MSG_INFO_EXECUTE_CATALOG);
     }
 
-    @Override
-    public void execute(CommandSender sender, List<String> args) {
+    @Command("mbe dev services blueprint catalog")
+    @Permission("multiblockengine.admin.services")
+    public void executeCatalog(dev.darkblade.mbe.core.application.command.MBESender mbeSender) {
+        CommandSender sender = mbeSender.getSender();
         if (!(sender instanceof Player player)) {
             send(sender, MSG_PLAYER_ONLY);
             return;
         }
-        if (args == null || args.isEmpty()) {
-            send(sender, MSG_USAGE_CATALOG);
-            return;
-        }
-        String op = args.get(0) == null ? "" : args.get(0).trim().toLowerCase(java.util.Locale.ROOT);
-        if (!"catalog".equals(op)) {
-            send(sender, MSG_INVALID_SUBCOMMAND);
-            return;
-        }
         openCatalog(player);
-    }
-
-    @Override
-    public List<String> tabComplete(CommandSender sender, String mode, List<String> args) {
-        if ("info".equalsIgnoreCase(mode)) {
-            return List.of();
-        }
-        if (args == null || args.size() <= 1) {
-            String input = args == null || args.isEmpty() || args.get(0) == null ? "" : args.get(0).toLowerCase(java.util.Locale.ROOT);
-            if ("catalog".startsWith(input)) {
-                return List.of("catalog");
-            }
-        }
-        return List.of();
     }
 
     private void send(CommandSender sender, MessageKey key) {

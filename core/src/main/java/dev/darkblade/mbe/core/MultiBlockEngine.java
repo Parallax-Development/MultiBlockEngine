@@ -485,6 +485,11 @@ public class MultiBlockEngine extends JavaPlugin {
         dev.darkblade.mbe.core.application.command.dev.DeveloperCommand devCommand = new dev.darkblade.mbe.core.application.command.dev.DeveloperCommand(this, playerMessageService, debugManager);
         commandManager.registerCommandClass(devCommand);
 
+        commandManager.registerCommandClass(new dev.darkblade.mbe.core.application.command.service.impl.UiCommandService(this));
+        commandManager.registerCommandClass(new dev.darkblade.mbe.core.application.command.service.impl.ItemsCommandService(this));
+        commandManager.registerCommandClass(new dev.darkblade.mbe.core.application.command.service.impl.BlueprintCommandService(this));
+        commandManager.registerCommandClass(new dev.darkblade.mbe.core.application.command.service.impl.AssemblyCommandService(this));
+
         ((DefaultToolActionRegistry) toolActionRegistry)
                 .register(new AssembleAction(assemblyCoordinator, playerMessageService));
         ((DefaultToolActionRegistry) toolActionRegistry).register(new DisassembleAction(manager, playerMessageService));

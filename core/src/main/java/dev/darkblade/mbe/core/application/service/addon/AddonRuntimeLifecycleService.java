@@ -26,7 +26,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.util.concurrent.ConcurrentHashMap;
 
-import dev.darkblade.mbe.api.command.MbeCommandService;
+
 
 import java.io.File;
 import java.io.InputStream;
@@ -430,8 +430,7 @@ public class AddonRuntimeLifecycleService {
         for (ExposedService svc : services) {
             try {
                 BukkitServiceBridge.unexpose(svc.api(), svc.provider());
-                ComponentKind kind = MbeCommandService.class.isAssignableFrom(svc.api()) ? ComponentKind.COMMAND_SERVICE
-                        : ComponentKind.SERVICE;
+                ComponentKind kind = ComponentKind.SERVICE;
                 publishComponentAvailability(addonId, svc.api().getName(), kind, ComponentChangeType.REMOVED);
             } catch (Throwable t) {
                 log.logInternal(new LogScope.Addon(addonId, facade.addonVersion(addonId)), LogPhase.SERVICE_REGISTER,
