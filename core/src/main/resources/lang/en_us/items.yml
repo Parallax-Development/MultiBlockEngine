@@ -1,19 +1,23 @@
 core:
   items:
     wrench:
-      display_name: "Wrench"
+      display_name: "&5&lWrench"
       lore:
+        mode: "&7Current mode: &6{mode}"
         execute: "&eRight-click: &aExecute mode action"
         change_mode: "&eShift + Right-click: &bChange mode"
         disassemble: "&eLeft-click: &cDisassemble multiblock"
     wire_cutter:
-      display_name: "Wire Cutter"
+      display_name: "&5&lWire Cutter"
       lore:
+        mode: "&7Current mode: &6{mode}"
         execute: "&eRight-click: &aExecute mode action"
         change_mode: "&eShift + Right-click: &bChange mode"
     blueprint:
-      display_name: "Blueprint"
+      display_name: "&5&lBlueprint"
       lore:
-        hold: "&bHold: &fDynamic preview"
+        blueprint: "&7Blueprint for: &6{multiblock_display_name}"
+        construction: "&7Construction progress: &b{count}/{total}"
+        hold: "&eHold: &fDynamic preview"
         right_click: "&aRight-click on the ground: &fConfirm position"
         left_click: "&cLeft-click: &fCancel guide"

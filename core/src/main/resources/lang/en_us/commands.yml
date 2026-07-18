@@ -36,6 +36,11 @@ commands:
     creation_cancelled: "&cThe multiblock creation was cancelled."
     no_multiblock_matched: "&eNo multiblock matched at this location."
     unknown_subcommand: "Unknown subcommand. Use /mbe to see help."
+    invalid_argument: "&cInvalid argument: {message}"
+    item_creation_failed: "&cFailed to create item."
+    console_needs_player: "&cYou must specify a player when running this from console."
+  item:
+    given: "&aItem {id} given to {player}."
   admin:
     usage: "Usage: /{label} admin <reload|export|services|<service>>"
   debug:

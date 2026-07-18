@@ -8,11 +8,18 @@ import org.incendo.cloud.SenderMapper;
 
 public class MBECommandManager extends LegacyPaperCommandManager<CommandSender> {
 
+    private final org.incendo.cloud.annotations.AnnotationParser<CommandSender> annotationParser;
+
     public MBECommandManager(Plugin owningPlugin) {
         super(
                 owningPlugin,
                 ExecutionCoordinator.simpleCoordinator(),
                 SenderMapper.identity()
+        );
+
+        this.annotationParser = new org.incendo.cloud.annotations.AnnotationParser<>(
+                this,
+                CommandSender.class
         );
 
         if (this.hasCapability(org.incendo.cloud.bukkit.CloudBukkitCapabilities.NATIVE_BRIGADIER)) {
@@ -22,5 +29,7 @@ public class MBECommandManager extends LegacyPaperCommandManager<CommandSender> 
         }
     }
     
-    // Future expansion: we can add helper methods here if needed
+    public void registerCommandClass(Object instance) {
+        this.annotationParser.parse(instance);
+    }
 }

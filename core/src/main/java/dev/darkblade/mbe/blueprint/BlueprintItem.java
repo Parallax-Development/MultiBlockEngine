@@ -16,7 +16,7 @@ import java.util.Map;
 
 public final class BlueprintItem {
     public static final ItemKey BLUEPRINT_KEY = ItemKeys.of("mbe:blueprint", 0);
-    public static final String DATA_STRUCTURE_ID = "structureId";
+    public static final String DATA_STRUCTURE_ID = "mbe:multiblock";
 
     private BlueprintItem() {
     }

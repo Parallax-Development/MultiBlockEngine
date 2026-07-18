@@ -18,6 +18,7 @@ public final class DefaultItemService implements ItemService {
 
     private final DefaultItemRegistry registry = new DefaultItemRegistry();
     private final DefaultItemFactory factory = new DefaultItemFactory(registry);
+    private final dev.darkblade.mbe.api.item.ItemModifierRegistry<org.bukkit.command.CommandSender> modifiers = new dev.darkblade.mbe.core.internal.item.ItemModifierRegistryImpl<>();
 
     @Override
     public ItemRegistry registry() {
@@ -27,6 +28,11 @@ public final class DefaultItemService implements ItemService {
     @Override
     public ItemFactory factory() {
         return factory;
+    }
+
+    @Override
+    public dev.darkblade.mbe.api.item.ItemModifierRegistry<org.bukkit.command.CommandSender> modifiers() {
+        return modifiers;
     }
 
     private static final class DefaultItemRegistry implements ItemRegistry {

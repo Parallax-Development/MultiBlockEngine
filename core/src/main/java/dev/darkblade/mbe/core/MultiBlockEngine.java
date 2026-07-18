@@ -259,6 +259,7 @@ public class MultiBlockEngine extends JavaPlugin {
         saveResourceIfNotExists("inventories.yml");
         saveResourceIfNotExists("items.yml");
         saveResourceIfNotExists("limits.yml");
+        ensureDefaultLangFiles();
 
         loggingManager = new LoggingService(this);
         CoreLogger log = loggingManager.core();
@@ -454,8 +455,35 @@ public class MultiBlockEngine extends JavaPlugin {
                 io.leangen.geantyref.TypeToken.get(dev.darkblade.mbe.core.domain.MultiblockType.class),
                 parserParameters -> new dev.darkblade.mbe.core.application.command.parser.MultiblockTypeParser<>(manager)
         );
+        dev.darkblade.mbe.core.application.command.parser.ItemRequestParser<org.bukkit.command.CommandSender> itemRequestParser = new dev.darkblade.mbe.core.application.command.parser.ItemRequestParser<>(itemService);
+        commandManager.parserRegistry().registerParserSupplier(
+                io.leangen.geantyref.TypeToken.get(dev.darkblade.mbe.api.item.ItemRequest.class),
+                parserParameters -> itemRequestParser
+        );
+        commandManager.parserRegistry().registerSuggestionProvider(
+                "itemRequest",
+                itemRequestParser
+        );
+
+        dev.darkblade.mbe.core.application.command.item.ItemCommand itemCmd = new dev.darkblade.mbe.core.application.command.item.ItemCommand(
+                this,
+                itemService,
+                itemStackBridge,
+                playerMessageService
+        );
+        commandManager.registerCommandClass(itemCmd);
+
+        itemService.modifiers().register(
+                dev.darkblade.mbe.api.persistence.item.NamespacedKey.of("mbe", "blueprint"),
+                new dev.darkblade.mbe.core.internal.item.modifier.BlueprintMultiblockModifier(manager)
+        );
+
         addonManager.registerCoreService(dev.darkblade.mbe.core.application.command.MBECommandManager.class, commandManager);
-        new dev.darkblade.mbe.core.application.command.debug.DebugCommand(commandManager, manager, debugManager, playerMessageService).register();
+        dev.darkblade.mbe.core.application.command.admin.AdminCommand adminCommand = new dev.darkblade.mbe.core.application.command.admin.AdminCommand(this, playerMessageService);
+        commandManager.registerCommandClass(adminCommand);
+
+        dev.darkblade.mbe.core.application.command.dev.DeveloperCommand devCommand = new dev.darkblade.mbe.core.application.command.dev.DeveloperCommand(this, playerMessageService, debugManager);
+        commandManager.registerCommandClass(devCommand);
 
         ((DefaultToolActionRegistry) toolActionRegistry)
                 .register(new AssembleAction(assemblyCoordinator, playerMessageService));
@@ -480,28 +508,28 @@ public class MultiBlockEngine extends JavaPlugin {
         addonManager.registerCoreService(StructureCatalogService.class, structureCatalogService);
         
         dev.darkblade.mbe.core.application.command.service.impl.BlueprintCommandService blueprintCommandService = new dev.darkblade.mbe.core.application.command.service.impl.BlueprintCommandService(this);
-        new dev.darkblade.mbe.core.application.command.blueprint.BlueprintCommand(
+        dev.darkblade.mbe.core.application.command.blueprint.BlueprintCommand blueprintCmd = new dev.darkblade.mbe.core.application.command.blueprint.BlueprintCommand(
                 commandManager,
                 blueprintCommandService,
                 structureCatalogService,
                 addonManager.getCoreService(dev.darkblade.mbe.api.item.ItemService.class),
                 itemStackBridge,
                 playerMessageService
-        ).register();
+        );
+        commandManager.registerCommandClass(blueprintCmd);
 
-        new dev.darkblade.mbe.core.application.command.export.ExportCommand(
+        dev.darkblade.mbe.core.application.command.export.ExportCommand exportCmd = new dev.darkblade.mbe.core.application.command.export.ExportCommand(
                 commandManager,
                 exportSelections,
                 structureExporter,
                 playerMessageService,
                 getDataFolder().toPath().resolve("exports")
-        ).register();
+        );
+        commandManager.registerCommandClass(exportCmd);
 
-        new dev.darkblade.mbe.core.application.command.misc.MiscCommand(
-                this,
-                commandManager,
-                playerMessageService
-        ).register();
+        dev.darkblade.mbe.core.application.command.service.impl.AssemblyCommandService assemblyCommandService = new dev.darkblade.mbe.core.application.command.service.impl.AssemblyCommandService(this);
+        dev.darkblade.mbe.core.application.command.structure.StructureCommand structureCmd = new dev.darkblade.mbe.core.application.command.structure.StructureCommand(this, playerMessageService, assemblyCommandService);
+        commandManager.registerCommandClass(structureCmd);
         
         BuildContextService buildContextService = new InMemoryBuildContextService();
         addonManager.registerCoreService(BuildContextService.class, buildContextService);
@@ -575,7 +603,6 @@ public class MultiBlockEngine extends JavaPlugin {
 
         addonManager.loadAddons();
 
-        ensureDefaultLangFiles();
         ensureDefaultMultiblockFiles();
         i18n.reload();
         File multiblockDir = new File(getDataFolder(), "multiblocks");
