@@ -25,7 +25,7 @@ dependencies {
     api "org.incendo:cloud-paper:2.0.0-beta.17"
     api "org.incendo:cloud-annotations:2.0.0"
     api "io.leangen.geantyref:geantyref:2.0.1"
-    api "com.github.retrooper:packetevents-spigot:2.13.0"
+    compileOnlyApi "com.github.retrooper:packetevents-api:2.12.2"
 }
 
 def targetJavaVersion = 21
