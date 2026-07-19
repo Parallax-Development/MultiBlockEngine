@@ -64,6 +64,24 @@ public class ItemCommand {
         give(sender, itemString, targetArg);
     }
 
+    @Command("mbe item list")
+    @Permission("multiblockengine.item.list")
+    public void list(dev.darkblade.mbe.core.application.command.MBESender mbeSender) {
+        CommandSender sender = mbeSender.getSender();
+        java.util.List<String> ids = new java.util.ArrayList<>();
+        for (dev.darkblade.mbe.api.item.ItemDefinition def : itemService.registry().all()) {
+            if (def != null && def.key() != null) {
+                ids.add(def.key().id().toString());
+            }
+        }
+        if (ids.isEmpty()) {
+            sendMessage(sender, dev.darkblade.mbe.api.i18n.MessageKey.of("mbe", "commands.item.none"), Map.of());
+            return;
+        }
+        java.util.Collections.sort(ids);
+        sendMessage(sender, dev.darkblade.mbe.api.i18n.MessageKey.of("mbe", "commands.item.available_items"), dev.darkblade.mbe.api.i18n.MessageUtils.params("ids", String.join(", ", ids)));
+    }
+
     private void give(CommandSender sender, String itemString, Player targetArg) {
         Player receiver = targetArg;
         if (receiver == null) {

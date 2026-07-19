@@ -54,7 +54,7 @@ public final class AssemblyCommandService {
 
 
 
-    @Command("mbe dev services assembly info")
+    @Command("mbe dev debug assembly info")
     @Permission("multiblockengine.admin.services")
     public void info(dev.darkblade.mbe.core.application.command.MBESender mbeSender) {
         CommandSender sender = mbeSender.getSender();
@@ -64,7 +64,7 @@ public final class AssemblyCommandService {
 
 
 
-    @Command("mbe dev services assembly assemble")
+    @Command("mbe dev debug assembly assemble")
     @Permission("multiblockengine.admin.services")
     public void cmdAssemble(dev.darkblade.mbe.core.application.command.MBESender mbeSender) {
         CommandSender sender = mbeSender.getSender();
@@ -130,7 +130,7 @@ public final class AssemblyCommandService {
         send(player, CoreMessageKeys.ASSEMBLE_FAILED, Map.of("reason", reason));
     }
 
-    @Command("mbe dev services assembly disassemble")
+    @Command("mbe dev debug assembly disassemble")
     @Permission("multiblockengine.admin.services")
     public void cmdDisassemble(dev.darkblade.mbe.core.application.command.MBESender mbeSender) {
         CommandSender sender = mbeSender.getSender();

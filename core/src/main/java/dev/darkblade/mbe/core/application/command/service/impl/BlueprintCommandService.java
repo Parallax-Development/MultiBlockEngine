@@ -50,14 +50,14 @@ public final class BlueprintCommandService {
 
 
 
-    @Command("mbe dev services blueprint info")
+    @Command("mbe dev debug blueprint info")
     @Permission("multiblockengine.admin.services")
     public void info(dev.darkblade.mbe.core.application.command.MBESender mbeSender) {
         CommandSender sender = mbeSender.getSender();
         send(sender, MSG_INFO_EXECUTE_CATALOG);
     }
 
-    @Command("mbe dev services blueprint catalog")
+    @Command("mbe dev debug blueprint catalog")
     @Permission("multiblockengine.admin.services")
     public void executeCatalog(dev.darkblade.mbe.core.application.command.MBESender mbeSender) {
         CommandSender sender = mbeSender.getSender();

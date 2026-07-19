@@ -66,7 +66,7 @@ public final class UiCommandService {
 
 
 
-    @Command("mbe dev services ui info")
+    @Command("mbe dev debug ui info")
     @Permission("multiblockengine.admin.services")
     public void info(dev.darkblade.mbe.core.application.command.MBESender mbeSender) {
         CommandSender sender = mbeSender.getSender();
@@ -76,7 +76,7 @@ public final class UiCommandService {
         send(sender, MSG_INFO_BINDINGS_COUNT, java.util.Map.of("count", bindings == null ? 0 : bindings.all().size()));
     }
 
-    @Command("mbe dev services ui link <panelId>")
+    @Command("mbe dev debug ui link <panelId>")
     @Permission("multiblockengine.admin.services")
     public void executeLink(dev.darkblade.mbe.core.application.command.MBESender mbeSender, @Argument(value = "panelId", suggestions = "panelIds") String panelId) {
         CommandSender sender = mbeSender.getSender();
@@ -107,7 +107,7 @@ public final class UiCommandService {
         send(sender, MSG_LINK_CANCEL_HINT);
     }
 
-    @Command("mbe dev services ui cancel")
+    @Command("mbe dev debug ui cancel")
     @Permission("multiblockengine.admin.services")
     public void executeCancel(dev.darkblade.mbe.core.application.command.MBESender mbeSender) {
         CommandSender sender = mbeSender.getSender();
@@ -122,7 +122,7 @@ public final class UiCommandService {
         sessions.cancelSession(player.getUniqueId());
     }
 
-    @Command("mbe dev services ui list")
+    @Command("mbe dev debug ui list")
     @Permission("multiblockengine.admin.services")
     public void executeList(dev.darkblade.mbe.core.application.command.MBESender mbeSender) {
         CommandSender sender = mbeSender.getSender();

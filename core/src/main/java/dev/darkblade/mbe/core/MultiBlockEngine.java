@@ -478,9 +478,15 @@ public class MultiBlockEngine extends JavaPlugin {
                 new dev.darkblade.mbe.core.internal.item.modifier.BlueprintMultiblockModifier(manager)
         );
 
-        addonManager.registerCoreService(dev.darkblade.mbe.core.application.command.MBECommandManager.class, commandManager);
+        addonManager.registerCoreService(dev.darkblade.mbe.api.command.CommandRegistrationService.class, commandManager);
         dev.darkblade.mbe.core.application.command.admin.AdminCommand adminCommand = new dev.darkblade.mbe.core.application.command.admin.AdminCommand(this, playerMessageService);
         commandManager.registerCommandClass(adminCommand);
+
+        dev.darkblade.mbe.core.application.command.misc.MiscCommand miscCommand = new dev.darkblade.mbe.core.application.command.misc.MiscCommand(this, commandManager, playerMessageService);
+        commandManager.registerCommandClass(miscCommand);
+        
+        dev.darkblade.mbe.core.application.command.misc.HelpCommand helpCommand = new dev.darkblade.mbe.core.application.command.misc.HelpCommand();
+        commandManager.registerCommandClass(helpCommand);
 
         dev.darkblade.mbe.core.application.command.dev.DeveloperCommand devCommand = new dev.darkblade.mbe.core.application.command.dev.DeveloperCommand(this, playerMessageService, debugManager);
         commandManager.registerCommandClass(devCommand);
@@ -514,7 +520,6 @@ public class MultiBlockEngine extends JavaPlugin {
         
         dev.darkblade.mbe.core.application.command.service.impl.BlueprintCommandService blueprintCommandService = new dev.darkblade.mbe.core.application.command.service.impl.BlueprintCommandService(this);
         dev.darkblade.mbe.core.application.command.blueprint.BlueprintCommand blueprintCmd = new dev.darkblade.mbe.core.application.command.blueprint.BlueprintCommand(
-                commandManager,
                 blueprintCommandService,
                 structureCatalogService,
                 addonManager.getCoreService(dev.darkblade.mbe.api.item.ItemService.class),
@@ -524,7 +529,6 @@ public class MultiBlockEngine extends JavaPlugin {
         commandManager.registerCommandClass(blueprintCmd);
 
         dev.darkblade.mbe.core.application.command.export.ExportCommand exportCmd = new dev.darkblade.mbe.core.application.command.export.ExportCommand(
-                commandManager,
                 exportSelections,
                 structureExporter,
                 playerMessageService,

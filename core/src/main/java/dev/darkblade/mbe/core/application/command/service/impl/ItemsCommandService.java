@@ -75,7 +75,7 @@ public final class ItemsCommandService {
 
 
 
-    @Command("mbe dev services items info")
+    @Command("mbe dev debug items info")
     @Permission("multiblockengine.admin.services")
     public void info(dev.darkblade.mbe.core.application.command.MBESender mbeSender) {
         CommandSender sender = mbeSender.getSender();
@@ -111,7 +111,7 @@ public final class ItemsCommandService {
         return keys;
     }
 
-    @Command("mbe dev services items list [filter]")
+    @Command("mbe dev debug items list [filter]")
     @Permission("multiblockengine.admin.services")
     public void executeList(dev.darkblade.mbe.core.application.command.MBESender mbeSender, @Argument("filter") String filter) {
         CommandSender sender = mbeSender.getSender();
@@ -139,7 +139,7 @@ public final class ItemsCommandService {
         send(sender, MSG_LIST_SUMMARY, Map.of("matched", matched, "shown", shown));
     }
 
-    @Command("mbe dev services items get <key> [version]")
+    @Command("mbe dev debug items get <key> [version]")
     @Permission("multiblockengine.admin.services")
     public void executeGet(dev.darkblade.mbe.core.application.command.MBESender mbeSender, @Argument(value = "key", suggestions = "itemKeys") String key, @Argument("version") String version) {
         CommandSender sender = mbeSender.getSender();
@@ -161,7 +161,7 @@ public final class ItemsCommandService {
         send(sender, MSG_GET_PROPERTIES, Map.of("count", props == null ? 0 : props.size()));
     }
 
-    @Command("mbe dev services items exists <key> [version]")
+    @Command("mbe dev debug items exists <key> [version]")
     @Permission("multiblockengine.admin.services")
     public void executeExists(dev.darkblade.mbe.core.application.command.MBESender mbeSender, @Argument(value = "key", suggestions = "itemKeys") String key, @Argument("version") String version) {
         CommandSender sender = mbeSender.getSender();
@@ -175,7 +175,7 @@ public final class ItemsCommandService {
         send(sender, exists ? MSG_EXISTS_OK : MSG_EXISTS_NO);
     }
 
-    @Command("mbe dev services items give <key> [version] [amount]")
+    @Command("mbe dev debug items give <key> [version] [amount]")
     @Permission("multiblockengine.admin.services")
     public void executeGive(dev.darkblade.mbe.core.application.command.MBESender mbeSender, @Argument(value = "key", suggestions = "itemKeys") String key, @Argument("version") String version, @Argument("amount") Integer amountArg) {
         CommandSender sender = mbeSender.getSender();
