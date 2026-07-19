@@ -395,6 +395,8 @@ public class MultiBlockEngine extends JavaPlugin {
         IOService ioService = new DefaultIOService(persistence);
         IOTickService ioTickService = new DefaultIOTickService(ioService);
         NetworkService networkService = new DefaultNetworkService(Bukkit.getPluginManager()::callEvent);
+        dev.darkblade.mbe.api.packet.PacketService packetService = new dev.darkblade.mbe.core.packet.CorePacketService();
+        addonManager.registerCoreService(dev.darkblade.mbe.api.packet.PacketService.class, packetService);
         ToolRegistry toolRegistry = new DefaultToolRegistry();
         ToolModeRegistry toolModeRegistry = new DefaultToolModeRegistry();
         ToolActionRegistry toolActionRegistry = new DefaultToolActionRegistry();
