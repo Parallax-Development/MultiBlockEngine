@@ -112,6 +112,11 @@ public class AddonLifecycleService {
         runtimeService.disableAddons();
     }
 
+    public void reloadAddons() {
+        runtimeService.reloadAddons();
+    }
+
+
     public AddonState getState(String addonId) {
         if (AddonRegistry.CORE_PROVIDER_ID.equals(addonId)) {
             return AddonState.ENABLED;

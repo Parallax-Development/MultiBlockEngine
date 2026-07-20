@@ -222,6 +222,19 @@ public class AddonRuntimeLifecycleService {
         serviceLifecycleManager.clear();
     }
 
+    public void reloadAddons() {
+        for (String id : registry.enableOrder) {
+            LoadedAddon loaded = registry.loadedAddons.get(id);
+            if (loaded == null) continue;
+            try {
+                loaded.addon().onReload();
+            } catch (Throwable t) {
+                log.logInternal(new LogScope.Addon(id, loaded.metadata().version().toString()), LogPhase.RUNTIME, LogLevel.WARN, "Unhandled exception during onReload", t, null, java.util.Set.of());
+            }
+        }
+    }
+
+
     public void loadAddon(DiscoveredAddon discovered) throws IOException {
         AddonMetadata metadata = discovered.metadata();
         String addonId = metadata.id();

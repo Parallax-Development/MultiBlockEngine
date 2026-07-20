@@ -7,4 +7,5 @@ public interface MultiblockAddon {
     void onLoad(AddonContext context) throws AddonException;
     void onEnable() throws AddonException;
     void onDisable();
+    default void onReload() throws AddonException {}
 }

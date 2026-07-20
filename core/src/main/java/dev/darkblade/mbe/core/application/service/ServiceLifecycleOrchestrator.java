@@ -181,6 +181,30 @@ public final class ServiceLifecycleOrchestrator {
         servicesByAddon.remove(owner);
     }
 
+    public void reloadServices(String addonId) {
+        String owner = normalizeAddonId(addonId);
+        for (MBEService service : servicesOf(owner)) {
+            try {
+                service.onReload();
+                log.logInternal(scope(owner), LogPhase.RUNTIME, LogLevel.DEBUG, "Service reloaded", null, new LogKv[] {
+                    LogKv.kv("addonId", owner),
+                    LogKv.kv("serviceId", service.getServiceId())
+                }, Set.of());
+            } catch (Throwable t) {
+                log.logInternal(scope(owner), LogPhase.RUNTIME, LogLevel.WARN, "Service onReload failed", t, new LogKv[] {
+                    LogKv.kv("addonId", owner),
+                    LogKv.kv("serviceId", service.getServiceId())
+                }, Set.of());
+            }
+        }
+    }
+
+    public void reloadAllServices() {
+        for (String addonId : getServiceIdsByAddon().keySet()) {
+            reloadServices(addonId);
+        }
+    }
+
     private void startTickServiceIfPresent(String addonId) {
         for (TickService tickService : registry.resolveAll(TickService.class)) {
             try {

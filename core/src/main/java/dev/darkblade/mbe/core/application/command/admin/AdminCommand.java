@@ -114,7 +114,12 @@ public class AdminCommand {
 
         plugin.getManager().reloadTypesWithSources(newTypes, sources);
         plugin.getManager().getMetrics().setEnabled(plugin.getConfig().getBoolean("metrics", true));
+
+        plugin.getAddonLifecycleService().reloadAddons();
+        plugin.getAddonLifecycleService().getServiceLifecycleOrchestrator().reloadAllServices();
+        org.bukkit.Bukkit.getPluginManager().callEvent(new dev.darkblade.mbe.api.event.plugin.MbeReloadEvent());
         
+
         sendMessage(sender, MSG_RELOAD_DONE_TYPES, MessageUtils.params("count", newTypes.size()));
         sendMessage(sender, MSG_RELOAD_DONE_RESTART, Map.of());
     }
