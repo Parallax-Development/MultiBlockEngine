@@ -84,7 +84,7 @@ public class DefaultMultiblockLifecycleService implements MultiblockLifecycleSer
         UUID ownerId = resolveOwnerId(instance, actor);
         if (ownerId == null) return;
 
-        limitService.unregisterAssembly(ownerId, instance.type().id());
+        limitService.unregisterAssembly(ownerId, instance.type().id().toString());
     }
 
     private UUID resolveOwnerId(MultiblockInstance instance, @Nullable MBEPlayer actor) {
@@ -103,7 +103,7 @@ public class DefaultMultiblockLifecycleService implements MultiblockLifecycleSer
     private void sendDisassembledMessage(@Nullable MBEPlayer actor, MultiblockInstance instance) {
         if (actor == null || instance == null || instance.type() == null) return;
 
-        String typeId = instance.type().id() == null ? "" : instance.type().id();
+        String typeId = instance.type().id() == null ? "" : instance.type().id().toString();
         Player bukkitPlayer = Bukkit.getPlayer(actor.getUniqueId());
         if (bukkitPlayer == null) return;
 

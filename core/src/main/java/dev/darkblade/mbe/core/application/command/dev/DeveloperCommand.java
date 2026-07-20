@@ -8,8 +8,8 @@ import dev.darkblade.mbe.api.message.MessagePriority;
 import dev.darkblade.mbe.api.message.PlayerMessage;
 import dev.darkblade.mbe.api.message.PlayerMessageService;
 import dev.darkblade.mbe.core.MultiBlockEngine;
-import dev.darkblade.mbe.core.application.command.addon.AddonsCommandRouter;
-import dev.darkblade.mbe.core.application.command.service.ServicesCommandRouter;
+
+
 import dev.darkblade.mbe.core.application.command.service.impl.AssemblyCommandService;
 import dev.darkblade.mbe.core.application.command.service.impl.BlueprintCommandService;
 import dev.darkblade.mbe.core.application.command.service.impl.ItemsCommandService;
@@ -36,45 +36,88 @@ public class DeveloperCommand {
     private final MultiBlockEngine plugin;
     private final PlayerMessageService messageService;
     private final DebugSessionService debugSessionService;
-    
-    private final AddonsCommandRouter addonsRouter;
-    private final ServicesCommandRouter servicesRouter;
 
     public DeveloperCommand(MultiBlockEngine plugin, PlayerMessageService messageService, DebugSessionService debugSessionService) {
         this.plugin = plugin;
         this.messageService = messageService;
         this.debugSessionService = debugSessionService;
-        
-        this.addonsRouter = new AddonsCommandRouter(plugin);
-        this.servicesRouter = new ServicesCommandRouter(plugin, plugin.getAddonLifecycleService().getCoreService(dev.darkblade.mbe.api.event.EventBusService.class));
-        
-        this.servicesRouter.registerInternal(new UiCommandService(plugin));
-        this.servicesRouter.registerInternal(new ItemsCommandService(plugin));
-        this.servicesRouter.registerInternal(new BlueprintCommandService(plugin));
-        this.servicesRouter.registerInternal(new AssemblyCommandService(plugin));
     }
 
-    @Command("mbe dev addons [args]")
+    @Command("mbe dev addons list")
     @Permission("multiblockengine.admin.addons")
-    public void addons(
+    public void addonsList(dev.darkblade.mbe.core.application.command.MBESender mbeSender) {
+        CommandSender sender = mbeSender.getSender();
+        List<dev.darkblade.mbe.core.application.service.addon.domain.AddonInfo> addons = plugin.getAddonLifecycleService().getAddonInfoList();
+        if (addons.isEmpty()) {
+            sendMessage(sender, MessageKey.of(ORIGIN, "addons.router.list.none"), Map.of());
+            return;
+        }
+        sendMessage(sender, MessageKey.of(ORIGIN, "addons.router.list.title"), Map.of("count", addons.size()));
+        for (dev.darkblade.mbe.core.application.service.addon.domain.AddonInfo info : addons) {
+            sendMessage(sender, MessageKey.of(ORIGIN, "addons.router.list.entry"), Map.of(
+                    "id", info.id(),
+                    "version", info.version() == null ? "" : info.version(),
+                    "state", coloredState(info.state())
+            ));
+        }
+    }
+
+    @org.incendo.cloud.annotations.suggestion.Suggestions("addonIds")
+    public List<String> suggestAddonIds(org.incendo.cloud.context.CommandContext<dev.darkblade.mbe.core.application.command.MBESender> context, String input) {
+        return plugin.getAddonLifecycleService().getAddonInfoList().stream()
+                .map(dev.darkblade.mbe.core.application.service.addon.domain.AddonInfo::id)
+                .toList();
+    }
+
+    @Command("mbe dev addons status <addonId>")
+    @Permission("multiblockengine.admin.addons")
+    public void addonsStatus(
             dev.darkblade.mbe.core.application.command.MBESender mbeSender,
-            @Argument("args") @Greedy String argsStr
+            @Argument(value = "addonId", suggestions = "addonIds") String addonId
     ) {
         CommandSender sender = mbeSender.getSender();
-        String[] rawArgs = (argsStr == null || argsStr.isEmpty()) ? new String[]{"addons"} : ("addons " + argsStr).split(" ");
-        addonsRouter.handle(sender, "mbe", rawArgs);
+        java.util.Optional<dev.darkblade.mbe.core.application.service.addon.domain.AddonInfo> opt = plugin.getAddonLifecycleService().getAddonInfo(addonId);
+        if (opt.isEmpty()) {
+            sendMessage(sender, MessageKey.of(ORIGIN, "addons.router.status.not_found"), Map.of("id", addonId));
+            return;
+        }
+        dev.darkblade.mbe.core.application.service.addon.domain.AddonInfo info = opt.get();
+        sendMessage(sender, MessageKey.of(ORIGIN, "addons.router.status.title"), Map.of("id", info.id()));
+        sendMessage(sender, MessageKey.of(ORIGIN, "addons.router.status.version"), Map.of("version", info.version() == null ? "" : info.version()));
+        sendMessage(sender, MessageKey.of(ORIGIN, "addons.router.status.state"), Map.of("state", coloredState(info.state())));
+        String deps = info.dependencies().isEmpty() ? "none" : String.join(", ", info.dependencies());
+        sendMessage(sender, MessageKey.of(ORIGIN, "addons.router.status.dependencies"), Map.of("deps", deps));
+        if (info.serviceIds().isEmpty()) {
+            sendMessage(sender, MessageKey.of(ORIGIN, "addons.router.status.no_services"), Map.of());
+        } else {
+            sendMessage(sender, MessageKey.of(ORIGIN, "addons.router.status.services_title"), Map.of("count", info.serviceIds().size()));
+            for (String svc : info.serviceIds()) {
+                sendMessage(sender, MessageKey.of(ORIGIN, "addons.router.status.service_entry"), Map.of("serviceId", svc));
+            }
+        }
+    }
+
+    private static String coloredState(dev.darkblade.mbe.core.application.service.addon.domain.AddonState state) {
+        if (state == null) {
+            return "&7UNKNOWN";
+        }
+        return switch (state) {
+            case ENABLED -> "&a" + state.name();
+            case FAILED -> "&c" + state.name();
+            case DISABLED -> "&e" + state.name();
+            case LOADED -> "&7" + state.name();
+            case DISCOVERED -> "&7" + state.name();
+        };
     }
 
 
-    @Command("mbe dev services [args]")
-    @Permission("multiblockengine.admin.services")
-    public void services(
-            dev.darkblade.mbe.core.application.command.MBESender mbeSender,
-            @Argument("args") @Greedy String argsStr
-    ) {
-        CommandSender sender = mbeSender.getSender();
-        String[] rawArgs = (argsStr == null || argsStr.isEmpty()) ? new String[]{"services"} : ("services " + argsStr).split(" ");
-        servicesRouter.handle(sender, "mbe", rawArgs);
+
+
+    @org.incendo.cloud.annotations.suggestion.Suggestions("panelIds")
+    public List<String> suggestPanelIds(org.incendo.cloud.context.CommandContext<dev.darkblade.mbe.core.application.command.MBESender> context, String input) {
+        dev.darkblade.mbe.api.ui.PanelViewService panelViewService = plugin.getAddonLifecycleService().getCoreService(dev.darkblade.mbe.api.ui.PanelViewService.class);
+        if (panelViewService == null) return List.of();
+        return panelViewService.getRegisteredPanelIds();
     }
 
     @Command("mbe dev ui panels")

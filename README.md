@@ -7,6 +7,7 @@
 [![PaperMC](https://img.shields.io/badge/PaperMC-1.19.4%20|%201.21.x-lightgrey.svg)](https://papermc.io/)
 [![Architecture](https://img.shields.io/badge/Architecture-Service%20Oriented-blue)](#)
 [![License](https://img.shields.io/badge/License-MBE--L-green.svg)](https://github.com/Parallax-Development/MultiBlockEngine/blob/main/LICENSE)
+[![CodeFactor](https://www.codefactor.io/repository/github/parallax-development/multiblockengine/badge)](https://www.codefactor.io/repository/github/parallax-development/multiblockengine)
 
 </div>
 

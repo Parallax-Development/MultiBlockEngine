@@ -137,36 +137,7 @@ public class MiscCommand {
                 .handler(context -> handleUi(context.sender().getSender()))
         );
 
-        // Addons wrapper
-        dev.darkblade.mbe.core.application.command.addon.AddonsCommandRouter addons = new dev.darkblade.mbe.core.application.command.addon.AddonsCommandRouter(plugin);
-        manager.command(builder.literal("addons")
-                .permission("multiblockengine.admin.addons")
-                .optional("args", StringParser.greedyStringParser())
-                .handler(context -> {
-                    CommandSender sender = context.sender().getSender();
-                    String argsStr = context.getOrDefault("args", "");
-                    String[] rawArgs = argsStr.isEmpty() ? new String[]{"addons"} : ("addons " + argsStr).split(" ");
-                    addons.handle(sender, "mbe", rawArgs);
-                })
-        );
 
-        // Services wrapper
-        dev.darkblade.mbe.core.application.command.service.ServicesCommandRouter services = new dev.darkblade.mbe.core.application.command.service.ServicesCommandRouter(plugin, plugin.getAddonLifecycleService().getCoreService(dev.darkblade.mbe.api.event.EventBusService.class));
-        services.registerInternal(new dev.darkblade.mbe.core.application.command.service.impl.UiCommandService(plugin));
-        services.registerInternal(new dev.darkblade.mbe.core.application.command.service.impl.ItemsCommandService(plugin));
-        services.registerInternal(new dev.darkblade.mbe.core.application.command.service.impl.BlueprintCommandService(plugin));
-        services.registerInternal(new dev.darkblade.mbe.core.application.command.service.impl.AssemblyCommandService(plugin));
-
-        manager.command(builder.literal("services")
-                .permission("multiblockengine.admin.services")
-                .optional("args", StringParser.greedyStringParser())
-                .handler(context -> {
-                    CommandSender sender = context.sender().getSender();
-                    String argsStr = context.getOrDefault("args", "");
-                    String[] rawArgs = argsStr.isEmpty() ? new String[]{"services"} : ("services " + argsStr).split(" ");
-                    services.handle(sender, "mbe", rawArgs);
-                })
-        );
 
         manager.command(builder.literal("inspect")
                 .permission("multiblockengine.inspect")

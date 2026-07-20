@@ -395,6 +395,8 @@ public class MultiBlockEngine extends JavaPlugin {
         IOService ioService = new DefaultIOService(persistence);
         IOTickService ioTickService = new DefaultIOTickService(ioService);
         NetworkService networkService = new DefaultNetworkService(Bukkit.getPluginManager()::callEvent);
+        dev.darkblade.mbe.api.packet.PacketService packetService = new dev.darkblade.mbe.core.packet.CorePacketService();
+        addonManager.registerCoreService(dev.darkblade.mbe.api.packet.PacketService.class, packetService);
         ToolRegistry toolRegistry = new DefaultToolRegistry();
         ToolModeRegistry toolModeRegistry = new DefaultToolModeRegistry();
         ToolActionRegistry toolActionRegistry = new DefaultToolActionRegistry();
@@ -478,19 +480,30 @@ public class MultiBlockEngine extends JavaPlugin {
                 new dev.darkblade.mbe.core.internal.item.modifier.BlueprintMultiblockModifier(manager)
         );
 
-        addonManager.registerCoreService(dev.darkblade.mbe.core.application.command.MBECommandManager.class, commandManager);
+        addonManager.registerCoreService(dev.darkblade.mbe.api.command.CommandRegistrationService.class, commandManager);
         dev.darkblade.mbe.core.application.command.admin.AdminCommand adminCommand = new dev.darkblade.mbe.core.application.command.admin.AdminCommand(this, playerMessageService);
         commandManager.registerCommandClass(adminCommand);
 
+        dev.darkblade.mbe.core.application.command.misc.MiscCommand miscCommand = new dev.darkblade.mbe.core.application.command.misc.MiscCommand(this, commandManager, playerMessageService);
+        commandManager.registerCommandClass(miscCommand);
+        
+        dev.darkblade.mbe.core.application.command.misc.HelpCommand helpCommand = new dev.darkblade.mbe.core.application.command.misc.HelpCommand();
+        commandManager.registerCommandClass(helpCommand);
+
         dev.darkblade.mbe.core.application.command.dev.DeveloperCommand devCommand = new dev.darkblade.mbe.core.application.command.dev.DeveloperCommand(this, playerMessageService, debugManager);
         commandManager.registerCommandClass(devCommand);
+
+        commandManager.registerCommandClass(new dev.darkblade.mbe.core.application.command.service.impl.UiCommandService(this));
+        commandManager.registerCommandClass(new dev.darkblade.mbe.core.application.command.service.impl.ItemsCommandService(this));
+        commandManager.registerCommandClass(new dev.darkblade.mbe.core.application.command.service.impl.BlueprintCommandService(this));
+        commandManager.registerCommandClass(new dev.darkblade.mbe.core.application.command.service.impl.AssemblyCommandService(this));
 
         ((DefaultToolActionRegistry) toolActionRegistry)
                 .register(new AssembleAction(assemblyCoordinator, playerMessageService));
         ((DefaultToolActionRegistry) toolActionRegistry).register(new DisassembleAction(manager, playerMessageService));
         ((DefaultToolActionRegistry) toolActionRegistry).register(new InspectAction(manager, playerMessageService));
         ((DefaultToolActionRegistry) toolActionRegistry)
-                .register(new SwitchModeAction(toolStateResolver, toolRegistry, playerMessageService));
+                .register(new SwitchModeAction(toolStateResolver, toolRegistry, playerMessageService, i18n));
 
         DisplayEntityRenderer displayRenderer = createDisplayRenderer();
         PreviewSettings previewSettings = new PreviewSettings(
@@ -509,7 +522,6 @@ public class MultiBlockEngine extends JavaPlugin {
         
         dev.darkblade.mbe.core.application.command.service.impl.BlueprintCommandService blueprintCommandService = new dev.darkblade.mbe.core.application.command.service.impl.BlueprintCommandService(this);
         dev.darkblade.mbe.core.application.command.blueprint.BlueprintCommand blueprintCmd = new dev.darkblade.mbe.core.application.command.blueprint.BlueprintCommand(
-                commandManager,
                 blueprintCommandService,
                 structureCatalogService,
                 addonManager.getCoreService(dev.darkblade.mbe.api.item.ItemService.class),
@@ -519,7 +531,6 @@ public class MultiBlockEngine extends JavaPlugin {
         commandManager.registerCommandClass(blueprintCmd);
 
         dev.darkblade.mbe.core.application.command.export.ExportCommand exportCmd = new dev.darkblade.mbe.core.application.command.export.ExportCommand(
-                commandManager,
                 exportSelections,
                 structureExporter,
                 playerMessageService,
@@ -578,6 +589,7 @@ public class MultiBlockEngine extends JavaPlugin {
         interactionRouter.setPanelViewService(panelViewService);
         InteractionPipelineService pipelineService = new DefaultInteractionPipelineService(assemblyCoordinator, null,
                 interactionRouter, itemStackBridge, manager, platformService, eventBus);
+        pipelineService.registerHandler(new dev.darkblade.mbe.core.application.service.tool.ToolInteractionHandler(toolDispatcher));
         addonManager.registerCoreService(InteractionPipelineService.class, pipelineService);
 
         dev.darkblade.mbe.api.service.lifecycle.MultiblockLifecycleService lifecycleService = 

@@ -13,6 +13,8 @@ repositories {
         name = "sonatype"
         url = "https://oss.sonatype.org/content/groups/public/"
     }
+    maven { url 'https://repo.codemc.io/repository/maven-releases/' }
+    maven { url 'https://repo.codemc.io/repository/maven-snapshots/' }
 }
 
 dependencies {
@@ -23,6 +25,7 @@ dependencies {
     api "org.incendo:cloud-paper:2.0.0-beta.17"
     api "org.incendo:cloud-annotations:2.0.0"
     api "io.leangen.geantyref:geantyref:2.0.1"
+    compileOnlyApi "com.github.retrooper:packetevents-api:2.12.2"
 }
 
 def targetJavaVersion = 21

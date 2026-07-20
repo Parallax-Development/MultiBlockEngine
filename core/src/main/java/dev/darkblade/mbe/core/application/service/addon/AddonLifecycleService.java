@@ -5,7 +5,7 @@ import dev.darkblade.mbe.api.MultiblockAPI;
 import dev.darkblade.mbe.api.addon.AddonException;
 import dev.darkblade.mbe.core.application.service.addon.domain.AddonInfo;
 import dev.darkblade.mbe.api.service.MBEService;
-import dev.darkblade.mbe.api.command.MbeCommandService;
+
 import dev.darkblade.mbe.api.event.ComponentChangeType;
 import dev.darkblade.mbe.api.event.ComponentKind;
 import dev.darkblade.mbe.api.logging.CoreLogger;
@@ -112,6 +112,11 @@ public class AddonLifecycleService {
         runtimeService.disableAddons();
     }
 
+    public void reloadAddons() {
+        runtimeService.reloadAddons();
+    }
+
+
     public AddonState getState(String addonId) {
         if (AddonRegistry.CORE_PROVIDER_ID.equals(addonId)) {
             return AddonState.ENABLED;
@@ -162,7 +167,7 @@ public class AddonLifecycleService {
         runtimeService.publishComponentAvailability(
                 AddonRegistry.CORE_PROVIDER_ID,
                 service.getServiceId(),
-                service instanceof MbeCommandService ? ComponentKind.COMMAND_SERVICE : ComponentKind.SERVICE,
+                ComponentKind.SERVICE,
                 ComponentChangeType.ADDED);
     }
 
@@ -170,7 +175,7 @@ public class AddonLifecycleService {
         runtimeService.publishComponentAvailability(
                 addonId,
                 service.getServiceId(),
-                service instanceof MbeCommandService ? ComponentKind.COMMAND_SERVICE : ComponentKind.SERVICE,
+                ComponentKind.SERVICE,
                 ComponentChangeType.ADDED);
     }
 

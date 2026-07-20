@@ -22,12 +22,17 @@ core:
   debug:
     session_started: "&aDebug session started for {type}"
   tool:
-    mode_switched: "Mode changed to: {mode}"
+    mode_switched: "Mode switched to: {mode}"
+    nodes_disconnected: "Nodes disconnected: {type}"
+    network_split: "Network split into 2 new networks"
+    mode:
+      disconnect_nodes: "Disconnect Nodes"
+      split_network: "Split Network"
+      debug_wiring: "Debug Mode"
+      default: "Default"
     not_a_node: "&cThat block is not a network node."
     node_selected: "&eNode selected. Click another node to finish."
     incompatible_types: "&cNodes have incompatible network types."
-    nodes_disconnected: "&cNodes disconnected from the {type} network."
-    network_split: "&cNetwork split into multiple segments."
   ui:
     link:
       invalid_block: "&cThat block is not a valid controller_block."

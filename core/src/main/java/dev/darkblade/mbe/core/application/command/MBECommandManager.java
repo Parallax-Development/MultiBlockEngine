@@ -6,7 +6,9 @@ import org.incendo.cloud.execution.ExecutionCoordinator;
 import org.incendo.cloud.paper.LegacyPaperCommandManager;
 import org.incendo.cloud.SenderMapper;
 
-public class MBECommandManager extends LegacyPaperCommandManager<MBESender> {
+import dev.darkblade.mbe.api.command.CommandRegistrationService;
+
+public class MBECommandManager extends LegacyPaperCommandManager<MBESender> implements CommandRegistrationService {
 
     private final org.incendo.cloud.annotations.AnnotationParser<MBESender> annotationParser;
 
