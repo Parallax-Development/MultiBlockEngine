@@ -23,6 +23,13 @@ core:
     session_started: "&aSesión debug iniciada para {type}"
   tool:
     mode_switched: "Modo cambiado a: {mode}"
+    nodes_disconnected: "Nodos desconectados: {type}"
+    network_split: "Red dividida en 2 nuevas redes"
+    mode:
+      disconnect_nodes: "Desconectar Nodos"
+      split_network: "Dividir Red"
+      debug_wiring: "Modo Debug"
+      default: "Predeterminado"
   ui:
     link:
       invalid_block: "&cEse bloque no es un controller_block válido."

@@ -503,7 +503,7 @@ public class MultiBlockEngine extends JavaPlugin {
         ((DefaultToolActionRegistry) toolActionRegistry).register(new DisassembleAction(manager, playerMessageService));
         ((DefaultToolActionRegistry) toolActionRegistry).register(new InspectAction(manager, playerMessageService));
         ((DefaultToolActionRegistry) toolActionRegistry)
-                .register(new SwitchModeAction(toolStateResolver, toolRegistry, playerMessageService));
+                .register(new SwitchModeAction(toolStateResolver, toolRegistry, playerMessageService, i18n));
 
         DisplayEntityRenderer displayRenderer = createDisplayRenderer();
         PreviewSettings previewSettings = new PreviewSettings(
@@ -589,6 +589,7 @@ public class MultiBlockEngine extends JavaPlugin {
         interactionRouter.setPanelViewService(panelViewService);
         InteractionPipelineService pipelineService = new DefaultInteractionPipelineService(assemblyCoordinator, null,
                 interactionRouter, itemStackBridge, manager, platformService, eventBus);
+        pipelineService.registerHandler(new dev.darkblade.mbe.core.application.service.tool.ToolInteractionHandler(toolDispatcher));
         addonManager.registerCoreService(InteractionPipelineService.class, pipelineService);
 
         dev.darkblade.mbe.api.service.lifecycle.MultiblockLifecycleService lifecycleService = 
