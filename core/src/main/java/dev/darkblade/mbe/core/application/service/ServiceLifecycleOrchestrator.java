@@ -97,7 +97,7 @@ public final class ServiceLifecycleOrchestrator {
                 list.add(service.getServiceId());
                 return List.copyOf(list);
             });
-            log.logInternal(scope(owner), LogPhase.SERVICE_REGISTER, LogLevel.INFO, "Service registered", null, new LogKv[] {
+            log.logInternal(scope(owner), LogPhase.SERVICE_REGISTER, LogLevel.DEBUG, "Service registered", null, new LogKv[] {
                 LogKv.kv("addonId", owner),
                 LogKv.kv("serviceId", service.getServiceId()),
                 LogKv.kv("serviceType", service.getClass().getName())

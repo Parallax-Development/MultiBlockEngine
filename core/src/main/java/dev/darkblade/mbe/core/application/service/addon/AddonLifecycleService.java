@@ -18,7 +18,7 @@ import dev.darkblade.mbe.core.application.service.addon.domain.AddonState;
 import dev.darkblade.mbe.core.application.service.addon.domain.LoadedAddon;
 import dev.darkblade.mbe.core.application.service.ServiceLifecycleOrchestrator;
 import dev.darkblade.mbe.core.application.service.ServiceInjector;
-import dev.darkblade.mbe.core.application.service.MBEServiceRegistry;
+
 import dev.darkblade.mbe.core.application.service.DefaultUnifiedServiceRegistry;
 import dev.darkblade.mbe.core.application.service.DefaultResolutionPolicy;
 
@@ -69,7 +69,7 @@ public class AddonLifecycleService {
 
         this.unifiedRegistry = new DefaultUnifiedServiceRegistry(new DefaultResolutionPolicy());
         this.serviceRegistry = new AddonServiceRegistry(this.unifiedRegistry, this.log);
-        MBEServiceRegistry mbeServiceRegistry = new MBEServiceRegistry(this.unifiedRegistry);
+
         ServiceInjector serviceInjector = new ServiceInjector(this.unifiedRegistry, this.log,
                 (ownerId, type) -> unifiedRegistry.resolveService(type, null, null));
 

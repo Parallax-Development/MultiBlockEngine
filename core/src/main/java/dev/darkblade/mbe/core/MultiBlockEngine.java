@@ -436,7 +436,7 @@ public class MultiBlockEngine extends JavaPlugin {
         if (registeredTriggers <= 0) {
             log.error("Assembly triggers registry is empty");
         } else {
-            log.info("Assembly triggers registered",
+            log.debug("Assembly triggers registered",
                     dev.darkblade.mbe.api.logging.LogKv.kv("count", registeredTriggers));
         }
         addonManager.registerCoreService(AssemblyTriggerRegistry.class, triggerRegistry);
@@ -658,7 +658,7 @@ public class MultiBlockEngine extends JavaPlugin {
             try {
                 manager.registerType(type, loaded.source());
                 types.add(type);
-                log.info("Loaded multiblock", dev.darkblade.mbe.api.logging.LogKv.kv("id", type.id()),
+                log.debug("Loaded multiblock", dev.darkblade.mbe.api.logging.LogKv.kv("id", type.id()),
                         dev.darkblade.mbe.api.logging.LogKv.kv("source", loaded.source().type().name()),
                         dev.darkblade.mbe.api.logging.LogKv.kv("path", loaded.source().path()));
             } catch (Exception e) {
@@ -754,7 +754,10 @@ public class MultiBlockEngine extends JavaPlugin {
             log.info("Hooked into PlaceholderAPI");
         }
 
-        log.info("MultiBlockEngine enabled", dev.darkblade.mbe.api.logging.LogKv.kv("types", types.size()));
+        log.info("MultiBlockEngine enabled", 
+                dev.darkblade.mbe.api.logging.LogKv.kv("types", types.size()),
+                dev.darkblade.mbe.api.logging.LogKv.kv("addons", addonManager.listLoadedAddons().size()),
+                dev.darkblade.mbe.api.logging.LogKv.kv("services", addonManager.getServiceLifecycleOrchestrator().getAllRegistered().size()));
     }
 
     private dev.darkblade.mbe.api.platform.PlatformService initPlatformService() {
@@ -1000,7 +1003,7 @@ public class MultiBlockEngine extends JavaPlugin {
             itemService.registry().register(definition);
             registered++;
         }
-        log.info("Item definitions registered", dev.darkblade.mbe.api.logging.LogKv.kv("count", registered));
+        log.debug("Item definitions registered", dev.darkblade.mbe.api.logging.LogKv.kv("count", registered));
     }
 
     private void registerDefaultMetadata(MetadataService service) {
