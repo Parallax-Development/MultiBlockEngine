@@ -12,7 +12,20 @@ public record AddonMetadata(
     String mainClass,
     Map<String, Version> requiredDependencies,
     Map<String, Version> optionalDependencies,
-    List<String> dependsIds
+    List<String> dependsIds,
+    String name,
+    String description,
+    List<String> authors,
+    String website,
+    Environment environment,
+    List<String> capabilities,
+    List<String> loadBefore,
+    List<String> loadAfter
 ) {
+    public record Environment(
+        Version minecraft,
+        Version java,
+        Map<String, Version> plugins
+    ) {}
 }
 

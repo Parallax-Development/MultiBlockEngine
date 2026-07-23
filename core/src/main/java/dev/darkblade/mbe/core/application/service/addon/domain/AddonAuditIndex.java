@@ -11,4 +11,5 @@ public record AddonAuditIndex(
         Set<String> apiClasses,
         Set<String> apiContractClasses,
         Set<String> embeddedCoreApiClasses,
-        Set<String> embeddedJars) {}
+        Set<String> embeddedJars,
+        Set<String> requiredCapabilities) {}

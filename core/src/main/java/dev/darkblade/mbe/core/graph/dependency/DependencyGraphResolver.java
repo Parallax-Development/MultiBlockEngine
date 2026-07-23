@@ -145,12 +145,31 @@ public final class DependencyGraphResolver<T> {
         }
 
         // 5. Apply soft ordering (optional dependencies)
-        applySoftOrdering(order, eligible, warnings);
+        applySoftOrdering(order, eligible, warnings, graph);
 
         return new ResolutionResult<>(order, failures, warnings);
     }
 
-    private void applySoftOrdering(List<DependencyNode<T>> order, Map<String, DependencyNode<T>> eligible, List<String> warnings) {
+    private boolean transitivelyRequires(Map<String, Set<String>> graph, String source, String target) {
+        if (source.equals(target)) return true;
+        Set<String> visited = new HashSet<>();
+        ArrayDeque<String> queue = new ArrayDeque<>();
+        queue.add(source);
+        visited.add(source);
+        while (!queue.isEmpty()) {
+            String curr = queue.poll();
+            Set<String> deps = graph.getOrDefault(curr, Set.of());
+            if (deps.contains(target)) return true;
+            for (String next : deps) {
+                if (visited.add(next)) {
+                    queue.add(next);
+                }
+            }
+        }
+        return false;
+    }
+
+    private void applySoftOrdering(List<DependencyNode<T>> order, Map<String, DependencyNode<T>> eligible, List<String> warnings, Map<String, Set<String>> hardGraph) {
         int limit = Math.max(1, order.size() * order.size());
         int passes = 0;
         boolean changed;
@@ -187,6 +206,13 @@ public final class DependencyGraphResolver<T> {
                     }
 
                     if (depIdx > idx) {
+                        // Check if moving 'node' after 'dep' breaks hard dependencies
+                        // i.e. does 'dep' transitively require 'node'?
+                        if (transitivelyRequires(hardGraph, depId, node.id())) {
+                            warnings.add(" Ignored soft dependency " + node.id() + " -> " + depId + " because it conflicts with a hard dependency.");
+                            continue;
+                        }
+
                         order.remove(idx);
                         int newDepIdx = -1;
                         for (int i = 0; i < order.size(); i++) {
