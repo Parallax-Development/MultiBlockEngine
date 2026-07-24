@@ -1,12 +1,13 @@
 package dev.darkblade.mbe.core.application.service.tool;
 
 import dev.darkblade.mbe.api.service.MBEService;
+import dev.darkblade.mbe.api.tool.ToolModeMetricsService;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-public final class ToolModeMetricsService implements MBEService {
+public final class ToolModeMetricsServiceImpl implements ToolModeMetricsService, MBEService {
 
     private final ConcurrentHashMap<String, AtomicLong> attempts = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, AtomicLong> successes = new ConcurrentHashMap<>();
@@ -14,7 +15,7 @@ public final class ToolModeMetricsService implements MBEService {
 
     @Override
     public String getServiceId() {
-        return "mbe:tool.metrics";
+        return "mbe-core:tool.metrics";
     }
 
     public void recordAttempt(String modeId) {

@@ -7,7 +7,7 @@ import dev.darkblade.mbe.api.io.IOService;
 import dev.darkblade.mbe.api.tool.mode.ToolMode;
 import dev.darkblade.mbe.api.wiring.BlockPos;
 import dev.darkblade.mbe.core.application.service.tool.ToolModeContextResolver;
-import dev.darkblade.mbe.core.application.service.tool.ToolSessionService;
+import dev.darkblade.mbe.api.tool.ToolSessionService;
 import org.bukkit.event.block.Action;
 
 import java.util.Map;

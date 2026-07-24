@@ -12,7 +12,7 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 
 public final class BukkitInventoryCompatService implements InventoryCompatService, MBEService {
-    private static final String SERVICE_ID = "mbe:compat.inventory";
+    private static final String SERVICE_ID = "mbe-core:compat.inventory";
 
     private InventoryViewDelegate delegate;
 

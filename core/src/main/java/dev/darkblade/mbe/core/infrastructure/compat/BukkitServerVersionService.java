@@ -6,7 +6,7 @@ import dev.darkblade.mbe.api.service.MBEService;
 import org.bukkit.Bukkit;
 
 public final class BukkitServerVersionService implements ServerVersionService, MBEService {
-    private static final String SERVICE_ID = "mbe:compat.server-version";
+    private static final String SERVICE_ID = "mbe-core:compat.server-version";
 
     private volatile ServerVersion cached = ServerVersion.UNKNOWN;
 

@@ -10,7 +10,7 @@ import dev.darkblade.mbe.api.service.ServiceDescriptor;
 import dev.darkblade.mbe.api.service.ServiceListener;
 import dev.darkblade.mbe.api.service.ServiceScope;
 import dev.darkblade.mbe.api.service.UnifiedServiceRegistry;
-import dev.darkblade.mbe.core.application.service.tick.TickService;
+import dev.darkblade.mbe.core.application.service.tick.TickServiceImpl; import dev.darkblade.mbe.api.tick.TickService;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -206,7 +206,7 @@ public final class ServiceLifecycleOrchestrator {
     }
 
     private void startTickServiceIfPresent(String addonId) {
-        for (TickService tickService : registry.resolveAll(TickService.class)) {
+        for (TickServiceImpl tickService : registry.resolveAll(TickServiceImpl.class)) {
             try {
                 tickService.start();
             } catch (Throwable t) {
@@ -218,7 +218,7 @@ public final class ServiceLifecycleOrchestrator {
     }
 
     private void stopTickServiceIfPresent(String addonId) {
-        for (TickService tickService : registry.resolveAll(TickService.class)) {
+        for (TickServiceImpl tickService : registry.resolveAll(TickServiceImpl.class)) {
             try {
                 tickService.stop();
             } catch (Throwable t) {

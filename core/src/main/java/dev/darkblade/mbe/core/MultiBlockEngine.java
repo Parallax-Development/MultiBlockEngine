@@ -112,9 +112,9 @@ import dev.darkblade.mbe.core.application.service.tool.AssembleAction;
 import dev.darkblade.mbe.core.application.service.tool.DisassembleAction;
 import dev.darkblade.mbe.core.application.service.tool.InspectAction;
 import dev.darkblade.mbe.core.application.service.tool.SwitchModeAction;
-import dev.darkblade.mbe.core.application.service.tool.ToolSessionService;
+import dev.darkblade.mbe.core.application.service.tool.ToolSessionServiceImpl; import dev.darkblade.mbe.api.tool.ToolSessionService;
 import dev.darkblade.mbe.core.application.service.tool.ToolModeContextResolver;
-import dev.darkblade.mbe.core.application.service.tick.TickService;
+import dev.darkblade.mbe.core.application.service.tick.TickServiceImpl; import dev.darkblade.mbe.api.tick.TickService;
 import dev.darkblade.mbe.core.application.service.wiring.DefaultNetworkService;
 import dev.darkblade.mbe.core.internal.inspection.DefaultInspectionPipelineService;
 import dev.darkblade.mbe.api.command.ExportHookRegistry;
@@ -206,7 +206,7 @@ public class MultiBlockEngine extends JavaPlugin {
     private MetadataServiceImpl metadataService;
     private PlayerMultiblockContextResolver metadataContextResolver;
     private CoreServiceLifecycleCoordinator coreServiceLifecycleCoordinator;
-    private TickService tickService;
+    private TickServiceImpl tickService;
     private Tickable ioTickable;
     private DefaultUIRuntimeRegistry uiRuntimeRegistry;
     private PanelViewServiceImpl panelViewService;
@@ -303,7 +303,7 @@ public class MultiBlockEngine extends JavaPlugin {
         addonManager.registerCoreMbeService(eventBus);
 
         coreServiceLifecycleCoordinator = new CoreServiceLifecycleCoordinator();
-        tickService = new TickService(this, log);
+        tickService = new TickServiceImpl(this, log);
         addonManager.registerCoreService(dev.darkblade.mbe.api.tick.TickService.class, tickService);
         addonManager.registerCoreMbeService(tickService);
         uiRuntimeRegistry = new DefaultUIRuntimeRegistry();
@@ -414,7 +414,7 @@ public class MultiBlockEngine extends JavaPlugin {
         addonManager.registerCoreMbeService(ioService);
         addonManager.registerCoreMbeService(ioTickService);
 
-        ToolSessionService toolSessionService = new ToolSessionService();
+        ToolSessionServiceImpl toolSessionService = new ToolSessionServiceImpl();
         addonManager.registerCoreService(ToolSessionService.class, toolSessionService);
         tickService.register(toolSessionService);
 
