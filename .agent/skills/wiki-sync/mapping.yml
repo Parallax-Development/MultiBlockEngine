@@ -1,0 +1,25 @@
+mappings:
+  - paths: 
+      - "api/src/main/java/dev/darkblade/mbe/electricity/**"
+      - "core/src/main/java/dev/darkblade/mbe/core/energy/**"
+    wiki_files: ["Energy-System.md"]
+  - paths:
+      - "api/src/main/java/dev/darkblade/mbe/wiring/**"
+      - "core/src/main/java/dev/darkblade/mbe/core/wiring/**"
+    wiki_files: ["Wiring-System.md"]
+  - paths:
+      - "api/src/main/java/dev/darkblade/mbe/ui/**"
+      - "core/src/main/java/dev/darkblade/mbe/core/ui/**"
+    wiki_files: ["UI-System.md"]
+  - paths:
+      - "api/src/main/java/dev/darkblade/mbe/service/**"
+      - "core/src/main/java/dev/darkblade/mbe/core/service/**"
+    wiki_files: ["Service-Registry.md"]
+  - paths:
+      - "api/src/main/java/dev/darkblade/mbe/blueprint/**"
+      - "core/src/main/java/dev/darkblade/mbe/core/blueprint/**"
+    wiki_files: ["Blueprints-&-Tooling.md"]
+  - paths:
+      - "api/src/main/java/dev/darkblade/mbe/addon/**"
+      - "core/src/main/java/dev/darkblade/mbe/core/addon/**"
+    wiki_files: ["Architecture-Overview.md", "Ecosystem-Addons.md"]
