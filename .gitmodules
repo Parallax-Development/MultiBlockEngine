@@ -1,6 +1,9 @@
 [submodule "addons/mbe-crafting"]
 	path = addons/mbe-crafting
 	url = git@github.com:Parallax-Development/MBE-Crafting.git
+[submodule "addons/mbe-electrics"]
+	path = addons/mbe-electrics
+	url = git@github.com:Parallax-Development/MBE-Electrics.git
 [submodule "addons/mbe-ui"]
 	path = addons/mbe-ui
 	url = git@github.com:Parallax-Development/MBE-UI.git

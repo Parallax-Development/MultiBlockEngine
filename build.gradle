@@ -71,6 +71,14 @@ subprojects {
         maven {
             url = 'https://repo.extendedclip.com/content/repositories/placeholderapi/'
         }
+        maven {
+            name = 'codemc-releases'
+            url = 'https://repo.codemc.io/repository/maven-releases/'
+        }
+        maven {
+            name = 'codemc-snapshots'
+            url = 'https://repo.codemc.io/repository/maven-snapshots/'
+        }
     }
 }
 
