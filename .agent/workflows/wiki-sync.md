@@ -1,3 +1,7 @@
+---
+description: Synchronizes the wiki information (`.\WIKI\MultiBlockEngine.wiki`) with the codebase by comparing the Git history.
+---
+
 # Wiki Sync Workflow
 
 Synchronizes the wiki information (`.\WIKI\MultiBlockEngine.wiki`) with the codebase by comparing the Git history.

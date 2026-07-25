@@ -73,7 +73,8 @@ public class AddonRuntimeLifecycleService {
     
     private String missingRequiredEnabledDependencies(AddonMetadata meta) {
         for (String req : meta.requiredDependencies().keySet()) {
-            if (registry.states.getOrDefault(req, AddonState.DISABLED) != AddonState.ENABLED) {
+            AddonState state = registry.states.getOrDefault(req, AddonState.DISABLED);
+            if (state != AddonState.ENABLED && state != AddonState.LOADED) {
                 return req;
             }
         }
