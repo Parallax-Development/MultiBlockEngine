@@ -649,6 +649,12 @@ public class MultiBlockEngine extends JavaPlugin {
         // Load definitions
         log.setCorePhase(LogPhase.LOAD);
         List<MultiblockParser.LoadedType> loadedTypes = parser.loadAllWithSources(multiblockDir);
+        for (java.nio.file.Path addonDir : addonManager.getAddonMultiblockDirectories()) {
+            if (java.nio.file.Files.exists(addonDir)) {
+                loadedTypes.addAll(parser.loadAllWithSources(addonDir.toFile()));
+            }
+        }
+        
         List<MultiblockType> types = new ArrayList<>(loadedTypes.size());
         for (MultiblockParser.LoadedType loaded : loadedTypes) {
             if (loaded == null || loaded.type() == null) {

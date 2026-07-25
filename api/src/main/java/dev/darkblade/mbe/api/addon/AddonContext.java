@@ -30,6 +30,9 @@ public interface AddonContext {
     MultiblockAPI getAPI();
 
     Path getDataFolder();
+    
+    void setMultiblockDirectory(Path folder);
+    Path getMultiblockDirectory();
 
     <T> void registerService(Class<T> serviceType, T service);
     <T> T getService(Class<T> serviceType);

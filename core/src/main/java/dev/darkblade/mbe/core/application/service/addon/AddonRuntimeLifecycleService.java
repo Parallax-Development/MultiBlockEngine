@@ -346,7 +346,7 @@ public class AddonRuntimeLifecycleService {
             return;
         }
 
-        registry.loadedAddons.put(addonId, new LoadedAddon(metadata, addon, loader, addonLogger, phaseRef, dataFolder));
+        registry.loadedAddons.put(addonId, new LoadedAddon(metadata, addon, loader, addonLogger, phaseRef, dataFolder, context));
         registry.states.put(addonId, AddonState.LOADED);
         addonLogger.withPhase(LogPhase.LOAD).info("Loaded", LogKv.kv("version", metadata.version().toString()));
     }
