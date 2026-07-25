@@ -6,6 +6,9 @@ import dev.darkblade.mbe.api.item.ItemInstance;
 import dev.darkblade.mbe.api.item.ItemKey;
 import dev.darkblade.mbe.api.item.ItemKeys;
 import dev.darkblade.mbe.api.service.MBEService;
+import dev.darkblade.mbe.api.tool.ToolModeExecutionService;
+import dev.darkblade.mbe.api.tool.ToolModeMetricsService;
+import dev.darkblade.mbe.api.tool.ToolSessionService;
 import dev.darkblade.mbe.api.tool.ToolItem;
 import dev.darkblade.mbe.api.tool.event.ToolModeFailEvent;
 import dev.darkblade.mbe.api.tool.event.ToolModePostExecuteEvent;
@@ -28,7 +31,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-public final class ToolModeExecutionService implements MBEService {
+public final class ToolModeExecutionServiceImpl implements ToolModeExecutionService, MBEService {
 
     public static final ItemKey WRENCH_KEY = ItemKeys.of("mbe:wrench", 0);
     private static final String WRENCH_TOOL_ID = "wrench";
@@ -43,7 +46,7 @@ public final class ToolModeExecutionService implements MBEService {
     private final Consumer<Event> eventCaller;
     private final Map<String, ToolItem> toolItems = new LinkedHashMap<>();
 
-    public ToolModeExecutionService(
+    public ToolModeExecutionServiceImpl(
             ItemStackBridge itemStackBridge,
             ToolModeRegistry modeRegistry,
             ToolSessionService sessionService,
@@ -59,7 +62,7 @@ public final class ToolModeExecutionService implements MBEService {
 
     @Override
     public String getServiceId() {
-        return "mbe:tool.execution";
+        return "mbe-core:tool.execution";
     }
 
     public void registerToolItem(ToolItem toolItem) {

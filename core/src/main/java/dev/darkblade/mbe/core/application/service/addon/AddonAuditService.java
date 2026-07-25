@@ -26,6 +26,13 @@ public class AddonAuditService {
     private static final String ATTR_RUNTIME_VISIBLE_ANNOTATIONS = "RuntimeVisibleAnnotations";
     private static final String ATTR_RUNTIME_INVISIBLE_ANNOTATIONS = "RuntimeInvisibleAnnotations";
 
+    private static final Map<String, String> REQUIRED_CAPABILITIES_BY_PACKAGE = Map.of(
+            "dev/darkblade/mbe/api/ui/", "mbe-core:ui",
+            "dev/darkblade/mbe/api/electricity/", "mbe-core:energy",
+            "dev/darkblade/mbe/api/wiring/", "mbe-core:wiring",
+            "dev/darkblade/mbe/api/persistence/", "mbe-core:persistence"
+    );
+
     public AddonAuditIndex buildAuditIndex(File file, AddonMetadata metadata) {
         try (JarFile jar = new JarFile(file)) {
             List<String> classEntries = new ArrayList<>();
@@ -34,6 +41,7 @@ public class AddonAuditService {
             Set<String> apiContractClasses = new LinkedHashSet<>();
             Set<String> embeddedCoreApiClasses = new LinkedHashSet<>();
             Set<String> embeddedJars = new LinkedHashSet<>();
+            Set<String> requiredCapabilities = new LinkedHashSet<>();
 
             String rootPrefixInternal = rootPrefixInternal(metadata.mainClass());
 
@@ -68,6 +76,13 @@ public class AddonAuditService {
                     if (inspection.classAnnotationDescriptors().contains(ADDON_API_DESCRIPTOR)) {
                         apiContractClasses.add(fqcn);
                     }
+                    for (String refInternal : inspection.referencedClassNames()) {
+                        for (Map.Entry<String, String> capReq : REQUIRED_CAPABILITIES_BY_PACKAGE.entrySet()) {
+                            if (refInternal.startsWith(capReq.getKey())) {
+                                requiredCapabilities.add(capReq.getValue());
+                            }
+                        }
+                    }
                 } catch (Exception ignored) {
                 }
             });
@@ -82,7 +97,8 @@ public class AddonAuditService {
                     Set.copyOf(apiClasses),
                     Set.copyOf(apiContractClasses),
                     Set.copyOf(embeddedCoreApiClasses),
-                    Set.copyOf(embeddedJars));
+                    Set.copyOf(embeddedJars),
+                    Set.copyOf(requiredCapabilities));
         } catch (Exception ignored) {
             return null;
         }
@@ -183,10 +199,75 @@ public class AddonAuditService {
                 fatal = true;
             }
 
+            DiscoveredAddon discoveredAddon = discovered.get(idx.addonId());
+            if (discoveredAddon == null) {
+                continue;
+            }
+            AddonMetadata metadata = discoveredAddon.metadata();
+            if (metadata.environment() != null) {
+                AddonMetadata.Environment env = metadata.environment();
+                
+                if (env.java() != null) {
+                    try {
+                        String sysJava = System.getProperty("java.version");
+                        String cleanJava = sysJava.split("_")[0].replaceAll("[^0-9.]", "");
+                        if (!cleanJava.contains(".")) cleanJava += ".0.0";
+                        dev.darkblade.mbe.api.addon.Version sysJavaVer = dev.darkblade.mbe.api.addon.Version.parse(cleanJava);
+                        if (sysJavaVer.compareTo(env.java()) < 0) {
+                            violations.add("requires Java version >= " + env.java() + " but found " + sysJava);
+                            fatal = true;
+                        }
+                    } catch (Exception ignored) {}
+                }
+                
+                if (env.minecraft() != null) {
+                    try {
+                        if (org.bukkit.Bukkit.getServer() != null) {
+                            String mcVerStr = org.bukkit.Bukkit.getBukkitVersion().split("-")[0];
+                            dev.darkblade.mbe.api.addon.Version sysMcVer = dev.darkblade.mbe.api.addon.Version.parse(mcVerStr);
+                            if (sysMcVer.compareTo(env.minecraft()) < 0) {
+                                violations.add("requires Minecraft version >= " + env.minecraft() + " but found " + mcVerStr);
+                                fatal = true;
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                }
+                
+                if (env.plugins() != null) {
+                    for (Map.Entry<String, dev.darkblade.mbe.api.addon.Version> pluginDep : env.plugins().entrySet()) {
+                        try {
+                            if (org.bukkit.Bukkit.getServer() != null) {
+                                org.bukkit.plugin.Plugin p = org.bukkit.Bukkit.getPluginManager().getPlugin(pluginDep.getKey());
+                                if (p == null) {
+                                    violations.add("requires Bukkit plugin '" + pluginDep.getKey() + "' which is not installed");
+                                    fatal = true;
+                                } else {
+                                    dev.darkblade.mbe.api.addon.Version pluginVer = dev.darkblade.mbe.api.addon.Version.parse(p.getDescription().getVersion().split("-")[0].replaceAll("[^0-9.]", ""));
+                                    if (pluginVer.compareTo(pluginDep.getValue()) < 0) {
+                                        violations.add("requires Bukkit plugin '" + pluginDep.getKey() + "' >= " + pluginDep.getValue() + " but found " + p.getDescription().getVersion());
+                                        fatal = true;
+                                    }
+                                }
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                }
+            }
+
             Set<String> shared = sharedApisByAddon.getOrDefault(idx.addonId(), Set.of());
             if (!shared.isEmpty()) {
                 violations.add("shared API definitions duplicated across addons");
                 fatal = true;
+            }
+
+            if (idx.requiredCapabilities() != null && !idx.requiredCapabilities().isEmpty()) {
+                List<String> declaredCaps = metadata.capabilities() != null ? metadata.capabilities() : List.of();
+                for (String reqCap : idx.requiredCapabilities()) {
+                    if (!declaredCaps.contains(reqCap)) {
+                        violations.add("references protected API but did not declare required capability: '" + reqCap + "'");
+                        fatal = true;
+                    }
+                }
             }
 
             Set<String> undeclaredRefs = undeclaredRefsByAddon.getOrDefault(idx.addonId(), Set.of());

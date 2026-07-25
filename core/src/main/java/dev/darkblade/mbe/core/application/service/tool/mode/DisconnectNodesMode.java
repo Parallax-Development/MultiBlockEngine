@@ -8,7 +8,7 @@ import dev.darkblade.mbe.api.wiring.NetworkNode;
 import dev.darkblade.mbe.api.wiring.NetworkService;
 import dev.darkblade.mbe.api.wiring.NodeDescriptor;
 import dev.darkblade.mbe.core.application.service.tool.ToolModeContextResolver;
-import dev.darkblade.mbe.core.application.service.tool.ToolSessionService;
+import dev.darkblade.mbe.api.tool.ToolSessionService;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.event.block.Action;

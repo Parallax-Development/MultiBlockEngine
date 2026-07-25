@@ -1,6 +1,7 @@
 package dev.darkblade.mbe.core.application.service.tool;
 
 import dev.darkblade.mbe.api.service.MBEService;
+import dev.darkblade.mbe.api.tool.ToolSessionService;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -11,22 +12,22 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import dev.darkblade.mbe.api.tick.Tickable;
 
-public final class ToolSessionService implements MBEService, Tickable {
+public final class ToolSessionServiceImpl implements ToolSessionService, MBEService, Tickable {
 
     private final ConcurrentHashMap<SessionKey, SessionValue> sessions = new ConcurrentHashMap<>();
     private final Duration ttl;
 
-    public ToolSessionService() {
+    public ToolSessionServiceImpl() {
         this(Duration.ofSeconds(30));
     }
 
-    public ToolSessionService(Duration ttl) {
+    public ToolSessionServiceImpl(Duration ttl) {
         this.ttl = ttl == null || ttl.isNegative() || ttl.isZero() ? Duration.ofSeconds(30) : ttl;
     }
 
     @Override
     public String getServiceId() {
-        return "mbe:tool.session";
+        return "mbe-core:tool.session";
     }
 
     public Optional<Map<String, Object>> get(UUID playerId, String modeId) {

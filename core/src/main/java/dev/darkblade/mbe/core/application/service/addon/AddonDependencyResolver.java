@@ -119,6 +119,20 @@ public final class AddonDependencyResolver {
                     edges.add(new DependencyEdge(depId, false));
                 }
             }
+            
+            if (meta.loadAfter() != null) {
+                for (String la : meta.loadAfter()) {
+                    if (eligible.containsKey(la)) {
+                        edges.add(new DependencyEdge(la, false));
+                    }
+                }
+            }
+            
+            for (AddonMetadata other : eligible.values()) {
+                if (other.loadBefore() != null && other.loadBefore().contains(meta.id())) {
+                    edges.add(new DependencyEdge(other.id(), false));
+                }
+            }
         }
 
         @Override

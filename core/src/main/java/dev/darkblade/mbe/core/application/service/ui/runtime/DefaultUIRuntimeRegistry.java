@@ -3,6 +3,7 @@ package dev.darkblade.mbe.core.application.service.ui.runtime;
 import dev.darkblade.mbe.api.service.MBEService;
 import dev.darkblade.mbe.api.ui.runtime.PanelDefinition;
 import dev.darkblade.mbe.api.ui.runtime.PanelId;
+import dev.darkblade.mbe.api.ui.runtime.UIRuntimeRegistry;
 
 import java.util.Map;
 import java.util.Objects;
@@ -10,7 +11,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class DefaultUIRuntimeRegistry implements UIRuntimeRegistry, MBEService {
-    private static final String SERVICE_ID = "mbe:ui.runtime.registry";
+    private static final String SERVICE_ID = "mbe-core:ui.runtime.registry";
 
     private final Map<PanelId, PanelDefinition> panels = new ConcurrentHashMap<>();
 

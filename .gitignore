@@ -1,0 +1,22 @@
+# Ignore Gradle project-specific cache directory
+.gradle
+
+# Ignore Gradle build output directory
+build
+bin
+addons
+
+# Ignore IDE files
+.vscode
+.trae
+.gitignore
+specs.md
+CHANGELOG.md
+mbe-source-code.zip
+*.txt
+xdocs/
+ROADMAP.md
+x-*/
+*.sh
+gradle.properties
+openspec/

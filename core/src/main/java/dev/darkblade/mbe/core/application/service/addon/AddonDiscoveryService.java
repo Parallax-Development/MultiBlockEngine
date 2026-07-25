@@ -281,8 +281,29 @@ public class AddonDiscoveryService {
             dependsIds.addAll(optional.keySet());
             dependsIds = List.copyOf(dependsIds);
 
+            String name = trimToNull(yaml.getString("name"));
+            String description = trimToNull(yaml.getString("description"));
+            String website = trimToNull(yaml.getString("website"));
+            List<String> authors = yaml.getStringList("authors");
+            if (authors == null) authors = List.of();
+            else authors = List.copyOf(authors);
+
+            List<String> capabilities = yaml.getStringList("capabilities");
+            if (capabilities == null) capabilities = List.of();
+            else capabilities = List.copyOf(capabilities);
+
+            List<String> loadBefore = yaml.getStringList("load-before");
+            if (loadBefore == null) loadBefore = List.of();
+            else loadBefore = List.copyOf(loadBefore);
+
+            List<String> loadAfter = yaml.getStringList("load-after");
+            if (loadAfter == null) loadAfter = List.of();
+            else loadAfter = List.copyOf(loadAfter);
+
+            AddonMetadata.Environment environment = parseEnvironment(yaml, id, file.getName());
+
             return new AddonMetadata(id, version, apiVersion, main, Map.copyOf(required), Map.copyOf(optional),
-                    dependsIds);
+                    dependsIds, name, description, authors, website, environment, capabilities, loadBefore, loadAfter);
         }
     }
 
@@ -303,6 +324,48 @@ public class AddonDiscoveryService {
         } catch (NumberFormatException ignored) {
             throw new IllegalArgumentException("Invalid addon.yml in " + fileName + ": Invalid api value: " + text);
         }
+    }
+
+    private AddonMetadata.Environment parseEnvironment(YamlConfiguration yaml, String ownerId, String fileName) {
+        if (!yaml.isConfigurationSection("environment")) {
+            return null;
+        }
+        org.bukkit.configuration.ConfigurationSection env = yaml.getConfigurationSection("environment");
+        Version mcVer = null;
+        Version javaVer = null;
+        Map<String, Version> plugins = new LinkedHashMap<>();
+
+        String mcRaw = trimToNull(env.getString("minecraft"));
+        if (mcRaw != null) {
+            mcVer = parseDependencyVersionConstraint(ownerId, "minecraft", mcRaw, fileName, "environment.minecraft");
+        }
+
+        String javaRaw = trimToNull(env.getString("java"));
+        if (javaRaw != null) {
+            // Java version is often just a number like "21", which Version might parse as "21.0.0"
+            if (!javaRaw.contains(".")) {
+                javaRaw = javaRaw + ".0.0";
+            }
+            try {
+                javaVer = Version.parse(javaRaw);
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Invalid addon.yml in " + fileName + ": Invalid java version: " + javaRaw);
+            }
+        }
+
+        if (env.isConfigurationSection("plugins")) {
+            org.bukkit.configuration.ConfigurationSection plugs = env.getConfigurationSection("plugins");
+            for (String pKey : plugs.getKeys(false)) {
+                String pVerRaw = trimToNull(plugs.getString(pKey));
+                Version pVer = MIN_DEPENDENCY_VERSION;
+                if (pVerRaw != null) {
+                    pVer = parseDependencyVersionConstraint(ownerId, pKey, pVerRaw, fileName, "environment.plugins." + pKey);
+                }
+                plugins.put(pKey, pVer);
+            }
+        }
+
+        return new AddonMetadata.Environment(mcVer, javaVer, Map.copyOf(plugins));
     }
 
     private Map<String, Version> parseYamlDependencies(Object raw, String ownerId, String fileName, String fieldName) {

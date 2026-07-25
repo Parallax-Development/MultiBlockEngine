@@ -10,7 +10,7 @@ import dev.darkblade.mbe.api.ui.runtime.PanelId;
 import dev.darkblade.mbe.api.ui.runtime.PanelOpenService;
 import dev.darkblade.mbe.core.application.service.ServiceLifecycleOrchestrator;
 import dev.darkblade.mbe.core.application.service.addon.AddonLifecycleService;
-import dev.darkblade.mbe.core.application.service.ui.runtime.UIRuntimeRegistry;
+import dev.darkblade.mbe.api.ui.runtime.UIRuntimeRegistry;
 import dev.darkblade.mbe.api.event.EventBusService;
 import org.bukkit.entity.Player;
 
@@ -19,7 +19,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 public final class PanelViewServiceImpl implements PanelViewService, MBEService {
-    private static final String SERVICE_ID = "mbe:ui.panel.view";
+    private static final String SERVICE_ID = "mbe-core:ui.panel.view";
 
     private final UIRuntimeRegistry registry;
     private final AddonLifecycleService addonLifecycleService;

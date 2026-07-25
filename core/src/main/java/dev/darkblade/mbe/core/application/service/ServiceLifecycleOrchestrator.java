@@ -10,7 +10,7 @@ import dev.darkblade.mbe.api.service.ServiceDescriptor;
 import dev.darkblade.mbe.api.service.ServiceListener;
 import dev.darkblade.mbe.api.service.ServiceScope;
 import dev.darkblade.mbe.api.service.UnifiedServiceRegistry;
-import dev.darkblade.mbe.core.application.service.tick.TickService;
+import dev.darkblade.mbe.core.application.service.tick.TickServiceImpl; import dev.darkblade.mbe.api.tick.TickService;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -97,7 +97,7 @@ public final class ServiceLifecycleOrchestrator {
                 list.add(service.getServiceId());
                 return List.copyOf(list);
             });
-            log.logInternal(scope(owner), LogPhase.SERVICE_REGISTER, LogLevel.INFO, "Service registered", null, new LogKv[] {
+            log.logInternal(scope(owner), LogPhase.SERVICE_REGISTER, LogLevel.DEBUG, "Service registered", null, new LogKv[] {
                 LogKv.kv("addonId", owner),
                 LogKv.kv("serviceId", service.getServiceId()),
                 LogKv.kv("serviceType", service.getClass().getName())
@@ -206,7 +206,7 @@ public final class ServiceLifecycleOrchestrator {
     }
 
     private void startTickServiceIfPresent(String addonId) {
-        for (TickService tickService : registry.resolveAll(TickService.class)) {
+        for (TickServiceImpl tickService : registry.resolveAll(TickServiceImpl.class)) {
             try {
                 tickService.start();
             } catch (Throwable t) {
@@ -218,7 +218,7 @@ public final class ServiceLifecycleOrchestrator {
     }
 
     private void stopTickServiceIfPresent(String addonId) {
-        for (TickService tickService : registry.resolveAll(TickService.class)) {
+        for (TickServiceImpl tickService : registry.resolveAll(TickServiceImpl.class)) {
             try {
                 tickService.stop();
             } catch (Throwable t) {

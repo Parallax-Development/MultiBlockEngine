@@ -38,6 +38,6 @@ public final class BlueprintServiceImpl implements BlueprintService, MBEService 
 
     @Override
     public String getServiceId() {
-        return "mbe:blueprint";
+        return "mbe-core:blueprint";
     }
 }

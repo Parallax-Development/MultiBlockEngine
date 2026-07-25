@@ -8,7 +8,7 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 public final class BukkitDisplayCompatService implements DisplayCompatService, MBEService {
-    private static final String SERVICE_ID = "mbe:compat.display";
+    private static final String SERVICE_ID = "mbe-core:compat.display";
 
     private final PluginManager pluginManager;
     private final Supplier<Object> previewRendererSupplier;

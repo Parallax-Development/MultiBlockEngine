@@ -15,8 +15,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-public final class TickService implements MBEService, dev.darkblade.mbe.api.tick.TickService {
-    private static final String SERVICE_ID = "mbe:tick.service";
+public final class TickServiceImpl implements MBEService, dev.darkblade.mbe.api.tick.TickService {
+    private static final String SERVICE_ID = "mbe-core:tick";
     private static final int DEFAULT_INTERVAL = 1;
 
     private final Plugin plugin;
@@ -28,12 +28,12 @@ public final class TickService implements MBEService, dev.darkblade.mbe.api.tick
 
     private volatile BukkitTask task;
 
-    public TickService(Plugin plugin, EngineLogger logger) {
+    public TickServiceImpl(Plugin plugin, EngineLogger logger) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.logger = Objects.requireNonNull(logger, "logger");
     }
 
-    TickService(EngineLogger logger) {
+    TickServiceImpl(EngineLogger logger) {
         this.plugin = null;
         this.logger = Objects.requireNonNull(logger, "logger");
     }

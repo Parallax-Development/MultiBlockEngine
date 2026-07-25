@@ -31,7 +31,7 @@ import dev.darkblade.mbe.api.command.WrenchInteractable;
 import dev.darkblade.mbe.api.command.WrenchResult;
 import dev.darkblade.mbe.api.tool.ToolItem;
 import dev.darkblade.mbe.api.tool.mode.ToolModeRegistry;
-import dev.darkblade.mbe.core.application.service.tool.ToolModeExecutionService;
+import dev.darkblade.mbe.api.tool.ToolModeExecutionService;
 import dev.darkblade.mbe.core.domain.assembly.AssemblyCoordinator;
 import dev.darkblade.mbe.api.assembly.AssemblyContext;
 import dev.darkblade.mbe.api.assembly.AssemblyReport;
@@ -205,7 +205,7 @@ public final class DefaultWrenchDispatcher implements WrenchDispatcher {
             incrementWrenchInteractionMetric();
             return toolResult;
         }
-        if (!ToolModeExecutionService.isWrenchToolId(toolId)) {
+        if (!dev.darkblade.mbe.core.application.service.tool.ToolModeExecutionServiceImpl.isWrenchToolId(toolId)) {
             return WrenchResult.pass();
         }
         try {

@@ -112,9 +112,9 @@ import dev.darkblade.mbe.core.application.service.tool.AssembleAction;
 import dev.darkblade.mbe.core.application.service.tool.DisassembleAction;
 import dev.darkblade.mbe.core.application.service.tool.InspectAction;
 import dev.darkblade.mbe.core.application.service.tool.SwitchModeAction;
-import dev.darkblade.mbe.core.application.service.tool.ToolSessionService;
+import dev.darkblade.mbe.core.application.service.tool.ToolSessionServiceImpl; import dev.darkblade.mbe.api.tool.ToolSessionService;
 import dev.darkblade.mbe.core.application.service.tool.ToolModeContextResolver;
-import dev.darkblade.mbe.core.application.service.tick.TickService;
+import dev.darkblade.mbe.core.application.service.tick.TickServiceImpl; import dev.darkblade.mbe.api.tick.TickService;
 import dev.darkblade.mbe.core.application.service.wiring.DefaultNetworkService;
 import dev.darkblade.mbe.core.internal.inspection.DefaultInspectionPipelineService;
 import dev.darkblade.mbe.api.command.ExportHookRegistry;
@@ -206,7 +206,7 @@ public class MultiBlockEngine extends JavaPlugin {
     private MetadataServiceImpl metadataService;
     private PlayerMultiblockContextResolver metadataContextResolver;
     private CoreServiceLifecycleCoordinator coreServiceLifecycleCoordinator;
-    private TickService tickService;
+    private TickServiceImpl tickService;
     private Tickable ioTickable;
     private DefaultUIRuntimeRegistry uiRuntimeRegistry;
     private PanelViewServiceImpl panelViewService;
@@ -303,7 +303,7 @@ public class MultiBlockEngine extends JavaPlugin {
         addonManager.registerCoreMbeService(eventBus);
 
         coreServiceLifecycleCoordinator = new CoreServiceLifecycleCoordinator();
-        tickService = new TickService(this, log);
+        tickService = new TickServiceImpl(this, log);
         addonManager.registerCoreService(dev.darkblade.mbe.api.tick.TickService.class, tickService);
         addonManager.registerCoreMbeService(tickService);
         uiRuntimeRegistry = new DefaultUIRuntimeRegistry();
@@ -414,7 +414,7 @@ public class MultiBlockEngine extends JavaPlugin {
         addonManager.registerCoreMbeService(ioService);
         addonManager.registerCoreMbeService(ioTickService);
 
-        ToolSessionService toolSessionService = new ToolSessionService();
+        ToolSessionServiceImpl toolSessionService = new ToolSessionServiceImpl();
         addonManager.registerCoreService(ToolSessionService.class, toolSessionService);
         tickService.register(toolSessionService);
 
@@ -436,7 +436,7 @@ public class MultiBlockEngine extends JavaPlugin {
         if (registeredTriggers <= 0) {
             log.error("Assembly triggers registry is empty");
         } else {
-            log.info("Assembly triggers registered",
+            log.debug("Assembly triggers registered",
                     dev.darkblade.mbe.api.logging.LogKv.kv("count", registeredTriggers));
         }
         addonManager.registerCoreService(AssemblyTriggerRegistry.class, triggerRegistry);
@@ -658,7 +658,7 @@ public class MultiBlockEngine extends JavaPlugin {
             try {
                 manager.registerType(type, loaded.source());
                 types.add(type);
-                log.info("Loaded multiblock", dev.darkblade.mbe.api.logging.LogKv.kv("id", type.id()),
+                log.debug("Loaded multiblock", dev.darkblade.mbe.api.logging.LogKv.kv("id", type.id()),
                         dev.darkblade.mbe.api.logging.LogKv.kv("source", loaded.source().type().name()),
                         dev.darkblade.mbe.api.logging.LogKv.kv("path", loaded.source().path()));
             } catch (Exception e) {
@@ -754,7 +754,10 @@ public class MultiBlockEngine extends JavaPlugin {
             log.info("Hooked into PlaceholderAPI");
         }
 
-        log.info("MultiBlockEngine enabled", dev.darkblade.mbe.api.logging.LogKv.kv("types", types.size()));
+        log.info("MultiBlockEngine enabled", 
+                dev.darkblade.mbe.api.logging.LogKv.kv("types", types.size()),
+                dev.darkblade.mbe.api.logging.LogKv.kv("addons", addonManager.listLoadedAddons().size()),
+                dev.darkblade.mbe.api.logging.LogKv.kv("services", addonManager.getServiceLifecycleOrchestrator().getAllRegistered().size()));
     }
 
     private dev.darkblade.mbe.api.platform.PlatformService initPlatformService() {
@@ -1000,7 +1003,7 @@ public class MultiBlockEngine extends JavaPlugin {
             itemService.registry().register(definition);
             registered++;
         }
-        log.info("Item definitions registered", dev.darkblade.mbe.api.logging.LogKv.kv("count", registered));
+        log.debug("Item definitions registered", dev.darkblade.mbe.api.logging.LogKv.kv("count", registered));
     }
 
     private void registerDefaultMetadata(MetadataService service) {

@@ -7,7 +7,7 @@ import dev.darkblade.mbe.core.MultiBlockEngine;
 import java.util.Objects;
 
 public final class BukkitSchedulerCompatService implements SchedulerCompatService, MBEService {
-    private static final String SERVICE_ID = "mbe:compat.scheduler";
+    private static final String SERVICE_ID = "mbe-core:compat.scheduler";
 
     private final MultiBlockEngine plugin;
 
