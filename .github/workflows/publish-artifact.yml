@@ -17,6 +17,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          submodules: recursive
 
       - name: Set up JDK
         uses: actions/setup-java@v4
@@ -46,7 +47,7 @@ jobs:
         run: ./gradlew clean build -x test
 
       - name: Publish
-        run: ./gradlew publish
+        run: ./gradlew :api:publish :core:publish
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
