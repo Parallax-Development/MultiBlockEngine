@@ -2,5 +2,10 @@ rootProject.name = 'MultiBlockEngine'
 
 include 'core'
 include 'api'
-include 'addons:mbe-ui', 'addons:mbe-wiring', 'addons:mbe-crafting', 'addons:mbe-electrics'
 include 'platform-bukkit'
+
+['mbe-ui', 'mbe-wiring', 'mbe-crafting', 'mbe-electrics'].each { addon ->
+    if (file("addons/${addon}").exists()) {
+        include "addons:${addon}"
+    }
+}
