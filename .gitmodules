@@ -10,3 +10,7 @@
 [submodule "addons/mbe-wiring"]
 	path = addons/mbe-wiring
 	url = git@github.com:Parallax-Development/MBE-Wiring.git
+
+[submodule "WIKI/MultiBlockEngine.wiki"]
+	path = WIKI/MultiBlockEngine.wiki
+	url = https://github.com/Parallax-Development/MultiBlockEngine.wiki.git
