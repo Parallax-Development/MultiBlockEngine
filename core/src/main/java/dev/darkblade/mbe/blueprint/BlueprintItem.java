@@ -29,7 +29,13 @@ public final class BlueprintItem {
         if (itemService == null || bridge == null || definition == null || definition.id() == null || definition.id().isBlank()) {
             return null;
         }
-        ItemInstance instance = itemService.factory().create(BLUEPRINT_KEY, Map.of(DATA_STRUCTURE_ID, definition.id()));
+        java.util.Map<String, Object> data = new java.util.HashMap<>();
+        data.put(DATA_STRUCTURE_ID, definition.id());
+        data.put("multiblock_display_name", definition.id());
+        data.put("count", 0);
+        data.put("total", definition.blocks() != null ? definition.blocks().size() : 0);
+        
+        ItemInstance instance = itemService.factory().create(BLUEPRINT_KEY, data);
         ItemStack stack = bridge.toItemStack(instance, sender);
         ItemMeta meta = stack.getItemMeta();
         if (meta != null) {

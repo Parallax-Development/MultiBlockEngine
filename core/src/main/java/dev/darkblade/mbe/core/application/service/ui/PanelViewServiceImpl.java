@@ -36,7 +36,8 @@ public final class PanelViewServiceImpl implements PanelViewService, MBEService 
 
     @Override
     public void registerPanel(PanelId id, PanelDefinition panel) {
-        if (addonLifecycleService.getCurrentLifecyclePhase() != ServiceLifecycleOrchestrator.LifecyclePhase.CONTENT_REGISTRATION) {
+        ServiceLifecycleOrchestrator.LifecyclePhase phase = addonLifecycleService.getCurrentLifecyclePhase();
+        if (phase != ServiceLifecycleOrchestrator.LifecyclePhase.CONTENT_REGISTRATION && phase != ServiceLifecycleOrchestrator.LifecyclePhase.RUNTIME) {
             throw new IllegalStateException("Panel registration outside allowed phase");
         }
         registry.registerPanel(id, panel);

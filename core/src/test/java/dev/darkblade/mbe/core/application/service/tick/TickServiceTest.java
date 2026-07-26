@@ -20,7 +20,7 @@ class TickServiceTest {
 
     @Test
     void executesTickablesWithDifferentIntervals() {
-        TickService service = new TickService(testLogger());
+        TickServiceImpl service = new TickServiceImpl(testLogger());
         CountingTickable everyTick = new CountingTickable(1);
         CountingTickable everyFive = new CountingTickable(5);
         CountingTickable everyTwenty = new CountingTickable(20);
@@ -40,7 +40,7 @@ class TickServiceTest {
 
     @Test
     void isolatesFailuresWithoutBreakingGlobalLoop() {
-        TickService service = new TickService(testLogger());
+        TickServiceImpl service = new TickServiceImpl(testLogger());
         AtomicInteger faultyExecutions = new AtomicInteger();
         Tickable faulty = new Tickable() {
             @Override
@@ -63,7 +63,7 @@ class TickServiceTest {
 
     @Test
     void preventsDuplicateRegistration() {
-        TickService service = new TickService(testLogger());
+        TickServiceImpl service = new TickServiceImpl(testLogger());
         CountingTickable tickable = new CountingTickable(1);
 
         assertTrue(service.register(tickable));
@@ -78,7 +78,7 @@ class TickServiceTest {
 
     @Test
     void defaultsInvalidIntervalsToOne() {
-        TickService service = new TickService(testLogger());
+        TickServiceImpl service = new TickServiceImpl(testLogger());
         CountingTickable invalid = new CountingTickable(0);
         service.register(invalid);
 
@@ -91,7 +91,7 @@ class TickServiceTest {
 
     @Test
     void handlesStressWithManyTickables() {
-        TickService service = new TickService(testLogger());
+        TickServiceImpl service = new TickServiceImpl(testLogger());
         List<CountingTickable> tickables = new ArrayList<>();
         for (int i = 1; i <= 300; i++) {
             int interval = (i % 20) + 1;

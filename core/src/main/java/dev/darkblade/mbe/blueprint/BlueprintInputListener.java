@@ -31,6 +31,9 @@ public final class BlueprintInputListener implements Listener {
             return;
         }
         Player player = event.getPlayer();
+        if (!controller.isBlueprint(event.getItem())) {
+            return;
+        }
         if (!controller.handleInput(player)) {
             return;
         }

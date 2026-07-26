@@ -43,6 +43,10 @@ public final class BlueprintController {
         this.eventBus = Objects.requireNonNull(eventBus, "eventBus");
     }
 
+    public boolean isBlueprint(org.bukkit.inventory.ItemStack item) {
+        return heldItemResolver.blueprintId(item).isPresent();
+    }
+
     public boolean handleInput(Player player) {
         if (player == null) {
             return false;
@@ -102,6 +106,43 @@ public final class BlueprintController {
         previewService.rotatePreview(player, session.rotation().nextClockwise());
         previewService.touch(player);
         return true;
+    }
+
+    public boolean handleLayerChange(Player player, int delta) {
+        if (player == null) {
+            return false;
+        }
+        PlayerBuildContext context = contextService.get(player);
+        PreviewSession session = context.preview();
+        if (session == null) {
+            return false;
+        }
+        int layer = session.currentLayer();
+        if (layer == Integer.MAX_VALUE && delta < 0) {
+            layer = 0; // If starting to go down, start at 0 (or find the max Y of the definition). 
+                       // Let's just do a simple increment/decrement from current if it's max.
+            // Actually, if it's MAX_VALUE, let's figure out max Y.
+            if (session.definition() != null) {
+                layer = 0;
+                for (dev.darkblade.mbe.preview.PreviewBlock block : session.definition().blocks()) {
+                    if (block.localPosition().y() > layer) {
+                        layer = block.localPosition().y();
+                    }
+                }
+            }
+        }
+        
+        int newLayer = layer + delta;
+        if (newLayer < 0) newLayer = 0;
+        if (newLayer > 256) newLayer = Integer.MAX_VALUE; // Reset to all
+        
+        if (newLayer != session.currentLayer()) {
+            session.currentLayer(newLayer);
+            previewService.updatePreviewOrigin(player, session.origin()); // Forces a re-render
+            previewService.touch(player);
+            return true;
+        }
+        return false;
     }
 
     public boolean handleHeldItem(Player player) {

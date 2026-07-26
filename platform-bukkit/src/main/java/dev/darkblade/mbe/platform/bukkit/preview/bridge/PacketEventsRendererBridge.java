@@ -59,6 +59,11 @@ public final class PacketEventsRendererBridge implements DisplayEntityRenderer {
 
     @Override
     public int spawnBlockDisplay(Player player, Location location, BlockData blockData) {
+        return spawnBlockDisplay(player, location, blockData, 0F, 0F, 0F, 1F, 1F, 1F);
+    }
+
+    @Override
+    public int spawnBlockDisplay(Player player, Location location, BlockData blockData, float tx, float ty, float tz, float sx, float sy, float sz) {
         if (player == null || location == null || blockData == null) {
             return -1;
         }
@@ -73,7 +78,7 @@ public final class PacketEventsRendererBridge implements DisplayEntityRenderer {
             location.getY(),
             location.getZ(),
             blockState,
-            DisplayTransform.identity()
+            new DisplayTransform(tx, ty, tz, sx, sy, sz, 0, 0)
         );
         DisplayEntityHandle handle = renderer.spawn(player, request);
         if (handle.isValid()) {

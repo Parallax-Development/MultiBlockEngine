@@ -81,7 +81,8 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
         }
         destroyPreview(player);
         Location origin = resolveInitialOrigin(player);
-        PreviewSession session = new PreviewSession(player.getUniqueId(), definition, origin, Rotation.NORTH);
+        Rotation rotation = Rotation.fromYaw(player.getLocation().getYaw());
+        PreviewSession session = new PreviewSession(player.getUniqueId(), definition, origin, rotation);
         session.state(PreviewState.MOVING);
         sessions.put(session);
         queueSpawn(player, session, session.currentRenderVersion());
@@ -115,7 +116,6 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
         rerender(player, session);
     }
 
-    @Override
     public void rotatePreview(Player player, Rotation rotation) {
         if (player == null) {
             return;
@@ -125,6 +125,19 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
             return;
         }
         session.rotation(rotation == null ? Rotation.NORTH : rotation);
+        rerender(player, session);
+    }
+
+    public void nudgePreview(Player player, int dx, int dy, int dz) {
+        if (player == null) {
+            return;
+        }
+        PreviewSession session = sessions.get(player.getUniqueId());
+        if (session == null) {
+            return;
+        }
+        Vector3i offset = session.nudgeOffset();
+        session.nudgeOffset(new Vector3i(offset.x() + dx, offset.y() + dy, offset.z() + dz));
         rerender(player, session);
     }
 
@@ -200,6 +213,7 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
             return;
         }
         if (!matches(placedBlockData, previewBlock.expected())) {
+            renderer().highlightError(player, previewBlock.entityId());
             return;
         }
         if (!session.markCompleted(position)) {
@@ -232,8 +246,16 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
             if (block == null || block.localPosition() == null || block.blockData() == null) {
                 continue;
             }
+            if (block.localPosition().y() > session.currentLayer()) {
+                continue;
+            }
             Vector3i rotated = VectorUtils.rotate(block.localPosition(), session.rotation());
             Location worldLocation = rotated.addTo(session.origin());
+            
+            // Apply nudge offset
+            Vector3i nudge = session.nudgeOffset();
+            worldLocation.add(nudge.x(), nudge.y(), nudge.z());
+            
             if (validationStrategy.validate(worldLocation, block.blockData()) == PreviewBlockState.INVALID) {
                 continue;
             }
@@ -277,7 +299,13 @@ public final class StructurePreviewServiceImpl implements StructurePreviewServic
             if (active.currentRenderVersion() != task.renderVersion()) {
                 continue;
             }
-            int entityId = renderer().spawnBlockDisplay(player, task.worldLocation(), task.blockData());
+            int entityId = renderer().spawnBlockDisplay(
+                player,
+                task.worldLocation(),
+                task.blockData(),
+                0.25f, 0.25f, 0.25f, // Translation offset
+                0.5f, 0.5f, 0.5f     // Scale (50%)
+            );
             if (entityId > 0) {
                 SessionPreviewBlock previous = active.blocks().get(task.blockPosition());
                 if (previous != null && previous.completed()) {
