@@ -73,7 +73,8 @@ public class AddonRuntimeLifecycleService {
     
     private String missingRequiredEnabledDependencies(AddonMetadata meta) {
         for (String req : meta.requiredDependencies().keySet()) {
-            if (registry.states.getOrDefault(req, AddonState.DISABLED) != AddonState.ENABLED) {
+            AddonState state = registry.states.getOrDefault(req, AddonState.DISABLED);
+            if (state != AddonState.ENABLED && state != AddonState.LOADED) {
                 return req;
             }
         }
@@ -345,7 +346,7 @@ public class AddonRuntimeLifecycleService {
             return;
         }
 
-        registry.loadedAddons.put(addonId, new LoadedAddon(metadata, addon, loader, addonLogger, phaseRef, dataFolder));
+        registry.loadedAddons.put(addonId, new LoadedAddon(metadata, addon, loader, addonLogger, phaseRef, dataFolder, context));
         registry.states.put(addonId, AddonState.LOADED);
         addonLogger.withPhase(LogPhase.LOAD).info("Loaded", LogKv.kv("version", metadata.version().toString()));
     }

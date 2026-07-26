@@ -22,6 +22,16 @@ public class MBECommandManager extends LegacyPaperCommandManager<MBESender> impl
                 )
         );
 
+        this.parameterInjectorRegistry().registerInjector(
+                CommandSender.class,
+                (context, annotations) -> context.sender().getSender()
+        );
+        
+        this.parameterInjectorRegistry().registerInjector(
+                org.bukkit.entity.Player.class,
+                (context, annotations) -> context.sender().getPlayer()
+        );
+
         this.annotationParser = new org.incendo.cloud.annotations.AnnotationParser<>(
                 this,
                 MBESender.class

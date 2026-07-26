@@ -41,6 +41,7 @@ public class SimpleAddonContext implements AddonContext {
     private final AddonServiceRegistry services;
     private final ServiceLifecycleOrchestrator serviceLifecycleManager;
     private final ClassLoader classLoader;
+    private Path multiblockDirectory;
 
     public SimpleAddonContext(
             String addonId,
@@ -93,6 +94,16 @@ public class SimpleAddonContext implements AddonContext {
     @Override
     public Path getDataFolder() {
         return dataFolder;
+    }
+
+    @Override
+    public void setMultiblockDirectory(Path folder) {
+        this.multiblockDirectory = folder;
+    }
+
+    @Override
+    public Path getMultiblockDirectory() {
+        return multiblockDirectory;
     }
 
     @Override

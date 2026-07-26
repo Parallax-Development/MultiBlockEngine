@@ -17,6 +17,8 @@ public final class PreviewSession {
     private volatile Rotation rotation;
     private volatile PreviewState state;
     private volatile Instant lastTouchedAt;
+    private volatile int currentLayer;
+    private volatile Vector3i nudgeOffset;
 
     public PreviewSession(UUID playerId, MultiblockDefinition definition, Location origin, Rotation rotation) {
         this.playerId = playerId;
@@ -24,6 +26,8 @@ public final class PreviewSession {
         this.origin = origin;
         this.rotation = rotation == null ? Rotation.NORTH : rotation;
         this.state = PreviewState.MOVING;
+        this.currentLayer = Integer.MAX_VALUE;
+        this.nudgeOffset = new Vector3i(0, 0, 0);
         this.blocks = new ConcurrentHashMap<>();
         this.renderVersion = new AtomicLong(0L);
         this.lastTouchedAt = Instant.now();
@@ -122,6 +126,24 @@ public final class PreviewSession {
 
     public Instant lastTouchedAt() {
         return lastTouchedAt;
+    }
+
+    public int currentLayer() {
+        return currentLayer;
+    }
+
+    public void currentLayer(int layer) {
+        this.currentLayer = layer;
+        touch();
+    }
+
+    public Vector3i nudgeOffset() {
+        return nudgeOffset;
+    }
+
+    public void nudgeOffset(Vector3i offset) {
+        this.nudgeOffset = offset == null ? new Vector3i(0, 0, 0) : offset;
+        touch();
     }
 
     public void touch() {

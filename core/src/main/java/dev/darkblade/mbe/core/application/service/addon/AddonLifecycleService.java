@@ -211,6 +211,16 @@ public class AddonLifecycleService {
         }
     }
 
+    public List<Path> getAddonMultiblockDirectories() {
+        List<Path> dirs = new ArrayList<>();
+        for (LoadedAddon loaded : registry.loadedAddons.values()) {
+            if (loaded.context() != null && loaded.context().getMultiblockDirectory() != null) {
+                dirs.add(loaded.context().getMultiblockDirectory());
+            }
+        }
+        return dirs;
+    }
+
     public List<AddonInfo> getAddonInfoList() {
         List<AddonInfo> result = new ArrayList<>();
         List<String> allIds = new ArrayList<>(registry.states.keySet());

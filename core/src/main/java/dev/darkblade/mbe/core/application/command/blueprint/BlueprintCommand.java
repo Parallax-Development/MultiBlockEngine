@@ -80,7 +80,8 @@ public class BlueprintCommand {
 
     @Command("mbe blueprint give <id> [target]")
     @Permission("multiblockengine.blueprint")
-    public void give(MBESender mbeSender, @Argument("id") String id, @Argument("target") Player targetArg) {
+    public void give(MBESender mbeSender, @Argument("id") org.bukkit.NamespacedKey idKey, @Argument("target") Player targetArg) {
+        String id = idKey.toString();
         CommandSender sender = mbeSender.getSender();
         Player receiver = targetArg;
 

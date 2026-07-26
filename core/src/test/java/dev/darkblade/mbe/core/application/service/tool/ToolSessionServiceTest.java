@@ -14,7 +14,7 @@ class ToolSessionServiceTest {
 
     @Test
     void storesAndClearsSessionData() {
-        ToolSessionService service = new ToolSessionService(Duration.ofSeconds(10));
+        ToolSessionServiceImpl service = new ToolSessionServiceImpl(Duration.ofSeconds(10));
         UUID playerId = UUID.randomUUID();
 
         service.put(playerId, "link_ports", Map.of("origin", "x"));

@@ -73,12 +73,38 @@ public final class PdcItemStackBridge implements ItemStackBridge {
         ItemDefinition def = Objects.requireNonNull(instance.definition(), "instance.definition()");
         ItemKey key = Objects.requireNonNull(def.key(), "definition.key()");
 
+        if ("mbe:blueprint".equals(key.id().toString())) {
+            Map<String, Object> data = instance.data();
+            if (data != null && data.get("mbe:multiblock") instanceof String mbId) {
+                if (!data.containsKey("multiblock_display_name")) data.put("multiblock_display_name", mbId);
+                if (!data.containsKey("count")) data.put("count", 0);
+                if (!data.containsKey("total")) {
+                    int total = 0;
+                    try {
+                        MultiBlockEngine plugin = MultiBlockEngine.getInstance();
+                        if (plugin != null && plugin.getAddonLifecycleService() != null) {
+                            dev.darkblade.mbe.catalog.StructureCatalogService catalog = plugin.getAddonLifecycleService().getCoreService(dev.darkblade.mbe.catalog.StructureCatalogService.class);
+                            if (catalog != null) {
+                                for (dev.darkblade.mbe.preview.MultiblockDefinition md : catalog.getAll()) {
+                                    if (mbId.equalsIgnoreCase(md.id())) {
+                                        total = md.blocks() != null ? md.blocks().size() : 0;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    } catch (Throwable ignored) {}
+                    data.put("total", total);
+                }
+            }
+        }
+
         Material material = resolveMaterial(def);
         ItemStack stack = new ItemStack(material);
 
         ItemMeta meta = stack.getItemMeta();
         if (meta != null) {
-            String name = resolveText(def.displayName(), locale);
+            String name = resolveText(def.displayName(), locale, instance.data());
             if (name != null && !name.isBlank()) {
                 meta.setDisplayName(org.bukkit.ChatColor.translateAlternateColorCodes('&', name));
             }
@@ -86,7 +112,7 @@ public final class PdcItemStackBridge implements ItemStackBridge {
             Map<String, Object> props = def.properties();
             if (props != null) {
                 Object loreRaw = props.get("lore");
-                List<String> lore = parseLore(loreRaw, locale);
+                List<String> lore = parseLore(loreRaw, locale, instance.data());
                 if (!lore.isEmpty()) {
                     meta.setLore(lore);
                 }
@@ -200,12 +226,12 @@ public final class PdcItemStackBridge implements ItemStackBridge {
         return used;
     }
 
-    private List<String> parseLore(Object raw, Locale locale) {
+    private List<String> parseLore(Object raw, Locale locale, Map<String, Object> data) {
         if (raw == null) {
             return List.of();
         }
         if (raw instanceof String s) {
-            String resolved = resolveText(s, locale);
+            String resolved = resolveText(s, locale, data);
             if (resolved == null || resolved.isBlank()) {
                 return List.of();
             }
@@ -217,7 +243,7 @@ public final class PdcItemStackBridge implements ItemStackBridge {
                 if (o == null) {
                     continue;
                 }
-                String s = resolveText(String.valueOf(o), locale);
+                String s = resolveText(String.valueOf(o), locale, data);
                 if (s == null || s.isBlank()) {
                     continue;
                 }
@@ -252,7 +278,7 @@ public final class PdcItemStackBridge implements ItemStackBridge {
         return out;
     }
 
-    private String resolveText(String raw, Locale locale) {
+    private String resolveText(String raw, Locale locale, Map<String, Object> data) {
         if (raw == null || raw.isBlank()) {
             return raw;
         }
@@ -277,7 +303,7 @@ public final class PdcItemStackBridge implements ItemStackBridge {
         
         try {
             Locale target = locale != null ? locale : (i18n.localeProvider() != null ? i18n.localeProvider().fallbackLocale() : Locale.US);
-            String translated = i18n.resolve(key, target);
+            String translated = i18n.resolve(key, target, data == null ? Map.of() : data);
             if (translated == null || translated.isBlank()) {
                 return raw;
             }

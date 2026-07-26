@@ -21,7 +21,8 @@ public class AddonDependencyResolverTest {
             "com.example.B",
             Map.of(),
             Map.of(),
-            List.of()
+            List.of(),
+            "", "", List.of(), "", new AddonMetadata.Environment(null, null, Map.of()), List.of(), List.of(), List.of()
         );
 
         AddonMetadata a = new AddonMetadata(
@@ -31,7 +32,8 @@ public class AddonDependencyResolverTest {
             "com.example.A",
             Map.of("b", Version.parse("1.0.0")),
             Map.of(),
-            List.of("b")
+            List.of("b"),
+            "", "", List.of(), "", new AddonMetadata.Environment(null, null, Map.of()), List.of(), List.of(), List.of()
         );
 
         AddonDependencyResolver.Resolution res = resolver.resolve(1, Map.of(
@@ -54,7 +56,8 @@ public class AddonDependencyResolverTest {
             "com.example.A",
             Map.of("b", Version.parse("1.0.0")),
             Map.of(),
-            List.of("b")
+            List.of("b"),
+            "", "", List.of(), "", new AddonMetadata.Environment(null, null, Map.of()), List.of(), List.of(), List.of()
         );
 
         AddonMetadata b = new AddonMetadata(
@@ -64,7 +67,8 @@ public class AddonDependencyResolverTest {
             "com.example.B",
             Map.of("a", Version.parse("1.0.0")),
             Map.of(),
-            List.of("a")
+            List.of("a"),
+            "", "", List.of(), "", new AddonMetadata.Environment(null, null, Map.of()), List.of(), List.of(), List.of()
         );
 
         AddonDependencyResolver.Resolution res = resolver.resolve(1, Map.of(
@@ -88,7 +92,8 @@ public class AddonDependencyResolverTest {
             "com.example.B",
             Map.of(),
             Map.of(),
-            List.of()
+            List.of(),
+            "", "", List.of(), "", new AddonMetadata.Environment(null, null, Map.of()), List.of(), List.of(), List.of()
         );
 
         AddonMetadata a = new AddonMetadata(
@@ -98,7 +103,8 @@ public class AddonDependencyResolverTest {
             "com.example.A",
             Map.of(),
             Map.of("b", Version.parse("1.0.0")),
-            List.of("b")
+            List.of("b"),
+            "", "", List.of(), "", new AddonMetadata.Environment(null, null, Map.of()), List.of(), List.of(), List.of()
         );
 
         AddonDependencyResolver.Resolution res = resolver.resolve(1, Map.of(

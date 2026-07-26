@@ -14,4 +14,5 @@ public record LoadedAddon(
         dev.darkblade.mbe.core.application.service.addon.AddonClassLoader classLoader,
         AddonLogger logger,
         AtomicReference<LogPhase> phase,
-        Path dataFolder) {}
+        Path dataFolder,
+        dev.darkblade.mbe.api.addon.AddonContext context) {}
