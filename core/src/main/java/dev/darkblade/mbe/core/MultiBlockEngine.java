@@ -466,6 +466,10 @@ public class MultiBlockEngine extends JavaPlugin {
                 "itemRequest",
                 itemRequestParser
         );
+        commandManager.parserRegistry().registerSuggestionProvider(
+                "exportRole",
+                new dev.darkblade.mbe.core.application.command.parser.ExportRoleSuggestionProvider<>()
+        );
 
         dev.darkblade.mbe.core.application.command.item.ItemCommand itemCmd = new dev.darkblade.mbe.core.application.command.item.ItemCommand(
                 this,
@@ -738,6 +742,7 @@ public class MultiBlockEngine extends JavaPlugin {
         new dev.darkblade.mbe.core.infrastructure.integration.QueryCacheInvalidationListener(eventBus, playerMultiblockQueryService);
         new MetadataInvalidationListener(eventBus, metadataService);
         new IOPortLifecycleListener(eventBus, ioService, portResolutionService);
+        new dev.darkblade.mbe.core.infrastructure.integration.MultiblockWiringBridge(eventBus, networkService, portResolutionService);
         for (MultiblockInstance inst : instances) {
             eventBus.publish(new MultiblockFormEvent(inst, null));
         }
