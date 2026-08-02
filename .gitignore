@@ -10,13 +10,9 @@ addons
 .vscode
 .trae
 .gitignore
-specs.md
 CHANGELOG.md
-mbe-source-code.zip
 *.txt
 xdocs/
 ROADMAP.md
 x-*/
 *.sh
-gradle.properties
-openspec/

@@ -92,14 +92,14 @@ final class YamlStructureWriter {
                 continue;
             }
             String role = e.getValue().trim().toLowerCase(Locale.ROOT);
-            if (!role.equals("input") && !role.equals("output")) {
+            if (!role.equals(ExportRoles.INPUT) && !role.equals(ExportRoles.OUTPUT)) {
                 continue;
             }
             int dx = e.getKey().x() - controller.x();
             int dy = e.getKey().y() - controller.y();
             int dz = e.getKey().z() - controller.z();
             Offset off = new Offset(dx, dy, dz);
-            if (role.equals("input")) {
+            if (role.equals(ExportRoles.INPUT)) {
                 inputs.add(off);
             } else {
                 outputs.add(off);
@@ -148,7 +148,7 @@ final class YamlStructureWriter {
                 continue;
             }
             String role = e.getValue().trim().toLowerCase(Locale.ROOT);
-            if (role.equals("controller") || role.equals("input") || role.equals("output")) {
+            if (role.equals(ExportRoles.CONTROLLER) || role.equals(ExportRoles.INPUT) || role.equals(ExportRoles.OUTPUT)) {
                 continue;
             }
             int dx = e.getKey().x() - controller.x();

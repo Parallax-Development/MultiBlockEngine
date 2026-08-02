@@ -42,6 +42,8 @@ public class SimpleAddonContext implements AddonContext {
     private final ServiceLifecycleOrchestrator serviceLifecycleManager;
     private final ClassLoader classLoader;
     private Path multiblockDirectory;
+    private Path langDirectory;
+    private dev.darkblade.mbe.api.i18n.AddonI18n addonI18n;
 
     public SimpleAddonContext(
             String addonId,
@@ -107,6 +109,30 @@ public class SimpleAddonContext implements AddonContext {
     }
 
     @Override
+    public void setLangDirectory(Path folder) {
+        this.langDirectory = folder;
+    }
+
+    @Override
+    public Path getLangDirectory() {
+        if (langDirectory == null) {
+            langDirectory = dataFolder.resolve("lang");
+        }
+        return langDirectory;
+    }
+
+    @Override
+    public dev.darkblade.mbe.api.i18n.AddonI18n i18n() {
+        if (addonI18n == null) {
+            dev.darkblade.mbe.api.i18n.I18nService coreI18n = addonManager.getCoreService(dev.darkblade.mbe.api.i18n.I18nService.class);
+            if (coreI18n != null) {
+                addonI18n = new dev.darkblade.mbe.core.infrastructure.i18n.DefaultAddonI18n(coreI18n, addonId);
+            }
+        }
+        return addonI18n;
+    }
+
+    @Override
     public <T> void registerService(Class<T> serviceType, T service) {
         services.register(addonId, serviceType, service);
         addonManager.registerAddonTypedService(addonId, serviceType, service);
@@ -137,13 +163,26 @@ public class SimpleAddonContext implements AddonContext {
         return serviceLifecycleManager.getByType(serviceType);
     }
 
+    private final java.util.Set<Listener> registeredListeners = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final java.util.Set<ServiceListener> registeredServiceListeners = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final java.util.Set<String> registeredActionKeys = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final java.util.Set<String> registeredConditionKeys = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final java.util.Set<String> registeredMatcherPrefixes = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final java.util.Set<dev.darkblade.mbe.api.util.NamespacedKey> registeredMultiblockIds = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     @Override
     public void addServiceListener(ServiceListener listener) {
+        if (listener != null) {
+            registeredServiceListeners.add(listener);
+        }
         serviceLifecycleManager.addListener(listener);
     }
 
     @Override
     public void removeServiceListener(ServiceListener listener) {
+        if (listener != null) {
+            registeredServiceListeners.remove(listener);
+        }
         serviceLifecycleManager.removeListener(listener);
     }
 
@@ -157,6 +196,7 @@ public class SimpleAddonContext implements AddonContext {
         if (!key.startsWith(addonNamespace + ":")) {
             throw new IllegalArgumentException("Action key must start with addon namespace prefix: " + addonNamespace + ":");
         }
+        registeredActionKeys.add(key);
         api.registerAction(key, config -> Action.owned(addonId, key, factory.apply(config)));
     }
 
@@ -165,6 +205,7 @@ public class SimpleAddonContext implements AddonContext {
         if (!key.startsWith(addonNamespace + ":")) {
             throw new IllegalArgumentException("Condition key must start with addon namespace prefix: " + addonNamespace + ":");
         }
+        registeredConditionKeys.add(key);
         api.registerCondition(key, config -> Condition.owned(addonId, key, factory.apply(config)));
     }
 
@@ -187,12 +228,16 @@ public class SimpleAddonContext implements AddonContext {
         if (!addonNamespace.equalsIgnoreCase(prefix)) {
             throw new IllegalArgumentException("Matcher prefix must equal addon namespace: " + addonNamespace);
         }
+        registeredMatcherPrefixes.add(prefix);
         api.registerMatcher(prefix, factory);
     }
 
     @Override
     public void registerListener(Listener listener) {
-        plugin.getServer().getPluginManager().registerEvents(listener, plugin);
+        if (listener != null) {
+            registeredListeners.add(listener);
+            plugin.getServer().getPluginManager().registerEvents(listener, plugin);
+        }
     }
 
     @Override
@@ -209,7 +254,31 @@ public class SimpleAddonContext implements AddonContext {
         if (!type.id().namespace().equals(addonNamespace)) {
             throw new IllegalArgumentException("MultiblockType id must start with addon namespace prefix: " + addonNamespace + ":");
         }
+        registeredMultiblockIds.add(type.id());
         api.registerMultiblock(type);
+    }
+
+    public void cleanup() {
+        for (Listener listener : registeredListeners) {
+            try {
+                org.bukkit.event.HandlerList.unregisterAll(listener);
+            } catch (Throwable ignored) {
+            }
+        }
+        registeredListeners.clear();
+
+        for (ServiceListener listener : registeredServiceListeners) {
+            try {
+                serviceLifecycleManager.removeListener(listener);
+            } catch (Throwable ignored) {
+            }
+        }
+        registeredServiceListeners.clear();
+
+        registeredActionKeys.clear();
+        registeredConditionKeys.clear();
+        registeredMatcherPrefixes.clear();
+        registeredMultiblockIds.clear();
     }
 
     private static String namespaceOf(String addonId) {

@@ -14,6 +14,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -100,6 +101,53 @@ public final class YamlI18nService implements I18nService {
             return safeFallback;
         } catch (Throwable t) {
             return safeFallback;
+        }
+    }
+
+    @Override
+    public List<String> resolveList(MessageKey key, Locale locale, Map<String, ?> params) {
+        if (key == null) {
+            return List.of();
+        }
+        try {
+            String origin = MessageKey.normalizeOrigin(key.origin());
+            String path = MessageKey.normalizePath(key.path());
+            String localeKey = LocaleParsing.toLocaleKey(localeProvider == null ? locale : (locale == null ? localeProvider.fallbackLocale() : locale));
+
+            Map<BundleKey, Map<String, MessageTemplate>> snap = bundles.get();
+            List<String> candidates = localeFallbackCache.computeIfAbsent(localeKey, this::buildLocaleFallback);
+
+            Locale safeLocale = localeProvider == null ? locale : (locale == null ? localeProvider.fallbackLocale() : locale);
+
+            for (String cand : candidates) {
+                List<String> listResult = new ArrayList<>();
+                int idx = 0;
+                while (true) {
+                    MessageTemplate itemT = findTemplate(snap, origin, cand, path + "." + idx, safeLocale, params);
+                    if (itemT == null) {
+                        break;
+                    }
+                    listResult.add(safeRender(itemT, safeLocale, params));
+                    idx++;
+                }
+                if (!listResult.isEmpty()) {
+                    return List.copyOf(listResult);
+                }
+
+                MessageTemplate t = findTemplate(snap, origin, cand, path, safeLocale, params);
+                if (t != null) {
+                    String rendered = safeRender(t, safeLocale, params);
+                    if (rendered.contains("\n")) {
+                        return List.of(rendered.split("\n"));
+                    }
+                    return List.of(rendered);
+                }
+            }
+
+            String fallback = safeFallback(key, debugMissingKeys.getAsBoolean());
+            return fallback.isBlank() ? List.of() : List.of(fallback);
+        } catch (Throwable t) {
+            return List.of();
         }
     }
 
@@ -281,11 +329,19 @@ public final class YamlI18nService implements I18nService {
                 if (k == null || k.isBlank()) {
                     continue;
                 }
-                if (!yaml.isString(k)) {
-                    continue;
+                if (yaml.isString(k)) {
+                    String v = yaml.getString(k, "");
+                    templates.put(k, MessageTemplate.compile(v == null ? "" : v));
+                } else if (yaml.isList(k)) {
+                    List<String> list = yaml.getStringList(k);
+                    if (list != null && !list.isEmpty()) {
+                        for (int idx = 0; idx < list.size(); idx++) {
+                            String item = list.get(idx);
+                            templates.put(k + "." + idx, MessageTemplate.compile(item == null ? "" : item));
+                        }
+                        templates.put(k, MessageTemplate.compile(String.join("\n", list)));
+                    }
                 }
-                String v = yaml.getString(k, "");
-                templates.put(k, MessageTemplate.compile(v == null ? "" : v));
             }
             if (templates.isEmpty()) {
                 return;
@@ -441,7 +497,9 @@ public final class YamlI18nService implements I18nService {
 
     private static String safeRender(MessageTemplate t, Locale locale, Map<String, ?> params) {
         try {
-            return t == null ? "" : t.render(locale, params);
+            if (t == null) return "";
+            String rendered = t.render(locale, params);
+            return dev.darkblade.mbe.core.internal.tooling.StringUtil.parseFormattedLegacy(rendered);
         } catch (Throwable ex) {
             return "";
         }

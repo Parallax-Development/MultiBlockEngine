@@ -30,6 +30,7 @@ dependencies {
     implementation "io.leangen.geantyref:geantyref:2.0.1"
     
     implementation "net.kyori:adventure-platform-bukkit:4.3.4"
+    implementation "net.kyori:adventure-text-minimessage:4.16.0"
 
     implementation 'com.google.code.gson:gson:2.10.1'
     implementation "com.zaxxer:HikariCP:5.1.0"

@@ -149,6 +149,13 @@ public final class ServiceInjector {
         if (expectedType == null) {
             return Optional.empty();
         }
+        if (dev.darkblade.mbe.api.i18n.AddonI18n.class.equals(expectedType)) {
+            java.util.List<dev.darkblade.mbe.api.i18n.I18nService> i18nServices = registry.resolveAll(dev.darkblade.mbe.api.i18n.I18nService.class);
+            if (!i18nServices.isEmpty()) {
+                String safeOwner = ownerId == null || ownerId.isBlank() ? dev.darkblade.mbe.core.infrastructure.i18n.YamlI18nService.CORE_ORIGIN : ownerId;
+                return Optional.of(new dev.darkblade.mbe.core.infrastructure.i18n.DefaultAddonI18n(i18nServices.get(0), safeOwner));
+            }
+        }
         try {
             Optional<?> resolved = externalResolver.apply(ownerId, expectedType);
             return resolved == null ? Optional.empty() : resolved;

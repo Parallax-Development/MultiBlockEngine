@@ -15,6 +15,8 @@ import org.bukkit.plugin.ServicePriority;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import dev.darkblade.mbe.api.i18n.AddonI18n;
+
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.List;
@@ -33,6 +35,11 @@ public interface AddonContext {
     
     void setMultiblockDirectory(Path folder);
     Path getMultiblockDirectory();
+
+    void setLangDirectory(Path folder);
+    Path getLangDirectory();
+
+    AddonI18n i18n();
 
     <T> void registerService(Class<T> serviceType, T service);
     <T> T getService(Class<T> serviceType);

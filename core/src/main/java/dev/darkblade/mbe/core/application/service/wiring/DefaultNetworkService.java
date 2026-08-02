@@ -174,11 +174,13 @@ public final class DefaultNetworkService implements NetworkService {
                 UUID rightNetwork = networkByNode.get(right.id());
                 adjacency.computeIfAbsent(left.id(), unused -> ConcurrentHashMap.newKeySet()).add(right.id());
                 adjacency.computeIfAbsent(right.id(), unused -> ConcurrentHashMap.newKeySet()).add(left.id());
-                connections.put(key, new ConnectionImpl(UUID.randomUUID(), type, left, right));
+                ConnectionImpl conn = new ConnectionImpl(UUID.randomUUID(), type, left, right);
+                connections.put(key, conn);
                 recomputeNetworks();
                 if (leftNetwork != null && rightNetwork != null && !leftNetwork.equals(rightNetwork)) {
                     eventCaller.accept(new IONetworkMergeEvent(type, rightNetwork, leftNetwork));
                 }
+                eventCaller.accept(new dev.darkblade.mbe.api.wiring.event.NodesConnectedEvent(conn));
                 return true;
             } finally {
                 lock.unlock();

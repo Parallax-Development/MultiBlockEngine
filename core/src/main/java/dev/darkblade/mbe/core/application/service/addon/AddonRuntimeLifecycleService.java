@@ -166,6 +166,9 @@ public class AddonRuntimeLifecycleService {
 
                 if (exposureFailed) {
                     unexposeAddonServices(id);
+                    if (loaded.context() != null) {
+                        loaded.context().cleanup();
+                    }
                     AddonLifecycleService.close(loaded.classLoader());
                     continue;
                 }
@@ -176,10 +179,16 @@ public class AddonRuntimeLifecycleService {
             } catch (AddonException e) {
                 facade.failAddon(id, AddonException.Phase.ENABLE, e.getMessage(), e.getCause(), e.isFatal());
                 unexposeAddonServices(id);
+                if (loaded.context() != null) {
+                    loaded.context().cleanup();
+                }
                 AddonLifecycleService.close(loaded.classLoader());
             } catch (Throwable t) {
                 facade.failAddon(id, AddonException.Phase.ENABLE, "Unhandled exception during onEnable", t, true);
                 unexposeAddonServices(id);
+                if (loaded.context() != null) {
+                    loaded.context().cleanup();
+                }
                 AddonLifecycleService.close(loaded.classLoader());
             }
         }
@@ -197,6 +206,9 @@ public class AddonRuntimeLifecycleService {
 
             try {
                 unexposeAddonServices(id);
+                if (loaded.context() != null) {
+                    loaded.context().cleanup();
+                }
                 loaded.phase().set(LogPhase.DISABLE);
                 loaded.addon().onDisable();
                 serviceLifecycleManager.disableServices(id);
@@ -212,6 +224,9 @@ public class AddonRuntimeLifecycleService {
         for (String id : new HashSet<>(registry.loadedAddons.keySet())) {
             LoadedAddon loaded = registry.loadedAddons.remove(id);
             if (loaded != null) {
+                if (loaded.context() != null) {
+                    loaded.context().cleanup();
+                }
                 AddonLifecycleService.close(loaded.classLoader());
             }
             registry.states.putIfAbsent(id, AddonState.DISABLED);
@@ -333,15 +348,18 @@ public class AddonRuntimeLifecycleService {
         try {
             phaseRef.set(LogPhase.LOAD);
             addon.onLoad(context);
+            ensureAddonLangResources(discovered.file(), addonId, context);
             serviceLifecycleManager.discoverAndRegister(addonId, addon);
         } catch (AddonException e) {
             facade.failAddon(addonId, AddonException.Phase.LOAD, e.getMessage(), e.getCause(), e.isFatal());
             unexposeAddonServices(addonId);
+            context.cleanup();
             AddonLifecycleService.close(loader);
             return;
         } catch (Throwable t) {
             facade.failAddon(addonId, AddonException.Phase.LOAD, "Unhandled exception during onLoad", t, true);
             unexposeAddonServices(addonId);
+            context.cleanup();
             AddonLifecycleService.close(loader);
             return;
         }
@@ -420,6 +438,47 @@ public class AddonRuntimeLifecycleService {
                 addonLogger.withPhase(LogPhase.LOAD).warn("Failed to load addon config.yml logging settings",
                         LogKv.kv("addon", addonId));
             }
+        }
+    }
+
+    private void ensureAddonLangResources(File addonFile, String addonId, SimpleAddonContext context) {
+        if (addonFile == null || !addonFile.exists() || context == null) {
+            return;
+        }
+        try {
+            Path langDir = context.getLangDirectory();
+            Path dataFolder = context.getDataFolder();
+            String relativeLang = "lang";
+            try {
+                relativeLang = dataFolder.relativize(langDir).toString().replace('\\', '/');
+            } catch (Throwable ignored) {
+            }
+            if (relativeLang.isBlank() || relativeLang.startsWith("..")) {
+                relativeLang = "lang";
+            }
+
+            try (JarFile jar = new JarFile(addonFile)) {
+                java.util.Enumeration<JarEntry> entries = jar.entries();
+                while (entries.hasMoreElements()) {
+                    JarEntry entry = entries.nextElement();
+                    String name = entry.getName();
+                    if (entry.isDirectory()) {
+                        continue;
+                    }
+                    if (name.startsWith(relativeLang + "/") && name.toLowerCase(java.util.Locale.ROOT).endsWith(".yml")) {
+                        String subPath = name.substring(relativeLang.length() + 1);
+                        Path targetFile = langDir.resolve(subPath);
+                        if (!Files.exists(targetFile)) {
+                            Files.createDirectories(targetFile.getParent());
+                            try (InputStream in = jar.getInputStream(entry)) {
+                                Files.copy(in, targetFile, StandardCopyOption.REPLACE_EXISTING);
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            log.logInternal(new LogScope.Addon(addonId, "unknown"), LogPhase.LOAD, LogLevel.WARN, "Failed to extract addon lang resources", t, null, Set.of());
         }
     }
 

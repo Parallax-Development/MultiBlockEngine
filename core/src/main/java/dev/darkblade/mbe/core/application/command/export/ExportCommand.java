@@ -91,7 +91,7 @@ public class ExportCommand {
 
     @Command("mbe structure export mark <role>")
     @Permission("multiblockengine.export")
-    public void mark(MBESender mbeSender, @Argument("role") String role) {
+    public void mark(MBESender mbeSender, @Argument(value = "role", suggestions = "exportRole") String role) {
         CommandSender sender = mbeSender.getSender();
         if (!(sender instanceof Player player)) return;
         ExportSession s = ensureSession(player);

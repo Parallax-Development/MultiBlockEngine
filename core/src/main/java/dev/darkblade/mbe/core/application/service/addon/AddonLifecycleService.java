@@ -291,6 +291,9 @@ public class AddonLifecycleService {
         if (fatal && loaded != null) {
             try {
                 runtimeService.unexposeAddonServices(addonId);
+                if (loaded.context() != null) {
+                    loaded.context().cleanup();
+                }
                 loaded.phase().set(LogPhase.DISABLE);
                 loaded.addon().onDisable();
                 serviceLifecycleManager.disableServices(addonId);
