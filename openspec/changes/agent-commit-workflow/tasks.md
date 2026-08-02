@@ -10,6 +10,6 @@
 
 ## 3. Domain Rules & Conventional Commit Formatting
 
-- [ ] 3.1 Implement `AGENTS.md` compliance audit for `api/` purity, service-oriented architecture in `core/`, and decoupled inter-addon references
-- [ ] 3.2 Implement atomic Conventional Commit bundler and preview report for user confirmation
-- [ ] 3.3 Execute atomic `git add` and `git commit` sequence based on approved plan
+- [x] 3.1 Implement `AGENTS.md` compliance audit for `api/` purity, service-oriented architecture in `core/`, and decoupled inter-addon references
+- [x] 3.2 Implement atomic Conventional Commit bundler and preview report for user confirmation
+- [x] 3.3 Execute atomic `git add` and `git commit` sequence based on approved plan
