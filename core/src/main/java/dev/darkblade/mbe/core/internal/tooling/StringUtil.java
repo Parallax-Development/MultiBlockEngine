@@ -13,6 +13,8 @@ public class StringUtil {
     private static final LegacyComponentSerializer LEGACY_SECTION = LegacyComponentSerializer.legacySection();
     private static final LegacyComponentSerializer LEGACY_AMP = LegacyComponentSerializer.legacyAmpersand();
 
+    private static final net.kyori.adventure.text.minimessage.MiniMessage MINI_MESSAGE = net.kyori.adventure.text.minimessage.MiniMessage.miniMessage();
+
     public static Component legacyText(String text) {
         if (text == null || text.isBlank()) {
             return Component.empty();
@@ -21,6 +23,31 @@ public class StringUtil {
             return LEGACY_SECTION.deserialize(text);
         }
         return LEGACY_AMP.deserialize(text);
+    }
+
+    public static Component parseFormattedComponent(String text) {
+        if (text == null || text.isBlank()) {
+            return Component.empty();
+        }
+        try {
+            if (text.contains("<") && text.contains(">")) {
+                Component mmComp = MINI_MESSAGE.deserialize(text);
+                String serialized = LEGACY_AMP.serialize(mmComp);
+                if (serialized.contains("&")) {
+                    return LEGACY_AMP.deserialize(serialized);
+                }
+                return mmComp;
+            }
+        } catch (Throwable ignored) {
+        }
+        return legacyText(text);
+    }
+
+    public static String parseFormattedLegacy(String text) {
+        if (text == null || text.isBlank()) {
+            return "";
+        }
+        return toLegacy(parseFormattedComponent(text));
     }
 
     public static String toLegacy(Component component) {

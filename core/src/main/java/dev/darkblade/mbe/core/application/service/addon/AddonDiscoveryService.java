@@ -75,7 +75,8 @@ public class AddonDiscoveryService {
 
         Arrays.sort(files, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
 
-        Map<String, List<DiscoveredAddon>> candidates = new HashMap<>();
+        Map<String, List<DiscoveredAddon>> candidatesById = new HashMap<>();
+        Map<String, List<DiscoveredAddon>> candidatesByMainClass = new HashMap<>();
 
         Map<File, AddonAuditIndex> auditIndexesByFile = new HashMap<>();
 
@@ -91,8 +92,11 @@ public class AddonDiscoveryService {
                     auditIndexesByFile.put(file, auditIndex);
                 }
 
-                candidates.computeIfAbsent(metadata.id(), k -> new ArrayList<>())
-                        .add(new DiscoveredAddon(file, metadata));
+                DiscoveredAddon discovered = new DiscoveredAddon(file, metadata);
+                candidatesById.computeIfAbsent(metadata.id(), k -> new ArrayList<>()).add(discovered);
+                if (metadata.mainClass() != null && !metadata.mainClass().isBlank()) {
+                    candidatesByMainClass.computeIfAbsent(metadata.mainClass().trim(), k -> new ArrayList<>()).add(discovered);
+                }
             } catch (Exception e) {
                 core.error("Failed to load addon from file", e, LogKv.kv("file", file.getName()));
             }
@@ -108,7 +112,9 @@ public class AddonDiscoveryService {
         // serviceLifecycleManager.clearAddons();
         registry.resolvedOrder = List.of();
 
-        for (Map.Entry<String, List<DiscoveredAddon>> entry : candidates.entrySet()) {
+        java.util.Set<String> failedIds = new java.util.HashSet<>();
+
+        for (Map.Entry<String, List<DiscoveredAddon>> entry : candidatesById.entrySet()) {
             String id = entry.getKey();
             List<DiscoveredAddon> list = entry.getValue();
             if (list.size() > 1) {
@@ -121,10 +127,34 @@ public class AddonDiscoveryService {
                 core.error("Addon failed: multiple versions detected", LogKv.kv("id", id),
                         LogKv.kv("duplicates", sb.toString()));
                 registry.states.put(id, AddonState.FAILED);
+                failedIds.add(id);
+            }
+        }
+
+        for (Map.Entry<String, List<DiscoveredAddon>> entry : candidatesByMainClass.entrySet()) {
+            String mainClass = entry.getKey();
+            List<DiscoveredAddon> list = entry.getValue();
+            if (list.size() > 1) {
+                StringBuilder sb = new StringBuilder();
+                for (DiscoveredAddon d : list) {
+                    if (!sb.isEmpty())
+                        sb.append(", ");
+                    sb.append(d.metadata().id()).append("(").append(d.file().getName()).append(")");
+                    failedIds.add(d.metadata().id());
+                    registry.states.put(d.metadata().id(), AddonState.FAILED);
+                }
+                core.error("Addon failed: duplicate main class detected across multiple addons",
+                        LogKv.kv("mainClass", mainClass),
+                        LogKv.kv("conflictingAddons", sb.toString()));
+            }
+        }
+
+        for (Map.Entry<String, List<DiscoveredAddon>> entry : candidatesById.entrySet()) {
+            String id = entry.getKey();
+            if (failedIds.contains(id)) {
                 continue;
             }
-
-            DiscoveredAddon discovered = list.get(0);
+            DiscoveredAddon discovered = entry.getValue().get(0);
             registry.discoveredAddons.put(id, discovered);
             registry.states.put(id, AddonState.DISCOVERED);
         }

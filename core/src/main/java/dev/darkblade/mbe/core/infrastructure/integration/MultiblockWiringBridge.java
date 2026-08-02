@@ -15,7 +15,9 @@ import org.bukkit.Location;
 import org.bukkit.block.Block;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -80,6 +82,19 @@ public final class MultiblockWiringBridge {
 
         if (!nodes.isEmpty()) {
             registeredMultiblockNodes.put(instanceId, nodes);
+
+            // Connect internal port nodes of the same network type to each other (internal bus)
+            Map<NetworkType, List<NetworkNode>> nodesByType = new HashMap<>();
+            for (NetworkNode n : nodes.values()) {
+                nodesByType.computeIfAbsent(n.type(), unused -> new ArrayList<>()).add(n);
+            }
+            for (List<NetworkNode> typeNodes : nodesByType.values()) {
+                for (int i = 0; i < typeNodes.size(); i++) {
+                    for (int j = i + 1; j < typeNodes.size(); j++) {
+                        networkService.connect(typeNodes.get(i).type(), typeNodes.get(i), typeNodes.get(j));
+                    }
+                }
+            }
         }
     }
 

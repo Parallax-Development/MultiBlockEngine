@@ -10,12 +10,16 @@ Decoupled UI system.
 - Create or modify panels for player interaction.
 - Display multiblock state or configuration flows.
 - Connect UI actions with domain services.
+- Export in-game container inventories into panel YAML definitions.
+- Handle item deposits or text input prompts (Chat / PacketEvents Anvil & Sign GUIs).
 
 ## Scope
 - PanelViewService
 - Bindings
 - Inventory/dynamic panel views
 - Contextual interactions
+- In-game inventory exporter (`/mbeui exportpanel`)
+- Advanced input system (`type: input` slots, `prompt:` chat & PacketEvents Anvil/Sign GUIs)
 
 ## Non-goals
 - Execute business rules within UI handlers.
@@ -26,6 +30,7 @@ Decoupled UI system.
 - The UI contains no business logic.
 - UI actions must delegate to domain services.
 - Displayed state must derive from clear models/bindings.
+- Deposit slots (`type: input`) must safely return items on GUI close.
 
 ## Required checks
 - UI handlers do not mutate the domain without going through a service.
@@ -37,6 +42,7 @@ Decoupled UI system.
 - Visual inconsistency due to desynchronized state.
 - Bugs caused by domain logic embedded in click handlers.
 - Session/UI leaks from failing to clear player context.
+- Item loss/duplication in deposit slots.
 - Tight coupling that breaks when changing the service backend.
 
 ## Test checklist
@@ -44,6 +50,7 @@ Decoupled UI system.
 - Verification of correctly delegated UI actions.
 - Verification of dynamic binding updates.
 - Verification of cleanup upon panel close or player disconnect.
+- Verification of panel export serialization and re-parsing.
 
 ## Implementation checklist
 - Define the data contract consumed by the view.
