@@ -25,6 +25,21 @@ public interface I18nService extends MessageResolver {
         return resolve(key, locale, MessageUtils.params(params));
     }
 
+    default java.util.List<String> trList(CommandSender sender, MessageKey key) {
+        Locale locale = localeProvider().localeOf(sender);
+        return resolveList(key, locale);
+    }
+
+    default java.util.List<String> trList(CommandSender sender, MessageKey key, Map<String, ?> params) {
+        Locale locale = localeProvider().localeOf(sender);
+        return resolveList(key, locale, params);
+    }
+
+    default java.util.List<String> trList(CommandSender sender, MessageKey key, Object... params) {
+        Locale locale = localeProvider().localeOf(sender);
+        return resolveList(key, locale, MessageUtils.params(params));
+    }
+
     default String resolve(MessageKey key, CommandSender sender) {
         return tr(sender, key);
     }
