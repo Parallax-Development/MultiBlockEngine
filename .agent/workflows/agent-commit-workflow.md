@@ -14,9 +14,9 @@ Analyzes modified files in the working directory, executes compilation safety ch
 
 ### 1. Scope Selection
 Prompt the user interactively (using `ask_question`) to specify which modules should be analyzed and committed:
-- **El plugin**: Focus exclusively on `api/` and `core/` modules.
-- **Los addons**: Focus exclusively on modules inside `addons/`.
-- **Todo el proyecto**: Analyze all modified files across the entire repository.
+- **The plugin**: Focus exclusively on `api/` and `core/` modules.
+- **The addons**: Focus exclusively on modules inside `addons/`.
+- **Entire project**: Analyze all modified files across the entire repository.
 
 ### 2. Branch Safety Verification
 1. Run `git branch --show-current` to check the active Git branch.
